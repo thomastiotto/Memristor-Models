@@ -14,17 +14,20 @@ print( tf )
 ######
 
 class input_voltage():
-    def __init__( self, input_shape ):
+    def __init__( self, input_shape, t_max ):
         assert input_shape == "sine" or input_shape == "triangle"
         self.input_shape = input_shape
+        self.t_max = t_max
     
     def V( self, t ):
         if self.input_shape == "sine":
             v = np.sin( 2 * np.multiply( np.pi, t ) )
         if self.input_shape == "triangle":
-            v = scipy.signal.sawtooth( np.pi * t + np.pi / 2, 1 / 2 )
-            if isinstance( t, list ):
-                v[ len( v ) // 2: ] = -1 * v[ len( v ) // 2: ]
+            v = np.abs( scipy.signal.sawtooth( np.pi * t + np.pi / 2, 1 / 2 ) )
+            if isinstance( t, np.ndarray ) and len( t ) > 1:
+                v[ len( v ) // 2: ] *= -1
+            elif t > self.t_max / 2:
+                v *= -1
         
         return v
 
@@ -43,12 +46,13 @@ class hp_labs():
         return (1 - np.power( np.multiply( 2, x ) - 1, 2 * p ))
 
 
-tmin = 0
-tmax = 2
+t_min = 0
+t_max = 8
 N = 1000
-dt = (tmax - tmin) / N
-time = np.arange( tmin, tmax + dt, dt )
-input_shape = "triangle"
+dt = (t_max - t_min) / N
+time = np.arange( t_min, t_max + dt, dt )
+input_shape = "sine"
+# input_shape = "triangle"
 
 D = 10e-9
 R_ON = 1e2
@@ -62,39 +66,39 @@ x_euler = [ x0 ]
 x_rk4 = [ x0 ]
 current = [ 0.0 ]
 
-memristor = hp_labs( input_voltage( "sine" ) )
+memristor = hp_labs( input_voltage( input_shape, t_max ) )
 dxdt = memristor.mu_D
 V = memristor.V
 I = memristor.I
-
-# Solve ODE
-with Timer( title="odeint" ):
-    x_odeint = odeint( dxdt, x0, time )
-with Timer( title="solve_ivp" ):
-    x_solve_ivp = solve_ivp( dxdt, (tmin, tmax), [ x0 ], method="LSODA", t_eval=time )
 
 # Solve ODE iteratively using Euler's method
 with Timer( title="Euler" ):
     for t in time[ :-1 ]:
         current.append( I( t, x_euler[ -1 ] ) )
-        x_euler.append( x_euler[ -1 ] + memristor.mu_D( t, x_euler[ -1 ] ) * dt )
+        x_euler.append( x_euler[ -1 ] + dxdt( t, x_euler[ -1 ] ) * dt )
         
         # print( "Euler", "t", '{:.6e}'.format( t ), "I", '{:.6e}'.format( I( t, x_euler[ -1 ] ) ), "dx",
-        #        '{:.6e}'.format( v_D( t, x_euler[ -1 ] ) ) )
+        #        '{:.6e}'.format( dxdt( t, x_euler[ -1 ] ) ) )
 
 # Solve ODE iteratively using Runge-Kutta's method
 with Timer( title="Runge-Kutta" ):
     for t in time[ :-1 ]:
         current.append( I( t, x_rk4[ -1 ] ) )
         
-        k1 = memristor.mu_D( t, x_rk4[ -1 ] )
-        k2 = memristor.mu_D( t + dt / 2, x_rk4[ -1 ] + dt * k1 / 2 )
-        k3 = memristor.mu_D( t + dt / 2, x_rk4[ -1 ] + dt * k2 / 2 )
-        k4 = memristor.mu_D( t + dt, x_rk4[ -1 ] + dt * k3 )
+        k1 = dxdt( t, x_rk4[ -1 ] )
+        k2 = dxdt( t + dt / 2, x_rk4[ -1 ] + dt * k1 / 2 )
+        k3 = dxdt( t + dt / 2, x_rk4[ -1 ] + dt * k2 / 2 )
+        k4 = dxdt( t + dt, x_rk4[ -1 ] + dt * k3 )
         x_rk4.append( x_rk4[ -1 ] + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6 )
         
-        # print( "RK4", "t", '{:.6e}'.format( t ), "I", '{:.6e}'.format( I( t, x_rk4[ -1 ] ) ), "dx",
-        #        '{:.6e}'.format( v_D( t, x_rk4[ -1 ] ) ) )
+        print( "RK4", "t", '{:.6e}'.format( t ), "I", '{:.6e}'.format( I( t, x_rk4[ -1 ] ) ), "dx",
+               '{:.6e}'.format( dxdt( t, x_rk4[ -1 ] ) ) )
+
+# Solve ODE
+with Timer( title="odeint" ):
+    x_odeint = odeint( dxdt, x0, time )
+with Timer( title="solve_ivp" ):
+    x_solve_ivp = solve_ivp( dxdt, (t_min, t_max), [ x0 ], method="LSODA", t_eval=time )
 
 for x, t, title in zip(
         [ x_euler, x_rk4, x_odeint[ :, 0 ], x_solve_ivp.y[ 0, : ] ],
