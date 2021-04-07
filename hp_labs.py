@@ -64,12 +64,12 @@ class hp_labs():
         self.m_D = kwargs[ "m_D" ] if "m_D" in kwargs else 1e-14
     
     def I( self, t, x ):
-        return self.V( t ) / (np.multiply( R_ON, x ) + np.multiply( R_OFF, (np.subtract( 1, x )) ))
+        return self.V( t ) / (np.multiply( self.R_ON, x ) + np.multiply( self.R_OFF, (np.subtract( 1, x )) ))
     
     def mu_D( self, t, x ):
         i = self.I( t, x )
         
-        return ((m_D * R_ON) / np.power( D, 2 )) * i * self.F( x=x, i=i )
+        return ((self.m_D * self.R_ON) / np.power( self.D, 2 )) * i * self.F( x=x, i=i )
 
 
 t_min = 0
@@ -83,20 +83,23 @@ input_shape = "triangle"
 # window_function = joglekar
 window_function = biolek
 
-D = 27e-9
-R_ON = 1e2
-R_OFF = 16e3
-R_INIT = 11e3
-m_D = 1e-14
+memristor_args = {
+        "D"    : 27e-9,
+        "R_ON" : 1e2,
+        "R_OFF": 16e3,
+        "m_D"  : 1e-14,
+        }
 p = 10
-x0 = (R_OFF - R_INIT) / (R_OFF - R_ON)
+# initial value of state variable
+R_INIT = 11e3
+x0 = (memristor_args[ "R_OFF" ] - R_INIT) / (memristor_args[ "R_OFF" ] - memristor_args[ "R_ON" ])
 
 x_euler = [ x0 ]
 x_rk4 = [ x0 ]
 current = [ 0.0 ]
 solutions = [ ]
 
-memristor = hp_labs( input_voltage( input_shape, t_max ), window_function )
+memristor = hp_labs( input_voltage( input_shape, t_max ), window_function, **memristor_args )
 dxdt = memristor.mu_D
 V = memristor.V
 I = memristor.I
