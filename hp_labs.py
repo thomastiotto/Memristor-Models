@@ -1,61 +1,15 @@
-import numpy as np
 import matplotlib.pyplot as plt
-import matlab.engine
 from block_timer.timer import Timer
-import scipy.signal
 from scipy.integrate import odeint, solve_ivp
 from progressbar import progressbar
 
-##### MATLAB EXAMPLE
-eng = matlab.engine.start_matlab()
-tf = eng.isprime( 37 )
-print( tf )
-
-
-######
-
-class input_voltage():
-    def __init__( self, input_shape, t_max ):
-        assert input_shape == "sine" or input_shape == "triangle"
-        self.input_shape = input_shape
-        self.t_max = t_max
-    
-    def V( self, t ):
-        if self.input_shape == "sine":
-            v = np.sin( 2 * np.multiply( np.pi, t ) )
-        if self.input_shape == "triangle":
-            v = np.abs( scipy.signal.sawtooth( np.pi * t + np.pi / 2, 1 / 2 ) )
-            if isinstance( t, np.ndarray ) and len( t ) > 1:
-                v[ len( v ) // 2: ] *= -1
-            elif t > self.t_max / 2:
-                v *= -1
-        
-        return v
-
-
-def no_window( **kwargs ):
-    return 1
-
-
-def joglekar( **kwargs ):
-    x = kwargs[ "x" ]
-    p = kwargs[ "p" ] if "p" in kwargs else 10
-    
-    return 1 - np.power( np.multiply( 2, x ) - 1, 2 * p )
-
-
-def biolek( **kwargs ):
-    x = kwargs[ "x" ]
-    i = kwargs[ "i" ]
-    p = kwargs[ "p" ] if "p" in kwargs else 10
-    
-    return 1 - np.power( x - np.heaviside( -i, 1 ), 2 * p )
+from window_functions import *
 
 
 class hp_labs():
     def __init__( self, input, window_function, **kwargs ):
-        self.V = input.V
-        self.F = window_function
+        self.V = input.func
+        self.F = window_function.func
         
         self.D = kwargs[ "D" ] if "D" in kwargs else 27e-9
         self.R_ON = kwargs[ "R_ON" ] if "R_ON" in kwargs else 1e2
@@ -72,34 +26,44 @@ class hp_labs():
         return ((self.m_D * self.R_ON) / np.power( self.D, 2 )) * i * self.F( x=x, i=i )
 
 
+#### SIMULATION SETUP
+## TIME
 t_min = 0
 t_max = 8
-N = 10000
+N = 500
+## INPUT
+input_function_args = {
+        "v_magnitude": 1,
+        "t_max"      : t_max
+        }
+input_function = InputVoltage( "triangle", **input_function_args )
+## WINDOW FUNCTION
+window_function_args = {
+        "p": 7,
+        "j": 1
+        }
+window_function = WindowFunction( "joglekar", **window_function_args )
+## MEMRISTOR
+memristor_args = {
+        "D"     : 27e-9,
+        "R_ON"  : 1e2,
+        "R_OFF" : 16e3,
+        "m_D"   : 1e-14,
+        "R_INIT": 11e3
+        }
+####
+
 dt = (t_max - t_min) / N
 time = np.arange( t_min, t_max + dt, dt )
-# input_shape = "sine"
-input_shape = "triangle"
-# window_function = no_window
-# window_function = joglekar
-window_function = biolek
 
-memristor_args = {
-        "D"    : 27e-9,
-        "R_ON" : 1e2,
-        "R_OFF": 16e3,
-        "m_D"  : 1e-14,
-        }
-p = 10
-# initial value of state variable
-R_INIT = 11e3
-x0 = (memristor_args[ "R_OFF" ] - R_INIT) / (memristor_args[ "R_OFF" ] - memristor_args[ "R_ON" ])
+x0 = (memristor_args[ "R_OFF" ] - memristor_args[ "R_INIT" ]) / (memristor_args[ "R_OFF" ] - memristor_args[ "R_ON" ])
 
 x_euler = [ x0 ]
 x_rk4 = [ x0 ]
 current = [ 0.0 ]
 solutions = [ ]
 
-memristor = hp_labs( input_voltage( input_shape, t_max ), window_function, **memristor_args )
+memristor = hp_labs( input_function, window_function, **memristor_args )
 dxdt = memristor.mu_D
 V = memristor.V
 I = memristor.I
@@ -144,7 +108,7 @@ with Timer( title="solve_ivp" ):
     solutions.append( (x_solve_ivp.y[ 0, : ], x_solve_ivp.t, "solve_ivp") )
 
 for x, t, title in solutions:
-    fig, axes = plt.subplots( 1, 2 )
+    fig, axes = plt.subplots( 1, 2, figsize=(10, 4) )
     ax11 = axes[ 0 ]
     ax11.plot( t, I( t, x ) * 1e6, color="b" )
     ax11.set_ylabel( r'Current ($\mu A$)', color='b' )
