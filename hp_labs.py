@@ -43,12 +43,11 @@ memristor_args = {
 dt = (t_max - t_min) / N
 time = np.arange( t_min, t_max + dt, dt )
 
-memristor = hp_labs( input_function, window_function, **memristor_args )
+memristor = HPLabs( input_function, window_function, **memristor_args )
 memristor.print()
 dxdt = memristor.mu_D
 V = memristor.V
 I = memristor.I
-F = memristor.F
 x0 = memristor.x0
 
 x_euler = [ x0 ]
@@ -131,7 +130,7 @@ for x, t, title in solutions:
 ###############################################################################
 
 percentage_samples = 100
-noise_percentage = 1
+noise_percentage = 10
 
 np.random.seed( 1729 )
 
