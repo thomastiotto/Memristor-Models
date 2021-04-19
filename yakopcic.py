@@ -15,14 +15,16 @@ from models import *
 
 ## TIME
 t_min = 0
-t_max = 2
+t_max = 4
 N = 10000
 ## INPUT
 input_function_args = {
+        "shape": "triangle",
         "vp"   : 1,
-        "t_max": t_max
+        "vn"   : 5,
+        "t_max": t_max,
         }
-input_function = InputVoltage("sine", **input_function_args)
+input_function = InputVoltage(**input_function_args)
 ## WINDOW FUNCTION
 window_function_args = {
         "p": 7,
@@ -51,6 +53,8 @@ dxdt = memristor.mu_D
 V = memristor.V
 I = memristor.I
 x0 = memristor.x0
+
+V(time)
 
 x_euler = [x0]
 x_rk4 = [x0]
