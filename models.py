@@ -2,27 +2,25 @@ import numpy as np
 
 
 class Yakopcic():
-    def __init__(self, input, window_function, **kwargs):
+    def __init__(self, input, **kwargs):
         self.type = "Yakopcic model"
 
         self.input = input
-        self.window_function = window_function
         self.V = input.func
-        self.F = window_function.func
 
-        self.a1 = kwargs["a1"]
-        self.a2 = kwargs["a2"]
-        self.b = kwargs["b"]
-        self.x0 = kwargs["x0"]
-        self.Ap = kwargs["Ap"]
-        self.An = kwargs["An"]
-        self.Vp = kwargs["Vp"]
-        self.Vn = kwargs["Vn"]
-        self.alphap = kwargs["alphap"]
-        self.alphan = kwargs["alphan"]
-        self.xp = kwargs["xp"]
-        self.xn = kwargs["xn"]
-        self.eta = kwargs["eta"]
+        self.a1 = kwargs["a1"] if "a1" in kwargs else 0.17
+        self.a2 = kwargs["a2"] if "a2" in kwargs else 0.17
+        self.b = kwargs["b"] if "b" in kwargs else 0.05
+        self.x0 = kwargs["x0"] if "x0" in kwargs else 0.11
+        self.Ap = kwargs["Ap"] if "Ap" in kwargs else 4e3
+        self.An = kwargs["An"] if "An" in kwargs else 4e3
+        self.Vp = kwargs["Vp"] if "Vp" in kwargs else 0.16
+        self.Vn = kwargs["Vn"] if "Vn" in kwargs else 0.15
+        self.alphap = kwargs["alphap"] if "alphap" in kwargs else 1
+        self.alphan = kwargs["alphan"] if "alphan" in kwargs else 5
+        self.xp = kwargs["xp"] if "xp" in kwargs else 0.3
+        self.xn = kwargs["xn"] if "xn" in kwargs else 0.5
+        self.eta = kwargs["eta"] if "eta" in kwargs else 1
 
     def I(self, t, x, **kwargs):
         """
@@ -56,10 +54,9 @@ class Yakopcic():
         b = kwargs["b"] if "b" in kwargs else self.b
 
         v = self.V(t)
-        if v >= 0:
-            return a1 * x * np.sinh(b * v)
-        else:
-            return a2 * x * np.sinh(b * v)
+        i = np.where(v >= 0, a1 * x * np.sinh(b * v), a2 * x * np.sinh(b * v))
+
+        return i
 
     def g(self, v, **kwargs):
         """
@@ -197,19 +194,20 @@ class Yakopcic():
         return x / (1 - xn)
 
     def dxdt(self, t, x, *args):
+        # Necessary to run curve_fit as it doesn't support passing named parameters
         a1 = args[0] if len(args) > 0 else self.a1
         a2 = args[1] if len(args) > 1 else self.a2
         b = args[2] if len(args) > 2 else self.b
-        x0 = args[3] if len(args) > 3 else self.x0
-        Ap = args[4] if len(args) > 4 else self.Ap
-        An = args[5] if len(args) > 5 else self.An
-        Vp = args[6] if len(args) > 6 else self.Vp
-        Vn = args[7] if len(args) > 7 else self.Vn
-        alphap = args[8] if len(args) > 8 else self.alphap
-        alphan = args[9] if len(args) > 9 else self.alphan
-        xp = args[10] if len(args) > 10 else self.xp
-        xn = args[11] if len(args) > 11 else self.xn
-        eta = args[12] if len(args) > 12 else self.eta
+        Ap = args[3] if len(args) > 3 else self.Ap
+        An = args[4] if len(args) > 4 else self.An
+        Vp = args[5] if len(args) > 5 else self.Vp
+        Vn = args[6] if len(args) > 6 else self.Vn
+        alphap = args[7] if len(args) > 7 else self.alphap
+        alphan = args[8] if len(args) > 8 else self.alphan
+        xp = args[9] if len(args) > 9 else self.xp
+        xn = args[10] if len(args) > 10 else self.xn
+        eta = args[11] if len(args) > 11 else self.eta
+        x0 = args[12] if len(args) > 12 else self.x0
 
         # compile args into kwargs for other functions
         kwargs = { }
@@ -223,34 +221,40 @@ class Yakopcic():
     def print(self):
         print(f"{self.type}:")
         print("\tEquations:")
-        print(f"\t\tx(t) = w(t)/D")
-        print("\t\tV(t) = [ R_ON*x(t) + R_OFF*( 1-x(t) ) ]*I(t)*F(x)")
-        print("\t\tnu_D = dx/dt = ( mu_D*R_ON/D )*I(t)")
+        self.print_equations()
         print("\tInput V:")
         self.input.print()
         print("\tWindow F:")
-        self.window_function.print()
-        self.print_equations()
         self.print_parameters()
 
     def print_equations(self, start="\t"):
         start_lv2 = start + "\t"
         print(start, "Equations:")
-        print(start_lv2, "x(t) = w(t)/D")
-        print(start_lv2, "V(t) = [ R_ON*x(t) + R_OFF*( 1-x(t) ) ]*I(t)*F(x)")
-        print(start_lv2, "nu_D = dx/dt = ( mu_D*R_ON/D )*I(t)")
+        print(start_lv2, "I(t) = a_1 * x(t) * sinh(b * V(t)), V(t) >= 0")
+        print(start_lv2, "I(t) = a_2 * x(t) * sinh(b * V(t)), V(t) < 0")
+        print(start_lv2, "g(V(t)) = A_p * ( e^V(t) - e^V_p ), V(t) > V_p")
+        print(start_lv2, "g(V(t)) = -A_n * ( e^-V(t) - e^V_n ), V(t) < -V_n")
+        print(start_lv2, "g(V(t)) = 0,  -V_n <= V(t) <= V_p")
+        print(start_lv2, "f(x) = e^( -alpha_p * ( x - x_p ) ) * w_p(x, x_p), eta * V(t) >= 0, x >= X_p")
+        print(start_lv2, "f(x) = 1, eta * V(t) > 0, x < X_p")
+        print(start_lv2, "f(x) = e^( alpha_n * ( x + x_n - 1 ) ) * w_n(x, x_n), eta * V(t) < 0, x <= 1 - X_n")
+        print(start_lv2, "f(x) = 1, eta * V(t) < 0, x <= 1 - X_n")
 
     def print_parameters(self, start="\t", simple=False):
         start_lv2 = start + "\t" if not simple else ""
         if not simple:
             print(start, "Parameters:")
-            print(start_lv2, f"Device thickness D {self.D} m")
-            print(start_lv2, f"Minimum resistance R_ON {self.R_ON} Ohm")
-            print(start_lv2, f"Maximum resistance R_OFF {self.R_OFF} Ohm")
-            print(start_lv2, f"Drift velocity of the oxygen deficiencies mu_D{self.m_D} m^2s^-1V^-1")
+            print(start_lv2, f"Dielectric layer thicknesses a_1 {self.a1}, a_2 {self.a2}")
+            print(start_lv2, f"Curvature in I-V curve b {self.b}")
+            print(start_lv2, f"Speeds of ion motion A_p {self.Ap}, A_n {self.An}")
+            print(start_lv2, f"Threshold voltages V_p {self.Ap}, V_n {self.An}")
+            print(start_lv2, f"Linearity threshold for state variable motion x_p {self.xp}, x_n {self.xn}")
+            print(start_lv2, f"Dampening of state variable motion alpha_p {self.alphap}, alpha_n {self.alphan}")
+            print(start_lv2, f"Direction of state variable motion eta {self.eta}")
             print(start_lv2, f"Initial value of state variable x {self.x0} D")
         else:
-            print([self.D, self.R_ON, self.R_OFF, self.m_D])
+            print([self.a1, self.a2, self.b, self.Ap, self.An, self.Vp, self.Vn, self.alphap, self.alphan,
+                   self.xp, self.xn, self.eta, self.x0, ])
 
     @staticmethod
     def parameters():
@@ -267,22 +271,23 @@ class HPLabs():
         self.F = window_function.func
 
         self.D = kwargs["D"] if "D" in kwargs else 27e-9
-        self.R_ON = kwargs["R_ON"] if "R_ON" in kwargs else 10e3
-        self.R_OFF = kwargs["R_OFF"] if "R_OFF" in kwargs else 100e3
-        self.m_D = kwargs["m_D"] if "m_D" in kwargs else 1e-14
+        self.RON = kwargs["RON"] if "RON" in kwargs else 10e3
+        self.ROFF = kwargs["ROFF"] if "ROFF" in kwargs else 100e3
+        self.muD = kwargs["muD"] if "muD" in kwargs else 1e-14
         self.x0 = kwargs["x0"] if "x0" in kwargs else 0.1
 
     def I(self, t, x, **kwargs):
-        R_ON = kwargs["R_ON"] if "R_ON" in kwargs else self.R_ON
-        R_OFF = kwargs["R_OFF"] if "R_OFF" in kwargs else self.R_OFF
+        RON = kwargs["RON"] if "RON" in kwargs else self.RON
+        ROFF = kwargs["ROFF"] if "ROFF" in kwargs else self.ROFF
 
-        return self.V(t) / (R_ON * x + R_OFF * (1 - x))
+        return self.V(t) / (RON * x + ROFF * (1 - x))
 
     def mu_D(self, t, x, *args):
+        # Necessary to run curve_fit as it doesn't support passing named parameters
         D = args[0] if len(args) > 0 else self.D
-        R_ON = args[1] if len(args) > 1 else self.R_ON
-        R_OFF = args[2] if len(args) > 2 else self.R_OFF
-        m_D = args[3] if len(args) > 3 else self.m_D
+        RON = args[1] if len(args) > 1 else self.RON
+        ROFF = args[2] if len(args) > 2 else self.ROFF
+        muD = args[3] if len(args) > 3 else self.muD
 
         # compile args into kwargs for other functions
         kwargs = { }
@@ -291,40 +296,37 @@ class HPLabs():
 
         i = self.I(t, x, **kwargs)
 
-        return ((m_D * R_ON) / D**2) * i * self.F(x=x, i=i)
+        return ((muD * RON) / D**2) * i * self.F(x=x, i=i)
 
     def print(self):
         print(f"{self.type}:")
         print("\tEquations:")
-        print(f"\t\tx(t) = w(t)/D")
-        print("\t\tV(t) = [ R_ON*x(t) + R_OFF*( 1-x(t) ) ]*I(t)*F(x)")
-        print("\t\tmu_D = dx/dt = ( mu_D*R_ON/D )*I(t)")
+        self.print_equations()
         print("\tInput V:")
         self.input.print()
         print("\tWindow F:")
         self.window_function.print()
-        self.print_equations()
         self.print_parameters()
 
     def print_equations(self, start="\t"):
         start_lv2 = start + "\t"
         print(start, "Equations:")
         print(start_lv2, "x(t) = w(t)/D")
-        print(start_lv2, "V(t) = [ R_ON*x(t) + R_OFF*( 1-x(t) ) ]*I(t)*F(x)")
-        print(start_lv2, "nu_D = dx/dt = ( mu_D*R_ON/D )*I(t)")
+        print(start_lv2, "V(t) = [ R_ON * x(t) + R_OFF * ( 1 - x(t) ) ] * I(t) * F(x)")
+        print(start_lv2, "mu_D = dx/dt = ( mu_D * R_ON/D ) * I(t)")
 
     def print_parameters(self, start="\t", simple=False):
         start_lv2 = start + "\t" if not simple else ""
         if not simple:
             print(start, "Parameters:")
             print(start_lv2, f"Device thickness D {self.D} m")
-            print(start_lv2, f"Minimum resistance R_ON {self.R_ON} Ohm")
-            print(start_lv2, f"Maximum resistance R_OFF {self.R_OFF} Ohm")
-            print(start_lv2, f"Drift velocity of the oxygen deficiencies mu_D{self.m_D} m^2s^-1V^-1")
+            print(start_lv2, f"Minimum resistance R_ON {self.RON} Ohm")
+            print(start_lv2, f"Maximum resistance R_OFF {self.ROFF} Ohm")
+            print(start_lv2, f"Drift velocity of the oxygen deficiencies mu_D{self.muD} m^2s^-1V^-1")
             print(start_lv2, f"Initial value of state variable x {self.x0} D")
         else:
-            print([self.D, self.R_ON, self.R_OFF, self.m_D])
+            print([self.D, self.RON, self.ROFF, self.muD])
 
     @staticmethod
     def parameters():
-        return ["D", "R_ON", "R_OFF", "m_D"]
+        return ["D", "RON", "ROFF", "muD"]

@@ -19,23 +19,14 @@ t_max = 4
 N = 10000
 ## INPUT
 input_function_args = {
-        "shape": "triangle",
-        "vp"   : 1,
-        "vn"   : 5,
+        "shape": "sine",
         "t_max": t_max,
         }
 input_function = InputVoltage(**input_function_args)
-## WINDOW FUNCTION
-window_function_args = {
-        "p": 7,
-        "j": 1
-        }
-window_function = WindowFunction("joglekar", **window_function_args)
+
 ## MEMRISTOR
 memristor_args = {
-        "R_ON" : 10e3,
-        "R_OFF": 100e3,
-        "D"    : 27e-9,
+
         }
 
 ####
@@ -47,14 +38,12 @@ memristor_args = {
 dt = (t_max - t_min) / N
 time = np.arange(t_min, t_max + dt, dt)
 
-memristor = HPLabs(input_function, window_function, **memristor_args)
+memristor = Yakopcic(input_function, **memristor_args)
 memristor.print()
-dxdt = memristor.mu_D
+dxdt = memristor.dxdt
 V = memristor.V
 I = memristor.I
 x0 = memristor.x0
-
-V(time)
 
 x_euler = [x0]
 x_rk4 = [x0]

@@ -31,9 +31,9 @@ window_function_args = {
 window_function = WindowFunction("joglekar", **window_function_args)
 ## MEMRISTOR
 memristor_args = {
-        "R_ON" : 10e3,
-        "R_OFF": 100e3,
-        "D"    : 27e-9,
+        "RON" : 10e3,
+        "ROFF": 100e3,
+        "D"   : 27e-9,
         }
 
 ####

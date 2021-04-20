@@ -41,8 +41,8 @@ class InputVoltage():
     def print(self, start="\t"):
         start_lv2 = start + "\t"
         print(f"{start_lv2}Shape {self.shape}")
-        print(f"{start_lv2}Magnitude + {self.vp} / - {self.vn} V")
-        print(f"{start_lv2}Period 1 s")
+        print(f"{start_lv2}Magnitude +{self.vp} / -{self.vn} V")
+        print(f"{start_lv2}Period {self.period} s")
 
 
 class WindowFunction():
