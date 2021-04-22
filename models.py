@@ -12,8 +12,8 @@ class Yakopcic():
         self.a2 = kwargs["a2"] if "a2" in kwargs else 0.17
         self.b = kwargs["b"] if "b" in kwargs else 0.05
         self.x0 = kwargs["x0"] if "x0" in kwargs else 0.11
-        self.Ap = kwargs["Ap"] if "Ap" in kwargs else 4e3
-        self.An = kwargs["An"] if "An" in kwargs else 4e3
+        self.Ap = kwargs["Ap"] if "Ap" in kwargs else 4000
+        self.An = kwargs["An"] if "An" in kwargs else 4000
         self.Vp = kwargs["Vp"] if "Vp" in kwargs else 0.16
         self.Vn = kwargs["Vn"] if "Vn" in kwargs else 0.15
         self.alphap = kwargs["alphap"] if "alphap" in kwargs else 1
@@ -54,7 +54,7 @@ class Yakopcic():
         b = kwargs["b"] if "b" in kwargs else self.b
 
         v = self.V(t)
-        i = np.where(v >= 0, a1 * x * np.sinh(b * v), a2 * x * np.sinh(b * v))
+        i = np.where(v >= 0, np.multiply(a1, x * np.sinh(b * v)), np.multiply(a2, x * np.sinh(b * v)))
 
         return i
 
@@ -220,7 +220,6 @@ class Yakopcic():
 
     def print(self):
         print(f"{self.type}:")
-        print("\tEquations:")
         self.print_equations()
         print("\tInput V:")
         self.input.print()
@@ -251,7 +250,7 @@ class Yakopcic():
             print(start_lv2, f"Linearity threshold for state variable motion x_p {self.xp}, x_n {self.xn}")
             print(start_lv2, f"Dampening of state variable motion alpha_p {self.alphap}, alpha_n {self.alphan}")
             print(start_lv2, f"Direction of state variable motion eta {self.eta}")
-            print(start_lv2, f"Initial value of state variable x {self.x0} D")
+            print(start_lv2, f"Initial value of state variable x {self.x0}")
         else:
             print([self.a1, self.a2, self.b, self.Ap, self.An, self.Vp, self.Vn, self.alphap, self.alphan,
                    self.xp, self.xn, self.eta, self.x0, ])

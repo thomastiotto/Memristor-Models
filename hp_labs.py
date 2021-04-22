@@ -96,7 +96,7 @@ print(f"\tSamples {N}")
 # Solve ODE with solver
 with Timer(title="solve_ivp"):
     print("Running solve_ivp")
-    x_solve_ivp = solve_ivp(dxdt, (time[0], time[-1]), [x0], method="LSODA", t_eval=time)
+    x_solve_ivp = solve_ivp(dxdt, (time[0], time[-1]), [x0], method="RK45", t_eval=time)
     solutions.append((x_solve_ivp.y[0, :], x_solve_ivp.t, "solve_ivp"))
 
 # Plot simulated memristor behaviour
@@ -250,7 +250,7 @@ fig3.show()
 ###############################################################################
 error = np.abs(simulated_data[1:] - fitted_data[1:])
 error_percent = error / fitted_data[1:] * 100
-print(f"Average error {order_of_magnitude.oom(np.mean(error))}A ({np.mean(error_percent):.2f}%)")
+print(f"Average error {order_of_magnitude.symbol(np.mean(error))}A ({np.mean(error_percent):.2f}%)")
 
 ###############################################################################
 #                         Residuals
