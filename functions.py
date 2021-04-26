@@ -1,14 +1,98 @@
 import numpy as np
 import scipy.signal
+from order_of_magnitude import order_of_magnitude
 
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
+import matplotlib.animation as animation
 
 
-def add_arrow_to_line2D(
-        axes, line, arrow_locs=[0.2, 0.4, 0.6, 0.8],
-        arrowstyle='-|>', arrowsize=1, transform=None):
+def __animate_memristor(v, i, t, fig, axes, filename):
+    ax11 = axes[0]
+    ax12 = axes[1]
+    ax2 = axes[2]
+
+    x11data, y11data = [], []
+    x12data, y12data = [], []
+    x2data, y2data = [], []
+
+    line11, = ax11.plot([], [], color="b", animated=True)
+    line12, = ax12.plot([], [], color="r", animated=True)
+    line2, = ax2.plot([], [], animated=True)
+
+    def update(frame):
+        x11data.append(t[frame])
+        y11data.append(i[frame])
+        line11.set_data(x11data, y11data)
+        x12data.append(t[frame])
+        y12data.append(v[frame])
+        line12.set_data(x12data, y12data)
+        x2data.append(v[frame])
+        y2data.append(i[frame])
+        line2.set_data(x2data, y2data)
+
+        return line11, line12, line2
+
+    # Set up formatting for the movie files
+    Writer = animation.writers['ffmpeg']
+    writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+
+    ani = animation.FuncAnimation(fig, update, frames=np.arange(0, len(t), 10), blit=True)
+    ani.save(f"{filename}.mp4", writer=writer)
+
+
+def __plot_memristor(v, i, t, axes):
+    ax11 = axes[0]
+    ax12 = axes[1]
+    ax2 = axes[2]
+
+    ax11.plot(t, i, color="b")
+    ax12.plot(t, v, color="r")
+    ax2.plot(v, i)
+
+    arrows_every = len(v) // 200 if len(v) > 200 else 1
+    x1 = np.ma.masked_array(v[:-1:arrows_every], (np.diff(v) > 0)[::arrows_every])
+    x2 = np.ma.masked_array(v[:-1:arrows_every], (np.diff(v) < 0)[::arrows_every])
+    ax2.plot(x1, i[:-1:arrows_every], 'b<')
+    ax2.plot(x2, i[:-1:arrows_every], 'r>')
+
+
+def plot_memristor(v, i, t, title, animated=False, filename=None):
+    oom_i = order_of_magnitude.power_of_ten(np.max(i))
+    i *= oom_i
+    oom_t = order_of_magnitude.power_of_ten(np.max(t))
+    t *= oom_t
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+    ax11 = axes[0]
+    ax11.set_ylabel(f"Current ({order_of_magnitude.symbol(oom_i, omit_x=True)}A)", color="b")
+    ax11.tick_params('y', colors='b')
+    ax11.set_xlim(np.min(t), np.max(t))
+    ax11.set_ylim(np.min(i), np.max(i))
+    ax12 = ax11.twinx()
+    ax11.set_xlabel(f"Time ({order_of_magnitude.symbol(oom_t, omit_x=True)}s)")
+    ax12.set_ylabel('Voltage (V)', color='r')
+    ax12.tick_params('y', colors='r')
+    ax12.set_xlim(np.min(t), np.max(t))
+    ax12.set_ylim([np.min(v) - np.abs(0.5 * np.min(v)), np.max(v) + np.abs(0.5 * np.max(v))])
+    ax2 = axes[1]
+    ax2.set_xlim(np.min(v), np.max(v))
+    ax2.set_ylim(np.min(i), np.max(i))
+    ax2.set_ylabel(f"Current ({order_of_magnitude.symbol(oom_i, omit_x=True)}A)")
+    ax2.set_xlabel("Voltage (V)")
+    fig.suptitle(f"Memristor Voltage and Current vs. Time ({title})")
+    fig.tight_layout()
+
+    if animated:
+        __animate_memristor(v, i, t, fig, [ax11, ax12, ax2], filename)
+    else:
+        __plot_memristor(v, i, t, [ax11, ax12, ax2])
+
+    return fig
+
+
+def add_arrow_to_line2D(axes, line, arrow_locs=[0.2, 0.4, 0.6, 0.8], arrowstyle='-|>', arrowsize=1, transform=None):
     """
     Add arrows to a matplotlib.lines.Line2D at selected locations.
 
@@ -152,3 +236,11 @@ class WindowFunction():
         print(f"{start_lv2}Parameter p {self.p}")
         if self.type in ("anusudha"):
             print(f"{start_lv2}Parameter j {self.j}")
+
+
+def euler_solver():
+    return
+
+
+def rk4_solver():
+    return

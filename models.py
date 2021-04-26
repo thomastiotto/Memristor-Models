@@ -11,7 +11,6 @@ class Yakopcic():
         self.a1 = kwargs["a1"] if "a1" in kwargs else 0.17
         self.a2 = kwargs["a2"] if "a2" in kwargs else 0.17
         self.b = kwargs["b"] if "b" in kwargs else 0.05
-        self.x0 = kwargs["x0"] if "x0" in kwargs else 0.11
         self.Ap = kwargs["Ap"] if "Ap" in kwargs else 4000
         self.An = kwargs["An"] if "An" in kwargs else 4000
         self.Vp = kwargs["Vp"] if "Vp" in kwargs else 0.16
@@ -207,7 +206,6 @@ class Yakopcic():
         xp = args[9] if len(args) > 9 else self.xp
         xn = args[10] if len(args) > 10 else self.xn
         eta = args[11] if len(args) > 11 else self.eta
-        x0 = args[12] if len(args) > 12 else self.x0
 
         # compile args into kwargs for other functions
         kwargs = { }
@@ -221,10 +219,9 @@ class Yakopcic():
     def print(self):
         print(f"{self.type}:")
         self.print_equations()
+        self.print_parameters()
         print("\tInput V:")
         self.input.print()
-        print("\tWindow F:")
-        self.print_parameters()
 
     def print_equations(self, start="\t"):
         start_lv2 = start + "\t"
@@ -246,18 +243,17 @@ class Yakopcic():
             print(start_lv2, f"Dielectric layer thicknesses a_1 {self.a1}, a_2 {self.a2}")
             print(start_lv2, f"Curvature in I-V curve b {self.b}")
             print(start_lv2, f"Speeds of ion motion A_p {self.Ap}, A_n {self.An}")
-            print(start_lv2, f"Threshold voltages V_p {self.Ap}, V_n {self.An}")
+            print(start_lv2, f"Threshold voltages V_p {self.Vp}, V_n {self.Vn}")
             print(start_lv2, f"Linearity threshold for state variable motion x_p {self.xp}, x_n {self.xn}")
             print(start_lv2, f"Dampening of state variable motion alpha_p {self.alphap}, alpha_n {self.alphan}")
             print(start_lv2, f"Direction of state variable motion eta {self.eta}")
-            print(start_lv2, f"Initial value of state variable x {self.x0}")
         else:
             print([self.a1, self.a2, self.b, self.Ap, self.An, self.Vp, self.Vn, self.alphap, self.alphan,
-                   self.xp, self.xn, self.eta, self.x0, ])
+                   self.xp, self.xn, self.eta])
 
     @staticmethod
     def parameters():
-        return ["a1", "a2", "b", "x0", "Ap", "An", "Vp", "Vn", "alphap", "alphan", "xp", "xn", "eta"]
+        return ["a1", "a2", "b", "Ap", "An", "Vp", "Vn", "alphap", "alphan", "xp", "xn", "eta"]
 
 
 class HPLabs():
@@ -273,7 +269,6 @@ class HPLabs():
         self.RON = kwargs["RON"] if "RON" in kwargs else 10e3
         self.ROFF = kwargs["ROFF"] if "ROFF" in kwargs else 100e3
         self.muD = kwargs["muD"] if "muD" in kwargs else 1e-14
-        self.x0 = kwargs["x0"] if "x0" in kwargs else 0.1
 
     def I(self, t, x, **kwargs):
         RON = kwargs["RON"] if "RON" in kwargs else self.RON
@@ -299,13 +294,12 @@ class HPLabs():
 
     def print(self):
         print(f"{self.type}:")
-        print("\tEquations:")
         self.print_equations()
+        self.print_parameters()
         print("\tInput V:")
         self.input.print()
         print("\tWindow F:")
         self.window_function.print()
-        self.print_parameters()
 
     def print_equations(self, start="\t"):
         start_lv2 = start + "\t"
@@ -322,7 +316,6 @@ class HPLabs():
             print(start_lv2, f"Minimum resistance R_ON {self.RON} Ohm")
             print(start_lv2, f"Maximum resistance R_OFF {self.ROFF} Ohm")
             print(start_lv2, f"Drift velocity of the oxygen deficiencies mu_D{self.muD} m^2s^-1V^-1")
-            print(start_lv2, f"Initial value of state variable x {self.x0} D")
         else:
             print([self.D, self.RON, self.ROFF, self.muD])
 
