@@ -12,14 +12,14 @@ from functions import *
 from models import *
 from experiments import *
 
-# TODO make solvers for Euler and RK4
 ###############################################################################
 #                                  Setup
 ###############################################################################
 
-experiment = hp_labs_pulsed()
+experiment = oblea_pulsed()
 
 time = experiment.simulation["time"]
+dt = experiment.simulation["dt"]
 x0 = experiment.simulation["x0"]
 dxdt = experiment.functions["dxdt"]
 V = experiment.functions["V"]
@@ -32,42 +32,15 @@ I = experiment.functions["I"]
 ###############################################################################
 solver = "LSODA"
 
-x_euler = [x0]
-x_rk4 = [x0]
-current = [0.0]
 solutions = []
 
-# Solve ODE iteratively using Euler's method
-# with Timer(title="Euler"):
-#     print("Running Euler")
-#
-#     for t in progressbar(time[:-1]):
-#         # print(
-#         #         "Euler", "t", '{:.6e}'.format( t ),
-#         #         "V", '{:.6e}'.format( V( t ) ),
-#         #         "I", '{:.6e}'.format( I( t, x_euler[ -1 ] ) ),
-#         #         "F", '{:.6e}'.format( F( x=x_euler[ -1 ], i=I( t, x_euler[ -1 ] ) ) ),
-#         #         "x", '{:.6e}'.format( x_euler[ -1 ] ),
-#         #         "dx", '{:.6e}'.format( dxdt( t, x_euler[ -1 ] ) )
-#         #         )
-#
-#         current.append(I(t, x_euler[-1]))
-#
-#         x_euler.append(x_euler[-1] + dxdt(t, x_euler[-1]) * dt)
-#     solutions.append((x_euler, time, "Euler"))
+# # Solve ODE iteratively using Euler's method
+# x_euler = euler_solver(dxdt, time, dt, x0)
+# solutions.append((x_euler, time, "Euler"))
 
-# Solve ODE iteratively using Runge-Kutta's method
-# with Timer(title="Runge-Kutta RK4"):
-#     print("Running Runge-Kutta RK4")
-#     for t in progressbar(time[:-1], redirect_stdout=True):
-#         current.append(I(t, x_rk4[-1]))
-#
-#         k1 = dxdt(t, x_rk4[-1])
-#         k2 = dxdt(t + dt / 2, x_rk4[-1] + dt * k1 / 2)
-#         k3 = dxdt(t + dt / 2, x_rk4[-1] + dt * k2 / 2)
-#         k4 = dxdt(t + dt, x_rk4[-1] + dt * k3)
-#         x_rk4.append(x_rk4[-1] + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6)
-#     solutions.append((x_rk4, time, "Runge-Kutta"))
+# # Solve ODE iteratively using Runge-Kutta's method
+# x_rk4 = rk4_solver(dxdt, time, dt, x0)
+# solutions.append((x_rk4, time, "Runge-Kutta"))
 
 # Solve ODE with solver
 with Timer(title="solve_ivp"):
@@ -193,7 +166,7 @@ fig3.tight_layout()
 error = np.sum(np.abs(simulated_data[1:] - fitted_data[1:]))
 error_average = np.mean(error)
 error_percent = error / fitted_data[1:] * 100
-print(f"Average error {order_of_magnitude.oom(error_average)}A ({np.mean(error_percent):.2f}%)")
+print(f"Average error {order_of_magnitude.symbol(error_average)}A ({np.mean(error_percent):.2f}%)")
 
 ###############################################################################
 #                         Residuals

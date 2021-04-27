@@ -8,6 +8,8 @@ class Yakopcic():
         self.input = input
         self.V = input.func
 
+        self.passed_parameters = kwargs
+
         self.a1 = kwargs["a1"] if "a1" in kwargs else 0.17
         self.a2 = kwargs["a2"] if "a2" in kwargs else 0.17
         self.b = kwargs["b"] if "b" in kwargs else 0.05
@@ -265,6 +267,8 @@ class HPLabs():
         self.V = input.func
         self.F = window_function.func
 
+        self.passed_parameters = kwargs
+
         self.D = kwargs["D"] if "D" in kwargs else 27e-9
         self.RON = kwargs["RON"] if "RON" in kwargs else 10e3
         self.ROFF = kwargs["ROFF"] if "ROFF" in kwargs else 100e3
@@ -274,9 +278,9 @@ class HPLabs():
         RON = kwargs["RON"] if "RON" in kwargs else self.RON
         ROFF = kwargs["ROFF"] if "ROFF" in kwargs else self.ROFF
 
-        return self.V(t) / (RON * x + ROFF * (1 - x))
+        return self.V(t) / (np.multiply(RON, x) + ROFF * (np.subtract(1, x)))
 
-    def mu_D(self, t, x, *args):
+    def dxdt(self, t, x, *args):
         # Necessary to run curve_fit as it doesn't support passing named parameters
         D = args[0] if len(args) > 0 else self.D
         RON = args[1] if len(args) > 1 else self.RON

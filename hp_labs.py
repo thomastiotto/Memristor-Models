@@ -47,7 +47,7 @@ time = np.arange(t_min, t_max + dt, dt)
 
 memristor = HPLabs(input_function, window_function, **memristor_args)
 memristor.print()
-dxdt = memristor.mu_D
+dxdt = memristor.dxdt
 V = memristor.V
 I = memristor.I
 x0 = memristor.x0

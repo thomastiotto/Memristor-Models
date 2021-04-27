@@ -7,6 +7,46 @@ import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import matplotlib.animation as animation
 
+from block_timer.timer import Timer
+from progressbar import progressbar
+
+
+def euler_solver(f, t, dt, iv, I=None):
+    with Timer(title="Euler"):
+        print("Running Euler")
+        x_sol = [iv]
+        if I:
+            current = [0.0]
+
+        for t in progressbar(t[:-1]):
+            if I:
+                current.append(I(t, x_sol[-1]))
+
+            x_sol.append(x_sol[-1] + f(t, x_sol[-1]) * dt)
+
+        return (x_sol, I) if I else x_sol
+
+
+def rk4_solver(f, t, dt, iv, I=None):
+    with Timer(title="Runge-Kutta RK4"):
+        print("Running Runge-Kutta RK4")
+        x_sol = [iv]
+        if I:
+            current = [0.0]
+
+        for t in progressbar(t[:-1]):
+            if I:
+                current.append(I(t, x_sol[-1]))
+
+            k1 = f(t, x_sol[-1])
+            k2 = f(t + dt / 2, x_sol[-1] + dt * k1 / 2)
+            k3 = f(t + dt / 2, x_sol[-1] + dt * k2 / 2)
+            k4 = f(t + dt, x_sol[-1] + dt * k3)
+
+            x_sol.append(x_sol[-1] + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6)
+
+        return (x_sol, I) if I else x_sol
+
 
 def __animate_memristor(v, i, t, fig, axes, filename):
     ax11 = axes[0]
@@ -236,11 +276,3 @@ class WindowFunction():
         print(f"{start_lv2}Parameter p {self.p}")
         if self.type in ("anusudha"):
             print(f"{start_lv2}Parameter j {self.j}")
-
-
-def euler_solver():
-    return
-
-
-def rk4_solver():
-    return
