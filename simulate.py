@@ -16,7 +16,7 @@ from experiments import *
 #                                  Setup
 ###############################################################################
 
-experiment = oblea_pulsed()
+experiment = hp_labs_sine()
 
 time = experiment.simulation["time"]
 dt = experiment.simulation["dt"]
@@ -53,7 +53,7 @@ for x, t, title in solutions:
     v = V(t)
     i = I(t, x)
 
-    fig = plot_memristor(v, i, t, "simulated")
+    fig, _, _ = plot_memristor(v, i, t, "simulated")
     fig.show()
 
     # make video of simulation
@@ -79,7 +79,7 @@ noisy_solution = np.random.normal(simulated_data, np.abs(simulated_data) * noise
                                   size=simulated_data.size)
 
 # Plot noisy data
-fig2 = plot_memristor(V(x_solve_ivp.t), noisy_solution, x_solve_ivp.t, "noisy")
+fig2, _, _ = plot_memristor(V(x_solve_ivp.t), noisy_solution, x_solve_ivp.t, "noisy")
 fig2.show()
 
 

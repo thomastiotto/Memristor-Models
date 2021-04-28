@@ -319,7 +319,7 @@ class HPLabs():
             print(start_lv2, f"Device thickness D {self.D} m")
             print(start_lv2, f"Minimum resistance R_ON {self.RON} Ohm")
             print(start_lv2, f"Maximum resistance R_OFF {self.ROFF} Ohm")
-            print(start_lv2, f"Drift velocity of the oxygen deficiencies mu_D{self.muD} m^2s^-1V^-1")
+            print(start_lv2, f"Drift velocity of the oxygen deficiencies mu_D {self.muD} m^2s^-1V^-1")
         else:
             print([self.D, self.RON, self.ROFF, self.muD])
 

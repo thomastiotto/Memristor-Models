@@ -81,35 +81,46 @@ def __animate_memristor(v, i, t, fig, axes, filename):
     ani = animation.FuncAnimation(fig, update, frames=np.arange(0, len(t), 10), blit=True)
     ani.save(f"{filename}.mp4", writer=writer)
 
+    return (line11, line12, line2)
 
-def __plot_memristor(v, i, t, axes):
+
+def arrows(v, i, ax):
+    arrows_every = len(v) // 200 if len(v) > 200 else 1
+    x1 = np.ma.masked_array(v[:-1:arrows_every], (np.diff(v) > 0)[::arrows_every])
+    x2 = np.ma.masked_array(v[:-1:arrows_every], (np.diff(v) < 0)[::arrows_every])
+    l1, = ax.plot(x1, i[:-1:arrows_every], 'b<')
+    l2, = ax.plot(x2, i[:-1:arrows_every], 'r>')
+
+    return l1, l2
+
+
+def __plot_memristor(v, i, t, axes, iv_arrows):
     ax11 = axes[0]
     ax12 = axes[1]
     ax2 = axes[2]
 
-    ax11.plot(t, i, color="b")
-    ax12.plot(t, v, color="r")
-    ax2.plot(v, i)
+    line11, = ax11.plot(t, i, color="b")
+    line12, = ax12.plot(t, v, color="r")
+    line2, = ax2.plot(v, i)
 
-    arrows_every = len(v) // 200 if len(v) > 200 else 1
-    x1 = np.ma.masked_array(v[:-1:arrows_every], (np.diff(v) > 0)[::arrows_every])
-    x2 = np.ma.masked_array(v[:-1:arrows_every], (np.diff(v) < 0)[::arrows_every])
-    ax2.plot(x1, i[:-1:arrows_every], 'b<')
-    ax2.plot(x2, i[:-1:arrows_every], 'r>')
+    if iv_arrows:
+        line2a1, line2a2 = arrows(v, i, ax2)
+
+    return (line11, line12, line2) if not iv_arrows else (line11, line12, line2, line2a1, line2a2)
 
 
-def plot_memristor(v, i, t, title, animated=False, filename=None):
+def plot_memristor(v, i, t, title, figsize=(10, 4), iv_arrows=True, animated=False, filename=None):
     oom_i = order_of_magnitude.power_of_ten(np.max(i))
     i *= oom_i
     oom_t = order_of_magnitude.power_of_ten(np.max(t))
     t *= oom_t
 
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
     ax11 = axes[0]
     ax11.set_ylabel(f"Current ({order_of_magnitude.symbol(oom_i, omit_x=True)}A)", color="b")
     ax11.tick_params('y', colors='b')
     ax11.set_xlim(np.min(t), np.max(t))
-    ax11.set_ylim(np.min(i), np.max(i))
+    ax11.set_ylim([np.min(i) - np.abs(0.5 * np.min(i)), np.max(i) + np.abs(0.5 * np.max(i))])
     ax12 = ax11.twinx()
     ax11.set_xlabel(f"Time ({order_of_magnitude.symbol(oom_t, omit_x=True)}s)")
     ax12.set_ylabel('Voltage (V)', color='r')
@@ -118,18 +129,18 @@ def plot_memristor(v, i, t, title, animated=False, filename=None):
     ax12.set_ylim([np.min(v) - np.abs(0.5 * np.min(v)), np.max(v) + np.abs(0.5 * np.max(v))])
     ax2 = axes[1]
     ax2.set_xlim(np.min(v), np.max(v))
-    ax2.set_ylim(np.min(i), np.max(i))
+    ax2.set_ylim([np.min(i) - np.abs(0.5 * np.min(i)), np.max(i) + np.abs(0.5 * np.max(i))])
     ax2.set_ylabel(f"Current ({order_of_magnitude.symbol(oom_i, omit_x=True)}A)")
     ax2.set_xlabel("Voltage (V)")
     fig.suptitle(f"Memristor Voltage and Current vs. Time ({title})")
     fig.tight_layout()
 
     if animated:
-        __animate_memristor(v, i, t, fig, [ax11, ax12, ax2], filename)
+        lines = __animate_memristor(v, i, t, fig, [ax11, ax12, ax2], filename)
     else:
-        __plot_memristor(v, i, t, [ax11, ax12, ax2])
+        lines = __plot_memristor(v, i, t, [ax11, ax12, ax2], iv_arrows)
 
-    return fig
+    return fig, lines, (ax11, ax12, ax2)
 
 
 def add_arrow_to_line2D(axes, line, arrow_locs=[0.2, 0.4, 0.6, 0.8], arrowstyle='-|>', arrowsize=1, transform=None):
