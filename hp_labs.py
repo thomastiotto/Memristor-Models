@@ -8,33 +8,20 @@ from order_of_magnitude import order_of_magnitude
 
 from functions import *
 from models import *
+from experiments import *
 
 ###############################################################################
 #                                  Setup
 ###############################################################################
 
-## TIME
-t_min = 0
-t_max = 2
-N = 10000
-## INPUT
-input_function_args = {
-        "vp"   : 1,
-        "t_max": t_max
-        }
-input_function = InputVoltage("sine", **input_function_args)
-## WINDOW FUNCTION
-window_function_args = {
-        "p": 7,
-        "j": 1
-        }
-window_function = WindowFunction("joglekar", **window_function_args)
-## MEMRISTOR
-memristor_args = {
-        "RON" : 10e3,
-        "ROFF": 100e3,
-        "D"   : 27e-9,
-        }
+experiment = hp_labs_sine()
+
+time = experiment.simulation["time"]
+dt = experiment.simulation["dt"]
+x0 = experiment.simulation["x0"]
+dxdt = experiment.functions["dxdt"]
+V = experiment.functions["V"]
+I = experiment.functions["I"]
 
 ####
 
@@ -42,24 +29,11 @@ memristor_args = {
 #                         ODE simulation
 ###############################################################################
 
-dt = (t_max - t_min) / N
-time = np.arange(t_min, t_max + dt, dt)
-
-memristor = HPLabs(input_function, window_function, **memristor_args)
-memristor.print()
-dxdt = memristor.dxdt
-V = memristor.V
-I = memristor.I
-x0 = memristor.x0
 
 x_euler = [x0]
 x_rk4 = [x0]
 current = [0.0]
 solutions = []
-
-print("Simulation:")
-print(f"\tTime range [ {t_min}, {t_max} ]")
-print(f"\tSamples {N}")
 
 # Solve ODE iteratively using Euler's method
 # with Timer(title="Euler"):
@@ -134,7 +108,7 @@ for x, t, title in solutions:
 percentage_samples = 100
 noise_percentage = 10
 
-np.random.seed(1729)
+np.random.seed(42)
 
 # Generate noisy data from memristor model
 simulated_data = I(x_solve_ivp.t, x_solve_ivp.y[0, :])
@@ -207,7 +181,7 @@ with Timer(title="curve_fit"):
 
 
 print("curve_fit parameters", end=" ")
-memristor.print_parameters(start="", simple=True)
+experiment.memristor.print_parameters(start="", simple=True)
 print("Fitted parameters", popt)
 
 # Simulate memristor with fitted parameters

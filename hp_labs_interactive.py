@@ -9,6 +9,8 @@ from functions import *
 from models import *
 from experiments import *
 
+# TODO vary input voltage
+# TODO switch input voltage type
 experiment = hp_labs_sine()
 
 time = experiment.simulation["time"]
@@ -59,7 +61,7 @@ roff0 = experiment.memristor.ROFF
 sroff = Slider(
         ax_roff,
         r"$R_{OFF}$",
-        valmin=1e3,
+        valmin=10e3,
         valmax=1000e3,
         valinit=roff0,
         valfmt=r"%.2E $\Omega$"
@@ -70,7 +72,7 @@ mud0 = experiment.memristor.muD
 smud = Slider(
         ax_mud,
         r"$\mu_D$",
-        valmin=0.1e-15,
+        valmin=1e-15,
         valmax=10e-14,
         valinit=mud0,
         valfmt=r"%.2E $m^2 s^{-1} V^{-1}$"
@@ -80,7 +82,7 @@ sliders.append(smud)
 
 def update(val):
     args = [sl.val for sl in sliders]
-    
+
     x_solve_ivp = solve_ivp(dxdt, (time[0], time[-1]), [x0], method="LSODA", t_eval=t, args=args)
     x = x_solve_ivp.y[0, :]
     i = I(t, x)
