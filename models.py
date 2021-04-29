@@ -221,6 +221,18 @@ class Yakopcic():
         
         return eta * self.g( v ) * self.f( v, x )
     
+    def fit( self ):
+        
+        def ode_fitting( t, a1, a2, b, Ap, An, Vp, Vn, alphap, alphan, xp, xn, eta ):
+            sol = solve_ivp( self.dxdt, (t[ 0 ], t[ -1 ]), [ self.x0 ], method="LSODA",
+                             t_eval=t,
+                             args=[ a1, a2, b, Ap, An, Vp, Vn, alphap, alphan, xp, xn, eta ],
+                             # p0=[0]
+                             )
+            return self.I( t, sol.y[ 0, : ] )
+        
+        return ode_fitting
+    
     def print( self ):
         print( f"{self.type}:" )
         self.print_equations()
@@ -260,8 +272,6 @@ class Yakopcic():
     def parameters():
         return [ "a1", "a2", "b", "Ap", "An", "Vp", "Vn", "alphap", "alphan", "xp", "xn", "eta" ]
 
-
-# t, a1, a2, b, Ap, An, Vp, Vn, alphap, alphan, xp, xn, eta
 
 class HPLabs():
     def __init__( self, input, window_function, **kwargs ):
@@ -305,8 +315,6 @@ class HPLabs():
     
     def fit( self ):
         def ode_fitting( t, D, R_ON, R_OFF, m_D ):
-            # call solve_ivp() on dxdt with R_INIT and parameters
-            
             sol = solve_ivp( self.dxdt, (t[ 0 ], t[ -1 ]), [ self.x0 ], method="LSODA",
                              t_eval=t,
                              args=[ D, R_ON, R_OFF, m_D ],

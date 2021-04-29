@@ -23,16 +23,20 @@ class Experiment():
                 "x0"   : sim_args[ "x0" ]
                 }
         
-        input_args.update( { "t_max": t_max } )
+        self.input_args = input_args
+        self.input_args.update( { "t_max": t_max, "vn": input_args[ "vp" ] } )
+        self.window_function_args = window_function_args
         
-        input_function = functions.InputVoltage( **input_args )
-        window_function = functions.WindowFunction( **window_function_args ) if window_function_args else None
+        self.input_function = functions.InputVoltage( **self.input_args )
+        self.window_function = functions.WindowFunction(
+                **self.window_function_args ) if self.window_function_args else None
         
-        memristor_args.update( { "x0": sim_args[ "x0" ] } )
+        self.memristor_args = memristor_args
+        self.memristor_args.update( { "x0": sim_args[ "x0" ] } )
         
-        self.memristor = model( input_function, **memristor_args ) \
-            if not window_function \
-            else model( input_function, window_function, **memristor_args )
+        self.memristor = model( self.input_function, **self.memristor_args ) \
+            if not self.window_function \
+            else model( self.input_function, self.window_function, **self.memristor_args )
         
         # important for fitting as we can't pass kwargs
         assert self.memristor.parameters() == list( self.memristor.passed_parameters.keys() )
@@ -105,11 +109,14 @@ class oblea_sine( Experiment ):
                                  "alphan": 5,
                                  "xp"    : 0.3,
                                  "xn"    : 0.5,
-                                 "eta"   : 1, },
+                                 "eta"   : 1
+                                 },
                 input_args={ "shape": "sine", "frequency": 100, "vp": 0.45 },
                 )
         
         self.name = "Oblea sine"
+        self.fitting.update(
+                { "bounds": ([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1 ], [ 1, 1, 1, 1e4, 1e4, 1, 1, 1, 1, 1, 1, 1 ]) } )
 
 
 class oblea_pulsed( Experiment ):
@@ -129,7 +136,7 @@ class oblea_pulsed( Experiment ):
                         "alphan": 5,
                         "xp"    : 0.3,
                         "xn"    : 0.5,
-                        "eta"   : 1,
+                        "eta"   : 1
                         },
                 input_args={ "shape": "triangle", "frequency": 100, "vp": 0.25 },
                 )

@@ -16,7 +16,7 @@ from experiments import *
 #                                  Setup
 ###############################################################################
 
-experiment = hp_labs_pulsed()
+experiment = oblea_sine()
 
 time = experiment.simulation[ "time" ]
 dt = experiment.simulation[ "dt" ]
@@ -53,8 +53,8 @@ for x, t, title in solutions:
     v = V( t )
     i = I( t, x )
     
-    fig, _, _ = plot_memristor( v, i, t, "simulated" )
-    fig.show()
+    fig1, _, _ = plot_memristor( v, i, t, "simulated" )
+    fig1.show()
     
     # make video of simulation
     if not os.path.exists( f"{experiment.name}.mp4" ):
@@ -82,11 +82,22 @@ noisy_solution = np.random.normal( simulated_data, np.abs( simulated_data ) * no
 fig2, _, _ = plot_memristor( V( x_solve_ivp.t ), noisy_solution, x_solve_ivp.t, "noisy" )
 fig2.show()
 
+
 ####
 
 ###############################################################################
 #                         ODE fitting
 ###############################################################################
+def eta_bounds( eta ):
+    reta = round( eta )
+    
+    if round( reta ) == 0 and np.sign( reta ) > 0:
+        reta = 1
+    elif round( reta ) == 0 and np.sign( reta ) < 0:
+        reta = -1
+    
+    return reta
+
 
 # Fit parameters to noisy data
 with Timer( title="curve_fit" ):
@@ -95,6 +106,8 @@ with Timer( title="curve_fit" ):
                             bounds=experiment.fitting[ "bounds" ],
                             # p0=[10e-9, 10e3, 100e3, 1e-14]
                             )
+
+popt[ -1 ] = eta_bounds( popt[ -1 ] )
 
 print( "curve_fit parameters", end=" " )
 experiment.memristor.print_parameters( start="", simple=True )
