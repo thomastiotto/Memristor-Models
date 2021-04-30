@@ -7,7 +7,7 @@ class Yakopcic():
         self.type = "Yakopcic model"
         
         self.input = input
-        self.V = input.func
+        self.V = input.input_function()
         self.x0 = kwargs[ "x0" ] if "x0" in kwargs else 0.1
         
         self.passed_parameters = kwargs
@@ -279,7 +279,7 @@ class HPLabs():
         
         self.input = input
         self.window_function = window_function
-        self.V = input.func
+        self.V = input.input_function
         self.F = window_function.func
         self.x0 = kwargs[ "x0" ] if "x0" in kwargs else 0.1
         
