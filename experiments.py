@@ -5,6 +5,17 @@ import functions
 import models
 
 
+def eta_bounds(eta):
+    reta = np.round(eta)
+
+    if np.round(reta) == 0 and np.sign(reta) > 0:
+        reta = 1
+    elif np.round(reta) == 0 and np.sign(reta) < 0:
+        reta = -1
+
+    return reta
+
+
 class Experiment():
     def __init__(self, sim_args, model, memristor_args, input_args, window_function_args=None):
         self.name = None
@@ -65,6 +76,9 @@ class Experiment():
     def fit_memristor(self):
         pass
 
+    def enforce_bounds(self, x):
+        return x
+
 
 class hp_labs_sine(Experiment):
 
@@ -122,6 +136,9 @@ class oblea_sine(Experiment):
         self.fitting.update(
                 { "bounds": ([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1], [1, 1, 1, 1e4, 1e4, 1, 1, 1, 1, 1, 1, 1]) })
 
+    def enforce_bounds(self, x):
+        return x[:-1] + eta_bounds(x[-1])
+
 
 class oblea_pulsed(Experiment):
     def __init__(self):
@@ -146,3 +163,6 @@ class oblea_pulsed(Experiment):
                 )
 
         self.name = "Oblea pulsed"
+
+    def enforce_bounds(self, x):
+        return x[:-1] + eta_bounds(x[-1])

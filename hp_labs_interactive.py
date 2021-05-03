@@ -51,7 +51,7 @@ slider_vp = Slider(
         ax_vp,
         r"$V^+$",
         valmin=0,
-        valmax=10,
+        valmax=4,
         valinit=experiment.input_args["vp"],
         valstep=0.1,
         valfmt=r"%.2f $V$",

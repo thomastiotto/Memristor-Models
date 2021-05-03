@@ -7,6 +7,7 @@ import scipy.stats as stats
 from order_of_magnitude import order_of_magnitude
 import os
 import multiprocessing as mp
+import argparse
 
 from functions import *
 from models import *
@@ -16,7 +17,23 @@ from experiments import *
 #                                  Setup
 ###############################################################################
 
-experiment = hp_labs_sine()
+parser = argparse.ArgumentParser()
+parser.add_argument("-m", '--model', type=str, choices=["HP", "Oblea"],
+                    help="The memristor model to use.")
+parser.add_argument("-i", '--input', type=str, choices=["sine", "pulsed"],
+                    help="The input shape to use.")
+args = parser.parse_args()
+
+if args.model == "HP":
+    if args.input == "sine":
+        experiment = hp_labs_sine()
+    else:
+        experiment = hp_labs_pulsed()
+if args.model == "Oblea":
+    if args.input == "sine":
+        experiment = oblea_sine()
+    else:
+        experiment = oblea_pulsed()
 
 time = experiment.simulation["time"]
 dt = experiment.simulation["dt"]
@@ -82,21 +99,11 @@ noisy_solution = np.random.normal(simulated_data, np.abs(simulated_data) * noise
 fig2, _, _ = plot_memristor(V(x_solve_ivp.t), noisy_solution, x_solve_ivp.t, "noisy")
 fig2.show()
 
-
 ####
 
 ###############################################################################
 #                         ODE fitting
 ###############################################################################
-def eta_bounds(eta):
-    reta = round(eta)
-
-    if round(reta) == 0 and np.sign(reta) > 0:
-        reta = 1
-    elif round(reta) == 0 and np.sign(reta) < 0:
-        reta = -1
-
-    return reta
 
 
 # Fit parameters to noisy data
@@ -107,9 +114,9 @@ with Timer(title="curve_fit"):
                            # p0=[10e-9, 10e3, 100e3, 1e-14]
                            )
 
-popt[-1] = eta_bounds(popt[-1])
+popt = experiment.enforce_bounds(popt)
 
-print("curve_fit parameters", end=" ")
+print("Real parameters", end=" ")
 experiment.memristor.print_parameters(start="", simple=True)
 print("Fitted parameters", popt)
 
