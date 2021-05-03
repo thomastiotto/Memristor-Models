@@ -78,7 +78,7 @@ for x, t, title in solutions:
         if __name__ == "__main__":
             mp.set_start_method("fork")
             p = mp.Process(target=plot_memristor,
-                           args=(v, i, t, title, solver, True, experiment.name))
+                           args=(v, i, t, title, (10, 4), False, True, experiment.name))
             p.start()
 ####
 
@@ -87,7 +87,7 @@ for x, t, title in solutions:
 #                       Data sampling to solve_ivp solution
 ###############################################################################
 
-np.random.seed(42)
+# np.random.seed(42)
 noise_percentage = experiment.fitting["noise"]
 
 # Generate noisy data from memristor model

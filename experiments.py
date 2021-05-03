@@ -6,32 +6,26 @@ import models
 
 
 def eta_bounds(eta):
-    reta = np.round(eta)
-
-    if np.round(reta) == 0 and np.sign(reta) > 0:
-        reta = 1
-    elif np.round(reta) == 0 and np.sign(reta) < 0:
-        reta = -1
-
-    return reta
+    if eta >= 1:
+        return 1
+    elif eta <= -1:
+        return -1
+    elif -1 < eta < 0:
+        return -1
+    elif 0 < eta < 1:
+        return 1
 
 
 class Experiment():
     def __init__(self, sim_args, model, memristor_args, input_args, window_function_args=None):
         self.name = None
         self.t_max = sim_args["t_max"]
-        frequency = sim_args["frequency"]
+        self.frequency = sim_args["frequency"]
 
         self.t_min = 0
-        self.dt = 1 / frequency
-        N = (self.t_max - self.t_min) * frequency
 
         self.simulation = {
-                "t_min": 0,
-                "t_max": self.t_max,
-                "dt"   : self.dt,
-                "N"    : N,
-                "x0"   : sim_args["x0"]
+                "x0": sim_args["x0"]
                 }
         self.set_time(self.t_max)
 
@@ -67,11 +61,17 @@ class Experiment():
 
         print("Simulation:")
         print(f"\tTime range [ {self.t_min}, {self.t_max} ]")
-        print(f"\tSamples {N}")
+        print(f"\tSamples {self.simulation['N']}")
         print(f"\tInitial value of state variable {self.simulation['x0']}")
 
     def set_time(self, t_max):
+        self.dt = 1 / self.frequency
+        self.t_max = t_max
+        self.simulation["dt"] = self.dt
+        self.simulation["t_min"] = 0
+        self.simulation["t_max"] = t_max
         self.simulation["time"] = np.arange(self.t_min, t_max + self.dt, self.dt)
+        self.simulation["N"] = (self.t_max - self.t_min) * self.frequency
 
     def fit_memristor(self):
         pass
@@ -137,7 +137,7 @@ class oblea_sine(Experiment):
                 { "bounds": ([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1], [1, 1, 1, 1e4, 1e4, 1, 1, 1, 1, 1, 1, 1]) })
 
     def enforce_bounds(self, x):
-        return x[:-1] + eta_bounds(x[-1])
+        return np.append(x[:-1], eta_bounds(x[-1]))
 
 
 class oblea_pulsed(Experiment):
@@ -163,6 +163,8 @@ class oblea_pulsed(Experiment):
                 )
 
         self.name = "Oblea pulsed"
+        self.fitting.update(
+                { "bounds": ([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1], [1, 1, 1, 1e4, 1e4, 1, 1, 1, 1, 1, 1, 1]) })
 
     def enforce_bounds(self, x):
-        return x[:-1] + eta_bounds(x[-1])
+        return np.append(x[:-1], eta_bounds(x[-1]))

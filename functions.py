@@ -49,6 +49,8 @@ def rk4_solver(f, t, dt, iv, I=None):
 
 
 def __animate_memristor(v, i, t, fig, axes, filename):
+    import os
+
     ax11 = axes[0]
     ax12 = axes[1]
     ax2 = axes[2]
