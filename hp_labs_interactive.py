@@ -142,6 +142,8 @@ slider_mud = Slider(
         )
 memristor_sliders.append(slider_mud)
 
+sliders = voltage_sliders + experiment_sliders + memristor_sliders
+
 
 ################################################
 #                 Event handlers
@@ -181,49 +183,60 @@ def switch_input(event):
 
 
 def reset(event):
-    for sv, sm in zip(voltage_sliders, memristor_sliders):
-        sv.reset()
-        sm.reset()
+    for s in sliders:
+        s.reset()
 
 
-def update_voltage(val):
+def update(val):
+    # Read updated time from slider
+    experiment.set_time(slider_time.val)
+
+    # Adjust to new limits
+    axes[0].set_xlim([0, slider_time.val])
+    axes[1].set_xlim([0, slider_time.val])
+
+    time = experiment.simulation["time"]
+
+    # Read updated voltage from slider
     experiment.input_function.vp = slider_vp.val
     experiment.input_function.vn = slider_vn.val
     experiment.input_function.frequency = slider_frequency.val
 
-    # update voltage
-    v = V(t)
+    v = V(time)
+
+    # Adjust to new limits
     axes[1].set_ylim([np.min(v) - np.abs(0.5 * np.min(v)), np.max(v) + np.abs(0.5 * np.max(v))])
-    lines[1].set_ydata(v)
     axes[2].set_xlim([np.min(v) - np.abs(0.5 * np.min(v)), np.max(v) + np.abs(0.5 * np.max(v))])
-    lines[2].set_xdata(v)
 
-    update_memristor(0)
-
-
-# TODO finish implementing time change
-def update_experiment(val):
-    experiment.simulation["time"] = experiment.set_time(slider_time.val)
-
-
-def update_memristor(val):
+    # Read updated memristor parameters from sliders
     memristor_args = [sl.val for sl in memristor_sliders]
 
-    x_solve_ivp = solve_ivp(dxdt, (time[0], time[-1]), [x0], method="LSODA", t_eval=t, args=memristor_args)
+    # Simulate memristor with updated values
+    x_solve_ivp = solve_ivp(dxdt, (time[0], time[-1]), [x0], method="LSODA", t_eval=time, args=memristor_args)
     x = x_solve_ivp.y[0, :]
-    i = I(t, x)
+    i = I(time, x)
 
     i_oom = order_of_magnitude.symbol(np.max(i))
     i_scaled = i * 1 / i_oom[0]
+
+    # remove old lines
+    axes[0].lines.pop(0)
+    axes[1].lines.pop(0)
+    axes[2].lines.pop(0)
+
+    # Plot new graphs
+    axes[0].plot(experiment.simulation["time"], i_scaled, color="b")
+    axes[1].plot(experiment.simulation["time"], v, color="r")
+    axes[2].plot(v, i_scaled, color="b")
+
+    # Adjust to new limits
     axes[0].set_ylim([np.min(i_scaled) - np.abs(0.5 * np.min(i_scaled)),
                       np.max(i_scaled) + np.abs(0.5 * np.max(i_scaled))])
     axes[0].set_ylabel(f"Current ({i_oom[1]}A)", color="b")
-    lines[0].set_ydata(i_scaled)
     axes[2].set_ylim([np.min(i_scaled) - np.abs(0.5 * np.min(i_scaled)),
                       np.max(i_scaled) + np.abs(0.5 * np.max(i_scaled))])
-    lines[2].set_ydata(i_scaled)
 
-    fig.canvas.draw_idle()
+    fig.canvas.draw()
 
 
 ################################################
@@ -233,11 +246,7 @@ def update_memristor(val):
 button_input.on_clicked(switch_input)
 button_reset.on_clicked(reset)
 
-for s in voltage_sliders:
-    s.on_changed(update_voltage)
-for s in experiment_sliders:
-    s.on_changed(update_experiment)
-for s in memristor_sliders:
-    s.on_changed(update_memristor)
+for s in sliders:
+    s.on_changed(update)
 
 plt.show()

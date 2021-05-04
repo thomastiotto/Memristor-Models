@@ -203,6 +203,7 @@ def add_arrow_to_line2D(axes, line, arrow_locs=[0.2, 0.4, 0.6, 0.8], arrowstyle=
     return arrows
 
 
+# TODO pulsed breaks around 0 with certain frequency/time combinations
 class InputVoltage():
     def __init__(self, shape, vp=1, vn=None, frequency=None, period=None, t_max=0):
         assert shape in ["sine", "triangle"]
