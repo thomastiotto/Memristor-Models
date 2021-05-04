@@ -57,8 +57,6 @@ class Yakopcic():
         a2 = args[ 1 ] if len( args ) > 1 else self.a2
         b = args[ 2 ] if len( args ) > 2 else self.b
         
-        print( a1, a2, b )
-        
         v = self.V( t )
         i = np.where( v >= 0, np.multiply( a1, x * np.sinh( b * v ) ), np.multiply( a2, x * np.sinh( b * v ) ) )
         
@@ -218,19 +216,22 @@ class Yakopcic():
         kwargs = { }
         for k in Yakopcic.parameters():
             kwargs[ k ] = locals()[ k ]
+        kwargs[ "eta" ] = eta
         
         v = self.V( t )
         return eta * self.g( v, **kwargs ) * self.f( v, x, **kwargs )
     
     def fit( self ):
         
-        def ode_fitting( t, a1, a2, b, Ap, An, Vp, Vn, alphap, alphan, xp, xn, eta ):
+        def ode_fitting( t, a1, a2, b, Ap, An, Vp, Vn, alphap, alphan, xp, xn ):
+            args = [ a1, a2, b, Ap, An, Vp, Vn, alphap, alphan, xp, xn ]
+            print( args )
             sol = solve_ivp( self.dxdt, (t[ 0 ], t[ -1 ]), [ self.x0 ], method="LSODA",
                              t_eval=t,
-                             args=[ a1, a2, b, Ap, An, Vp, Vn, alphap, alphan, xp, xn, eta ],
+                             args=args,
                              # p0=[0]
                              )
-            return self.I( t, sol.y[ 0, : ] )
+            return self.I( t, sol.y[ 0, : ], *args )
         
         return ode_fitting
     
@@ -271,7 +272,7 @@ class Yakopcic():
     
     @staticmethod
     def parameters():
-        return [ "a1", "a2", "b", "Ap", "An", "Vp", "Vn", "alphap", "alphan", "xp", "xn", "eta" ]
+        return [ "a1", "a2", "b", "Ap", "An", "Vp", "Vn", "alphap", "alphan", "xp", "xn" ]
 
 
 class HPLabs():

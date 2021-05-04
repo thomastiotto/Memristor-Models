@@ -5,19 +5,6 @@ import functions
 import models
 
 
-def eta_bounds( eta ):
-    if eta >= 1:
-        return 1
-    elif eta <= -1:
-        return -1
-    elif -1 < eta < 0:
-        return -1
-    elif 0 < eta < 1:
-        return 1
-    else:
-        return eta
-
-
 class Experiment():
     def __init__( self, sim_args, model, memristor_args, input_args, window_function_args=None ):
         self.name = None
@@ -45,9 +32,6 @@ class Experiment():
         self.memristor = model( self.input_function, **self.memristor_args ) \
             if not self.window_function \
             else model( self.input_function, self.window_function, **self.memristor_args )
-        
-        # important for fitting as we can't pass kwargs
-        assert self.memristor.parameters() == list( self.memristor.passed_parameters.keys() )
         
         self.memristor.print()
         
@@ -77,9 +61,6 @@ class Experiment():
     
     def fit_memristor( self ):
         pass
-    
-    def enforce_bounds( self, x ):
-        return x
 
 
 class hp_labs_sine( Experiment ):
@@ -94,7 +75,10 @@ class hp_labs_sine( Experiment ):
                 )
         
         self.name = "HP Labs sine"
-        self.fitting.update( { "bounds": (0, [ 1e-7, 1e4, 1e5, 1e-13 ]) } )
+        self.fitting.update( {
+                "bounds": (0, [ 1e-7, 1e4, 1e5, 1e-13 ]),
+                "p0"    : None
+                } )
 
 
 class hp_labs_pulsed( Experiment ):
@@ -109,7 +93,10 @@ class hp_labs_pulsed( Experiment ):
                 )
         
         self.name = "HP Labs pulsed"
-        self.fitting.update( { "bounds": (0, [ 1e-7, 1e4, 1e5, 1e-13 ]) } )
+        self.fitting.update( {
+                "bounds": (0, [ 1e-7, 1e4, 1e5, 1e-13 ]),
+                "p0"    : None
+                } )
 
 
 class oblea_sine( Experiment ):
@@ -136,10 +123,9 @@ class oblea_sine( Experiment ):
         
         self.name = "Oblea sine"
         self.fitting.update(
-                { "bounds": ([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1 ], [ 1, 1, 1, 1e4, 1e4, 1, 1, 1, 1, 1, 1, 1 ]) } )
-    
-    def enforce_bounds( self, x ):
-        return np.append( x[ :-1 ], eta_bounds( x[ -1 ] ) )
+                { "bounds": ([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ 1, 1, 1, 1e4, 1e4, 1, 1, 1, 1, 1, 1 ]),
+                  "p0"    : [ 0.1, 0.1, 0.01, 1000, 1000, 0.1, 0.1, 1, 1, 0.1, 0.1 ] }
+                )
 
 
 class oblea_pulsed( Experiment ):
@@ -166,7 +152,6 @@ class oblea_pulsed( Experiment ):
         
         self.name = "Oblea pulsed"
         self.fitting.update(
-                { "bounds": ([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1 ], [ 1, 1, 1, 1e4, 1e4, 1, 1, 1, 1, 1, 1, 1 ]) } )
-    
-    def enforce_bounds( self, x ):
-        return np.append( x[ :-1 ], eta_bounds( x[ -1 ] ) )
+                { "bounds": ([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ 1, 1, 1, 1e4, 1e4, 1, 1, 1, 1, 1, 1 ]),
+                  "p0"    : [ 0.1, 0.1, 0.01, 1000, 1000, 0.1, 0.1, 1, 1, 0.1, 0.1 ] }
+                )
