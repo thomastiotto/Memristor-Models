@@ -225,7 +225,7 @@ class Yakopcic():
         
         def ode_fitting( t, a1, a2, b, Ap, An, Vp, Vn, alphap, alphan, xp, xn ):
             args = [ a1, a2, b, Ap, An, Vp, Vn, alphap, alphan, xp, xn ]
-            print( args )
+            
             sol = solve_ivp( self.dxdt, (t[ 0 ], t[ -1 ]), [ self.x0 ], method="LSODA",
                              t_eval=t,
                              args=args,
@@ -267,8 +267,8 @@ class Yakopcic():
             print( start_lv2, f"Dampening of state variable motion alpha_p {self.alphap}, alpha_n {self.alphan}" )
             print( start_lv2, f"Direction of state variable motion eta {self.eta}" )
         else:
-            print( [ self.a1, self.a2, self.b, self.Ap, self.An, self.Vp, self.Vn, self.alphap, self.alphan,
-                     self.xp, self.xn, self.eta ] )
+            return ([ self.a1, self.a2, self.b, self.Ap, self.An, self.Vp, self.Vn, self.alphap, self.alphan,
+                      self.xp, self.xn, self.eta ])
     
     @staticmethod
     def parameters():

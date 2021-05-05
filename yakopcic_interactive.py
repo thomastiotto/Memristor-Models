@@ -136,7 +136,7 @@ slider_b = Slider(
 memristor_sliders.append( slider_b )
 
 ## g parameters
-ax_Ap = plt.axes( [ 0.3, 0.15, 0.15, 0.03 ], facecolor=colour )
+ax_Ap = plt.axes( [ 0.3, 0.17, 0.15, 0.03 ], facecolor=colour )
 slider_Ap = Slider(
         ax_Ap,
         r"$A_p$",
@@ -146,7 +146,7 @@ slider_Ap = Slider(
         valfmt=r"%.2E"
         )
 memristor_sliders.append( slider_Ap )
-ax_An = plt.axes( [ 0.3, 0.1, 0.15, 0.03 ], facecolor=colour )
+ax_An = plt.axes( [ 0.3, 0.12, 0.15, 0.03 ], facecolor=colour )
 slider_An = Slider(
         ax_An,
         r"$A_n$",
@@ -156,7 +156,7 @@ slider_An = Slider(
         valfmt=r"%.2E"
         )
 memristor_sliders.append( slider_An )
-ax_Vp = plt.axes( [ 0.3, 0.05, 0.15, 0.03 ], facecolor=colour )
+ax_Vp = plt.axes( [ 0.3, 0.07, 0.15, 0.03 ], facecolor=colour )
 slider_Vp = Slider(
         ax_Vp,
         r"$V_p$",
@@ -166,7 +166,7 @@ slider_Vp = Slider(
         valfmt=r"%.2f"
         )
 memristor_sliders.append( slider_Vp )
-ax_Vn = plt.axes( [ 0.3, 0.0, 0.15, 0.03 ], facecolor=colour )
+ax_Vn = plt.axes( [ 0.3, 0.02, 0.15, 0.03 ], facecolor=colour )
 slider_Vn = Slider(
         ax_Vn,
         r"$V_n$",
@@ -178,7 +178,7 @@ slider_Vn = Slider(
 memristor_sliders.append( slider_Vn )
 
 ## f parameters
-ax_alphap = plt.axes( [ 0.55, 0.15, 0.15, 0.03 ], facecolor=colour )
+ax_alphap = plt.axes( [ 0.55, 0.17, 0.15, 0.03 ], facecolor=colour )
 slider_alphap = Slider(
         ax_alphap,
         r"$\alpha_p$",
@@ -188,7 +188,7 @@ slider_alphap = Slider(
         valfmt=r"%.2f"
         )
 memristor_sliders.append( slider_alphap )
-ax_alphan = plt.axes( [ 0.55, 0.1, 0.15, 0.03 ], facecolor=colour )
+ax_alphan = plt.axes( [ 0.55, 0.12, 0.15, 0.03 ], facecolor=colour )
 slider_alphan = Slider(
         ax_alphan,
         r"$\alpha_n$",
@@ -198,7 +198,7 @@ slider_alphan = Slider(
         valfmt=r"%.2f"
         )
 memristor_sliders.append( slider_alphan )
-ax_xp = plt.axes( [ 0.55, 0.05, 0.15, 0.03 ], facecolor=colour )
+ax_xp = plt.axes( [ 0.55, 0.07, 0.15, 0.03 ], facecolor=colour )
 slider_xp = Slider(
         ax_xp,
         r"$x_p$",
@@ -208,7 +208,7 @@ slider_xp = Slider(
         valfmt=r"%.2f"
         )
 memristor_sliders.append( slider_xp )
-ax_xn = plt.axes( [ 0.55, 0.0, 0.15, 0.03 ], facecolor=colour )
+ax_xn = plt.axes( [ 0.55, 0.02, 0.15, 0.03 ], facecolor=colour )
 slider_xn = Slider(
         ax_xn,
         r"$x_n$",

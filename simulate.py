@@ -116,9 +116,12 @@ with Timer( title="curve_fit" ):
                             # maxfev=100000
                             )
     
-    print( "Real parameters", end=" " )
-    experiment.memristor.print_parameters( start="", simple=True )
-    print( "Fitted parameters", popt )
+    print( "Real parameters ",
+           [ (p, v) for p, v in zip( experiment.memristor.parameters(),
+                                     experiment.memristor.print_parameters( start='', simple=True ) ) ] )
+    print( "Fitted parameters",
+           [ (p, np.round( v, 2 )) for p, v in zip( experiment.memristor.parameters(),
+                                                    popt ) ] )
     
     # Simulate memristor with fitted parameters
     with Timer( title="solve_ivp" ):

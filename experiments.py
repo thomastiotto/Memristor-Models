@@ -51,6 +51,7 @@ class Experiment():
         print( f"\tInitial value of state variable {self.simulation[ 'x0' ]}" )
     
     def set_time( self, t_max ):
+        # TODO input period and dt (sampling frequency) should be decoupled
         self.dt = 1 / self.frequency
         self.t_max = t_max
         self.simulation[ "dt" ] = self.dt
@@ -100,7 +101,7 @@ class hp_labs_pulsed( Experiment ):
 
 
 class oblea_sine( Experiment ):
-    
+    # TODO frequency of simulation (sampling frequency) != frequency of input
     def __init__( self ):
         super( oblea_sine, self ).__init__(
                 sim_args={ "t_max": 40e-3, "frequency": 100e3, "x0": 0.11 },
@@ -124,7 +125,7 @@ class oblea_sine( Experiment ):
         self.name = "Oblea sine"
         self.fitting.update(
                 { "bounds": ([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ 1, 1, 1, 1e4, 1e4, 1, 1, 1, 1, 1, 1 ]),
-                  "p0"    : [ 0.1, 0.1, 0.01, 1000, 1000, 0.1, 0.1, 1, 1, 0.1, 0.1 ] }
+                  "p0"    : [ 0.1, 0.1, 0.1, 1000, 1000, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ] }
                 )
 
 
