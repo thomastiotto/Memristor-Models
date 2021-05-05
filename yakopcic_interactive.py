@@ -12,7 +12,7 @@ from functions import *
 from models import *
 from experiments import *
 
-experiment = hp_labs_sine()
+experiment = oblea_sine()
 
 time = experiment.simulation[ "time" ]
 dt = experiment.simulation[ "dt" ]
@@ -21,6 +21,7 @@ dxdt = experiment.functions[ "dxdt" ]
 V = experiment.functions[ "V" ]
 I = experiment.functions[ "I" ]
 
+## Initial plot
 x_solve_ivp = solve_ivp( dxdt, (time[ 0 ], time[ -1 ]), [ x0 ], method="LSODA", t_eval=time )
 
 t = x_solve_ivp.t
@@ -29,7 +30,7 @@ x = x_solve_ivp.y[ 0, : ]
 v = V( t )
 i = I( t, x )
 
-fig, lines, axes = plot_memristor( v, i, t, "HP Labs", figsize=(12, 6), iv_arrows=False )
+fig, lines, axes = plot_memristor( v, i, t, "Yakopcic", figsize=(12, 6), iv_arrows=False )
 
 ################################################
 #                       GUI
@@ -37,10 +38,10 @@ fig, lines, axes = plot_memristor( v, i, t, "HP Labs", figsize=(12, 6), iv_arrow
 
 colour = "lightgoldenrodyellow"
 
-ax_reset = plt.axes( [ 0.005, 0.22, 0.1, 0.04 ] )
-button_input = Button( ax_reset, "Switch V", color=colour, hovercolor='0.975' )
+ax_switchV = plt.axes( [ 0.005, 0.22, 0.1, 0.04 ] )
+button_input = Button( ax_switchV, "Switch V", color=colour, hovercolor='0.975' )
 
-ax_reset = plt.axes( [ 0.35, 0.025, 0.1, 0.04 ] )
+ax_reset = plt.axes( [ 0.7, 0.85, 0.1, 0.04 ] )
 button_reset = Button( ax_reset, 'Reset', color=colour, hovercolor='0.975' )
 
 # create the voltage sliders
@@ -90,57 +91,146 @@ ax_time = plt.axes( [ 0.15, 0.85, 0.36, 0.03 ], facecolor=colour )
 slider_time = Slider(
         ax_time,
         r"Time",
-        valmin=0,
-        valmax=10,
-        valstep=1,
+        valmin=1e-3,
+        valmax=20,
+        valstep=10e-3,
+        closedmin=False,
         valinit=experiment.simulation[ "t_max" ],
-        valfmt=r"%.2f $s$"
+        valfmt=r"%.2E $s$"
         )
 experiment_sliders.append( slider_time )
 
 # create the memristor sliders
 fig.subplots_adjust( bottom=0.3 )
 memristor_sliders = [ ]
-ax_d = plt.axes( [ 0.05, 0.15, 0.25, 0.03 ], facecolor=colour )
-slider_d = Slider(
-        ax_d,
-        r"$D$",
-        valmin=1e-9,
-        valmax=100e-9,
-        valinit=experiment.memristor.D,
-        valfmt=r"%.2E $m$"
+## I parameters
+ax_a1 = plt.axes( [ 0.05, 0.15, 0.15, 0.03 ], facecolor=colour )
+slider_a1 = Slider(
+        ax_a1,
+        r"$a_1$",
+        valmin=0,
+        valmax=2,
+        valinit=experiment.memristor.a1,
+        valfmt=r"%.2f"
         )
-memristor_sliders.append( slider_d )
-ax_ron = plt.axes( [ 0.05, 0.1, 0.25, 0.03 ], facecolor=colour )
-slider_ron = Slider(
-        ax_ron,
-        r"$R_{ON}$",
-        valmin=1e3,
-        valmax=100e3,
-        valinit=experiment.memristor.RON,
-        valfmt=r"%.2E $\Omega$"
+memristor_sliders.append( slider_a1 )
+ax_a2 = plt.axes( [ 0.05, 0.1, 0.15, 0.03 ], facecolor=colour )
+slider_a2 = Slider(
+        ax_a2,
+        r"$a_2$",
+        valmin=0,
+        valmax=2,
+        valinit=experiment.memristor.a2,
+        valfmt=r"%.2f"
         )
-memristor_sliders.append( slider_ron )
-ax_roff = plt.axes( [ 0.5, 0.15, 0.25, 0.03 ], facecolor=colour )
-slider_roff = Slider(
-        ax_roff,
-        r"$R_{OFF}$",
-        valmin=10e3,
-        valmax=1000e3,
-        valinit=experiment.memristor.ROFF,
-        valfmt=r"%.2E $\Omega$"
+memristor_sliders.append( slider_a2 )
+ax_b = plt.axes( [ 0.05, 0.05, 0.15, 0.03 ], facecolor=colour )
+slider_b = Slider(
+        ax_b,
+        r"$b$",
+        valmin=0,
+        valmax=1,
+        valinit=experiment.memristor.b,
+        valfmt=r"%.2f"
         )
-memristor_sliders.append( slider_roff )
-ax_mud = plt.axes( [ 0.5, 0.1, 0.25, 0.03 ], facecolor=colour )
-slider_mud = Slider(
-        ax_mud,
-        r"$\mu_D$",
-        valmin=1e-15,
-        valmax=10e-14,
-        valinit=experiment.memristor.muD,
-        valfmt=r"%.2E $m^2 s^{-1} V^{-1}$"
+memristor_sliders.append( slider_b )
+
+## g parameters
+ax_Ap = plt.axes( [ 0.3, 0.17, 0.15, 0.03 ], facecolor=colour )
+slider_Ap = Slider(
+        ax_Ap,
+        r"$A_p$",
+        valmin=0,
+        valmax=1e10,
+        valinit=experiment.memristor.Ap,
+        valfmt=r"%.2E"
         )
-memristor_sliders.append( slider_mud )
+memristor_sliders.append( slider_Ap )
+ax_An = plt.axes( [ 0.3, 0.12, 0.15, 0.03 ], facecolor=colour )
+slider_An = Slider(
+        ax_An,
+        r"$A_n$",
+        valmin=0,
+        valmax=1e10,
+        valinit=experiment.memristor.An,
+        valfmt=r"%.2E"
+        )
+memristor_sliders.append( slider_An )
+ax_Vp = plt.axes( [ 0.3, 0.07, 0.15, 0.03 ], facecolor=colour )
+slider_Vp = Slider(
+        ax_Vp,
+        r"$V_p$",
+        valmin=0,
+        valmax=4,
+        valinit=experiment.memristor.Vp,
+        valfmt=r"%.2f"
+        )
+memristor_sliders.append( slider_Vp )
+ax_Vn = plt.axes( [ 0.3, 0.02, 0.15, 0.03 ], facecolor=colour )
+slider_Vn = Slider(
+        ax_Vn,
+        r"$V_n$",
+        valmin=0,
+        valmax=4,
+        valinit=experiment.memristor.Vn,
+        valfmt=r"%.2f"
+        )
+memristor_sliders.append( slider_Vn )
+
+## f parameters
+ax_alphap = plt.axes( [ 0.55, 0.17, 0.15, 0.03 ], facecolor=colour )
+slider_alphap = Slider(
+        ax_alphap,
+        r"$\alpha_p$",
+        valmin=0,
+        valmax=30,
+        valinit=experiment.memristor.alphap,
+        valfmt=r"%.2f"
+        )
+memristor_sliders.append( slider_alphap )
+ax_alphan = plt.axes( [ 0.55, 0.12, 0.15, 0.03 ], facecolor=colour )
+slider_alphan = Slider(
+        ax_alphan,
+        r"$\alpha_n$",
+        valmin=0,
+        valmax=30,
+        valinit=experiment.memristor.alphan,
+        valfmt=r"%.2f"
+        )
+memristor_sliders.append( slider_alphan )
+ax_xp = plt.axes( [ 0.55, 0.07, 0.15, 0.03 ], facecolor=colour )
+slider_xp = Slider(
+        ax_xp,
+        r"$x_p$",
+        valmin=0,
+        valmax=1,
+        valinit=experiment.memristor.xp,
+        valfmt=r"%.2f"
+        )
+memristor_sliders.append( slider_xp )
+ax_xn = plt.axes( [ 0.55, 0.02, 0.15, 0.03 ], facecolor=colour )
+slider_xn = Slider(
+        ax_xn,
+        r"$x_n$",
+        valmin=0,
+        valmax=1,
+        valinit=experiment.memristor.xn,
+        valfmt=r"%.2f"
+        )
+memristor_sliders.append( slider_xn )
+
+## Other parameters
+ax_eta = plt.axes( [ 0.8, 0.15, 0.15, 0.03 ], facecolor=colour )
+slider_eta = Slider(
+        ax_eta,
+        r"$\eta$",
+        valmin=-1,
+        valmax=1,
+        valinit=experiment.memristor.eta,
+        valstep=[ -1, 1 ],
+        valfmt=r"%.0f"
+        )
+memristor_sliders.append( slider_eta )
 
 sliders = voltage_sliders + experiment_sliders + memristor_sliders
 
@@ -163,6 +253,8 @@ def switch_input( event ):
 def reset( event ):
     for s in sliders:
         s.reset()
+    
+    update( 0 )
 
 
 def update( val ):
@@ -192,7 +284,7 @@ def update( val ):
     # Simulate memristor with updated values
     x_solve_ivp = solve_ivp( dxdt, (time[ 0 ], time[ -1 ]), [ x0 ], method="LSODA", t_eval=time, args=memristor_args )
     x = x_solve_ivp.y[ 0, : ]
-    i = I( time, x )
+    i = I( time, x, *memristor_args )
     
     i_oom = order_of_magnitude.symbol( np.max( i ) )
     i_scaled = i * 1 / i_oom[ 0 ]
@@ -228,3 +320,5 @@ for s in sliders:
     s.on_changed( update )
 
 plt.show()
+
+update( 27 )
