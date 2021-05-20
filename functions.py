@@ -118,6 +118,7 @@ def plot_memristor( v, i, t, title, figsize=(10, 4), iv_arrows=True, animated=Fa
     t_scaled = t * 1 / t_oom[ 0 ]
     
     fig, axes = plt.subplots( 1, 2, figsize=figsize )
+    
     ax11 = axes[ 0 ]
     ax11.set_ylabel( f"Current ({i_oom[ 1 ]}A)", color="b" )
     ax11.tick_params( 'y', colors='b' )
@@ -205,9 +206,7 @@ def add_arrow_to_line2D( axes, line, arrow_locs=[ 0.2, 0.4, 0.6, 0.8 ], arrowsty
 
 # TODO pulsed breaks around 0 with certain frequency/time combinations
 class InputVoltage():
-    def __init__( self, shape, vp=1, vn=None, frequency=None, period=None, t_max=0 ):
-        assert shape in [ "sine", "triangle" ]
-        if shape == "triangle": assert t_max > 0
+    def __init__( self, shape, vp, vn, frequency, period, t_max ):
         assert frequency or period
         
         self.shape = shape
@@ -218,19 +217,35 @@ class InputVoltage():
         self.t_max = t_max
     
     def input_function( self, t ):
-        if self.shape == "sine":
-            return self.sine( t )
-        elif self.shape == "triangle":
-            return self.triangle( t )
+        pass
     
-    def sine( self, t ):
+    def print( self, start="\t" ):
+        start_lv2 = start + "\t"
+        print( f"{start_lv2}Shape {self.shape}" )
+        print( f"{start_lv2}Magnitude +{self.vp} / -{self.vn} V" )
+        print( f"{start_lv2}Frequency {self.frequency} Hz" )
+        print( f"{start_lv2}Period {self.period} s" )
+
+
+class Sine( InputVoltage ):
+    def __init__( self, vp=1, vn=None, frequency=None, period=None, t_max=0 ):
+        super( Sine, self ).__init__( "sine", vp, vn, frequency, period, t_max )
+    
+    def input_function( self, t ):
         pos = self.vp * np.sin( 2 * self.frequency * np.multiply( np.pi, t ) )
         neg = self.vn * np.sin( 2 * self.frequency * np.multiply( np.pi, t ) )
         v = np.where( pos > 0, pos, neg )
         
         return v
+
+
+class Triangle( InputVoltage ):
+    def __init__( self, vp=1, vn=None, frequency=None, period=None, t_max=0 ):
+        assert t_max > 0
+        
+        super( Triangle, self ).__init__( "triangle", vp, vn, frequency, period, t_max )
     
-    def triangle( self, t ):
+    def input_function( self, t ):
         pos = self.vp * np.abs( scipy.signal.sawtooth( 2 * self.frequency * np.pi * t + np.pi / 2, 0.5 ) )
         neg = -1 * self.vn * np.abs( scipy.signal.sawtooth( 2 * self.frequency * np.pi * t + np.pi / 2, 0.5 ) )
         
@@ -242,13 +257,6 @@ class InputVoltage():
         v = np.where( pos > 0, pos, neg )
         
         return v
-    
-    def print( self, start="\t" ):
-        start_lv2 = start + "\t"
-        print( f"{start_lv2}Shape {self.shape}" )
-        print( f"{start_lv2}Magnitude +{self.vp} / -{self.vn} V" )
-        print( f"{start_lv2}Frequency {self.frequency} Hz" )
-        print( f"{start_lv2}Period {self.period} s" )
 
 
 class WindowFunction():

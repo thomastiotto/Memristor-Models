@@ -6,7 +6,7 @@ import models
 
 
 class Experiment():
-    def __init__( self, sim_args, model, memristor_args, input_args, window_function_args=None ):
+    def __init__( self, sim_args, model, input_function, memristor_args, input_args, window_function_args=None ):
         self.name = None
         self.t_max = sim_args[ "t_max" ]
         self.frequency = sim_args[ "frequency" ]
@@ -22,9 +22,9 @@ class Experiment():
         self.input_args.update( { "t_max": self.t_max, "vn": input_args[ "vp" ] } )
         self.window_function_args = window_function_args
         
-        self.input_function = functions.InputVoltage( **self.input_args )
-        self.window_function = functions.WindowFunction(
-                **self.window_function_args ) if self.window_function_args else None
+        self.input_function = input_function( **self.input_args )
+        self.window_function = functions.WindowFunction( **self.window_function_args ) \
+            if self.window_function_args else None
         
         self.memristor_args = memristor_args
         self.memristor_args.update( { "x0": sim_args[ "x0" ] } )
@@ -70,8 +70,9 @@ class hp_labs_sine( Experiment ):
         super( hp_labs_sine, self ).__init__(
                 sim_args={ "t_max": 2, "frequency": 100e3, "x0": 0.1 },
                 model=models.HPLabs,
+                input_function=functions.Sine,
                 memristor_args={ "D": 27e-9, "RON": 10e3, "ROFF": 100e3, "muD": 1e-14 },
-                input_args={ "shape": "sine", "frequency": 1, "vp": 1 },
+                input_args={ "frequency": 1, "vp": 1 },
                 window_function_args={ "type": "joglekar", "p": 7, "j": 1 }
                 )
         
@@ -88,8 +89,9 @@ class hp_labs_pulsed( Experiment ):
         super( hp_labs_pulsed, self ).__init__(
                 sim_args={ "t_max": 8, "frequency": 100e3, "x0": 0.093 },
                 model=models.HPLabs,
+                input_function=functions.Triangle,
                 memristor_args={ "D": 85e-9, "RON": 1e3, "ROFF": 10e3, "muD": 2e-14 },
-                input_args={ "shape": "triangle", "frequency": 0.5, "vp": 1 },
+                input_args={ "frequency": 0.5, "vp": 1 },
                 window_function_args={ "type": "joglekar", "p": 2, "j": 1 }
                 )
         
@@ -106,6 +108,7 @@ class oblea_sine( Experiment ):
         super( oblea_sine, self ).__init__(
                 sim_args={ "t_max": 40e-3, "frequency": 100e3, "x0": 0.11 },
                 model=models.Yakopcic,
+                input_function=functions.Sine,
                 memristor_args={ "a1"    : 0.17,
                                  "a2"    : 0.17,
                                  "b"     : 0.05,
@@ -119,7 +122,7 @@ class oblea_sine( Experiment ):
                                  "xn"    : 0.5,
                                  "eta"   : 1
                                  },
-                input_args={ "shape": "sine", "frequency": 100, "vp": 0.45 },
+                input_args={ "frequency": 100, "vp": 0.45 },
                 )
         
         self.name = "Oblea sine"
@@ -134,6 +137,7 @@ class oblea_pulsed( Experiment ):
         super( oblea_pulsed, self ).__init__(
                 sim_args={ "t_max": 50e-3, "frequency": 100e3, "x0": 0.001 },
                 model=models.Yakopcic,
+                input_function=functions.Triangle,
                 memristor_args={
                         "a1"    : 0.097,
                         "a2"    : 0.097,
@@ -148,7 +152,7 @@ class oblea_pulsed( Experiment ):
                         "xn"    : 0.5,
                         "eta"   : 1
                         },
-                input_args={ "shape": "triangle", "frequency": 100, "vp": 0.25 },
+                input_args={ "frequency": 100, "vp": 0.25 },
                 )
         
         self.name = "Oblea pulsed"
