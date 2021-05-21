@@ -3,8 +3,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import re
 import pickle
+from block_timer.timer import Timer
 
 from scipy.optimize import curve_fit
+from scipy.integrate import solve_ivp
+import scipy.stats as stats
 
 from functions import *
 from models import Yakopcic
@@ -27,13 +30,16 @@ fig.show()
 #                         ODE fitting
 ###############################################################################
 
-
-memristor = Yakopcic( input=None )
+x0 = 0.1
+memristor = Yakopcic( input=Interpolated( x=time, y=input_voltage ), x0=x0 )
+dxdt = memristor.dxdt
+V = memristor.V
+I = memristor.I
 
 # Fit parameters to noisy data
 with Timer( title="curve_fit" ):
     print( "Running curve_fit" )
-    popt, pcov = curve_fit( Yakopcic.fit(), time, real_data,
+    popt, pcov = curve_fit( memristor.fit(), time, real_data,
                             # bounds=experiment.fitting[ "bounds" ],
                             # p0=experiment.fitting[ "p0" ],
                             # maxfev=100000
@@ -61,7 +67,7 @@ with Timer( title="curve_fit" ):
     #                         Error
     ###############################################################################
     
-    error = np.sum( np.abs( simulated_data[ 1: ] - fitted_data[ 1: ] ) )
+    error = np.sum( np.abs( real_data[ 1: ] - fitted_data[ 1: ] ) )
     error_average = np.mean( error )
     error_percent = 100 * error / np.sum( np.abs( fitted_data[ 1: ] ) )
     print( f"Average error {order_of_magnitude.symbol( error_average )[ 2 ]}A ({np.mean( error_percent ):.2f} %)" )
@@ -72,7 +78,7 @@ with Timer( title="curve_fit" ):
     #                         Residuals
     ###############################################################################
     
-    residuals = noisy_solution - fitted_data
+    residuals = real_data - fitted_data
     fig4, axes = plt.subplots( 1, 2, figsize=(10, 4) )
     axes[ 0 ].plot( fitted_data, residuals )
     axes[ 0 ].set_xlabel( "Residuals" )

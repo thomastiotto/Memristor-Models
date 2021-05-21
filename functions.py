@@ -1,5 +1,8 @@
+import numbers
+
 import numpy as np
 import scipy.signal
+from scipy import interpolate
 from order_of_magnitude import order_of_magnitude
 
 import matplotlib.pyplot as plt
@@ -206,9 +209,7 @@ def add_arrow_to_line2D( axes, line, arrow_locs=[ 0.2, 0.4, 0.6, 0.8 ], arrowsty
 
 # TODO pulsed breaks around 0 with certain frequency/time combinations
 class InputVoltage():
-    def __init__( self, shape, vp, vn, frequency, period, t_max ):
-        assert frequency or period
-        
+    def __init__( self, shape=None, vp=None, vn=None, frequency=None, period=None, t_max=None ):
         self.shape = shape
         self.vp = vp
         self.vn = vn if vn else vp
@@ -227,8 +228,20 @@ class InputVoltage():
         print( f"{start_lv2}Period {self.period} s" )
 
 
+class Interpolated( InputVoltage ):
+    def __init__( self, x, y, degree=1 ):
+        super( Interpolated, self ).__init__( "custom" )
+        
+        self.model = interpolate.splrep( x, y, s=0, k=degree )
+    
+    def input_function( self, t ):
+        return interpolate.splev( t, self.model, der=0 )
+
+
 class Sine( InputVoltage ):
     def __init__( self, vp=1, vn=None, frequency=None, period=None, t_max=0 ):
+        assert frequency or period
+        
         super( Sine, self ).__init__( "sine", vp, vn, frequency, period, t_max )
     
     def input_function( self, t ):
@@ -241,6 +254,7 @@ class Sine( InputVoltage ):
 
 class Triangle( InputVoltage ):
     def __init__( self, vp=1, vn=None, frequency=None, period=None, t_max=0 ):
+        assert frequency or period
         assert t_max > 0
         
         super( Triangle, self ).__init__( "triangle", vp, vn, frequency, period, t_max )
