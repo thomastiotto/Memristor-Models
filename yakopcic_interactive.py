@@ -1,4 +1,5 @@
 import copy
+import pickle
 
 import numpy as np
 from scipy.integrate import solve_ivp
@@ -38,11 +39,15 @@ fig, lines, axes = plot_memristor( v, i, t, "Yakopcic", figsize=(12, 6), iv_arro
 
 colour = "lightgoldenrodyellow"
 
+# buttons
 ax_switchV = plt.axes( [ 0.005, 0.22, 0.1, 0.04 ] )
 button_input = Button( ax_switchV, "Switch V", color=colour, hovercolor='0.975' )
 
 ax_reset = plt.axes( [ 0.7, 0.85, 0.1, 0.04 ] )
 button_reset = Button( ax_reset, 'Reset', color=colour, hovercolor='0.975' )
+
+ax_load = plt.axes( [ 0.81, 0.85, 0.1, 0.04 ] )
+button_load = Button( ax_load, 'Load data', color=colour, hovercolor='0.975' )
 
 # create the voltage sliders
 fig.subplots_adjust( left=0.15 )
@@ -227,7 +232,7 @@ slider_eta = Slider(
         valmin=-1,
         valmax=1,
         valinit=experiment.memristor.eta,
-        valstep=[ -1, 1 ],
+        valstep=1,
         valfmt=r"%.0f"
         )
 memristor_sliders.append( slider_eta )
@@ -239,13 +244,36 @@ sliders = voltage_sliders + experiment_sliders + memristor_sliders
 #                 Event handlers
 ################################################
 
-def switch_input( event ):
-    if experiment.input_function.shape == "sine":
-        new_shape = "triangle"
-    elif experiment.input_function.shape == "triangle":
-        new_shape = "sine"
+def load_data( event ):
+    with open( f"./plots/Radius 10 um/-4V_1.pkl", "rb" ) as file:
+        df = pickle.load( file )
     
-    experiment.input_function.shape = new_shape
+    time = df[ "t" ].to_list()
+    real_data = df[ "I" ].to_list()
+    input_voltage = df[ "V" ].to_list()
+    
+    slider_time.val = np.max( time )
+    
+    # Plot new graphs
+    axes[ 0 ].plot( experiment.simulation[ "time" ], real_data, color="b" )
+    axes[ 2 ].plot( v, real_data, color="b" )
+    
+    update( 0 )
+
+
+# load_data( 0 )
+
+
+def switch_input( event ):
+    global V
+    
+    if isinstance( experiment.input_function, Sine ):
+        experiment.input_function = Triangle( **experiment.input_args )
+    elif isinstance( experiment.input_function, Triangle ):
+        experiment.input_function = Sine( **experiment.input_args )
+    experiment.memristor.V = experiment.input_function.input_function
+    experiment.functions[ "V" ] = experiment.memristor.V
+    V = experiment.functions[ "V" ]
     
     update( 0 )
 
@@ -267,7 +295,7 @@ def update( val ):
     
     time = experiment.simulation[ "time" ]
     
-    # Read updated voltage from slider
+    # Read updated voltage from sliders
     experiment.input_function.vp = slider_vp.val
     experiment.input_function.vn = slider_vn.val
     experiment.input_function.frequency = slider_frequency.val
@@ -321,4 +349,7 @@ for s in sliders:
 
 plt.show()
 
-update( 27 )
+# update( 27 )
+switch_input( 0 )
+switch_input( 0 )
+#
