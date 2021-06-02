@@ -8,15 +8,12 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button
 from matplotlib.ticker import ScalarFormatter
 
-import functions
 from functions import *
-from models import *
 from experiments import *
 
 experiment = oblea_sine()
 
 time = experiment.simulation[ "time" ]
-dt = experiment.simulation[ "dt" ]
 x0 = experiment.simulation[ "x0" ]
 dxdt = experiment.functions[ "dxdt" ]
 V = experiment.functions[ "V" ]
@@ -80,7 +77,7 @@ ax_f = plt.axes( [ 0.045, 0.65, 0.02, 0.25 ], facecolor=colour )
 slider_frequency = Slider(
         ax_f,
         r"$\nu$",
-        valmin=0.1,
+        valmin=0.05,
         valmax=100,
         valinit=experiment.input_args[ "frequency" ],
         valstep=0.1,
@@ -97,11 +94,11 @@ slider_time = Slider(
         ax_time,
         r"Time",
         valmin=1e-3,
-        valmax=20,
+        valmax=80,
         valstep=10e-3,
         closedmin=False,
         valinit=experiment.simulation[ "t_max" ],
-        valfmt=r"%.2E $s$"
+        valfmt=r"%.0f $s$"
         )
 experiment_sliders.append( slider_time )
 
@@ -249,28 +246,32 @@ def load_data( event ):
         df = pickle.load( file )
     
     time = df[ "t" ].to_list()
-    real_data = df[ "I" ].to_list()
+    data = df[ "I" ].to_list()
     input_voltage = df[ "V" ].to_list()
     
-    slider_time.val = np.max( time )
+    switch_input( Interpolated( x=time, y=input_voltage ) )
+    
+    sim_time = experiment.simulation[ "time" ]
     
     # Plot new graphs
-    axes[ 0 ].plot( experiment.simulation[ "time" ], real_data, color="b" )
-    axes[ 2 ].plot( v, real_data, color="b" )
+    # axes[ 0 ].plot( sim_time, data[ :len( sim_time ) ], color="g-", alpha=0.5 )
+    # axes[ 2 ].plot( input_voltage[ :len( sim_time ) ], data[ :len( sim_time ) ], color="g-", alpha=0.5 )
     
     update( 0 )
 
 
-# load_data( 0 )
-
-
-def switch_input( event ):
+def switch_input( input ):
     global V
     
-    if isinstance( experiment.input_function, Sine ):
-        experiment.input_function = Triangle( **experiment.input_args )
-    elif isinstance( experiment.input_function, Triangle ):
-        experiment.input_function = Sine( **experiment.input_args )
+    if not input:
+        if isinstance( experiment.input_function, Sine ):
+            experiment.input_function = Triangle( **experiment.input_args )
+        elif isinstance( experiment.input_function, Triangle ):
+            experiment.input_function = Sine( **experiment.input_args )
+    else:
+        experiment.input_function = input
+    
+    # update references
     experiment.memristor.V = experiment.input_function.input_function
     experiment.functions[ "V" ] = experiment.memristor.V
     V = experiment.functions[ "V" ]
@@ -285,9 +286,9 @@ def reset( event ):
     update( 0 )
 
 
-def update( val ):
+def update( event ):
     # Read updated time from slider
-    experiment.set_time( slider_time.val )
+    experiment.recalculate_time( slider_time.val )
     
     # Adjust to new limits
     axes[ 0 ].set_xlim( [ 0, slider_time.val ] )
@@ -341,6 +342,7 @@ def update( val ):
 #          Event handlers registration
 ################################################
 
+button_load.on_clicked( load_data )
 button_input.on_clicked( switch_input )
 button_reset.on_clicked( reset )
 
@@ -349,7 +351,4 @@ for s in sliders:
 
 plt.show()
 
-# update( 27 )
-switch_input( 0 )
-switch_input( 0 )
-#
+load_data( 0 )

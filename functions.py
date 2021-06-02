@@ -14,6 +14,19 @@ from block_timer.timer import Timer
 from progressbar import progressbar
 
 
+def ohmic_iv( v, g ):
+    return g * v
+
+
+def mim_iv( v, g, b ):
+    return g * np.sinh( b * v )
+
+
+def mim_mim_iv( v, gp, bp, gn, bn ):
+    return np.piecewise( v, [ v >= 0, v < 0 ],
+                         [ lambda v: mim_iv( v, gp, bp ), lambda v: mim_iv( v, gn, bn ) ] )
+
+
 def euler_solver( f, t, dt, iv, I=None ):
     with Timer( title="Euler" ):
         print( "Running Euler" )
@@ -106,9 +119,12 @@ def __plot_memristor( v, i, t, axes, iv_arrows ):
     
     line11, = ax11.plot( t, i, color="b" )
     line12, = ax12.plot( t, v, color="r" )
-    line2, = ax2.plot( v, i )
+    line2, = ax2.plot( v, i, color="b" )
     
     if iv_arrows:
+        import matplotlib
+        matplotlib.rcParams[ 'lines.markersize' ] = 5
+        
         line2a1, line2a2 = arrows( v, i, ax2 )
     
     return (line11, line12, line2) if not iv_arrows else (line11, line12, line2, line2a1, line2a2)
@@ -217,7 +233,7 @@ class InputVoltage():
         self.period = 1 / frequency if frequency else period
         self.t_max = t_max
     
-    def input_function( self, t ):
+    def __call__( self, t ):
         pass
     
     def print( self, start="\t" ):
@@ -234,7 +250,7 @@ class Interpolated( InputVoltage ):
         
         self.model = interpolate.splrep( x, y, s=0, k=degree )
     
-    def input_function( self, t ):
+    def __call__( self, t ):
         return interpolate.splev( t, self.model, der=0 )
 
 
@@ -244,7 +260,7 @@ class Sine( InputVoltage ):
         
         super( Sine, self ).__init__( "sine", vp, vn, frequency, period, t_max )
     
-    def input_function( self, t ):
+    def __call__( self, t ):
         pos = self.vp * np.sin( 2 * self.frequency * np.multiply( np.pi, t ) )
         neg = self.vn * np.sin( 2 * self.frequency * np.multiply( np.pi, t ) )
         v = np.where( pos > 0, pos, neg )
@@ -259,7 +275,7 @@ class Triangle( InputVoltage ):
         
         super( Triangle, self ).__init__( "triangle", vp, vn, frequency, period, t_max )
     
-    def input_function( self, t ):
+    def __call__( self, t ):
         pos = self.vp * np.abs( scipy.signal.sawtooth( 2 * self.frequency * np.pi * t + np.pi / 2, 0.5 ) )
         neg = -1 * self.vn * np.abs( scipy.signal.sawtooth( 2 * self.frequency * np.pi * t + np.pi / 2, 0.5 ) )
         

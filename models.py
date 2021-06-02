@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.integrate import solve_ivp
+from functions import mim_iv
 
 
 class Yakopcic():
@@ -7,7 +8,7 @@ class Yakopcic():
         self.type = "Yakopcic model"
         
         self.input = input
-        self.V = input.input_function
+        self.V = input
         self.x0 = kwargs[ "x0" ] if "x0" in kwargs else 0.1
         
         self.passed_parameters = kwargs
@@ -275,13 +276,287 @@ class Yakopcic():
         return [ "a1", "a2", "b", "Ap", "An", "Vp", "Vn", "alphap", "alphan", "xp", "xn" ]
 
 
+# TODO make h1 and h2 modular
+class Yakopcic_new():
+    def __init__( self, input, **kwargs ):
+        self.type = "Yakopcic new model"
+        
+        self.input = input
+        self.V = input.input_function
+        self.x0 = kwargs[ "x0" ] if "x0" in kwargs else 0.1
+        
+        self.passed_parameters = kwargs
+        self.passed_parameters.pop( "x0" )
+        
+        self.gmin = kwargs[ "gmin" ] if "gmin" in kwargs else 0.17
+        self.gmax = kwargs[ "gmax" ] if "gmax" in kwargs else 0.17
+        self.bmin = kwargs[ "bmin" ] if "bmin" in kwargs else 0.05
+        self.bmax = kwargs[ "bmax" ] if "bmax" in kwargs else 0.05
+        self.Ap = kwargs[ "Ap" ] if "Ap" in kwargs else 4000
+        self.An = kwargs[ "An" ] if "An" in kwargs else 4000
+        self.Vp = kwargs[ "Vp" ] if "Vp" in kwargs else 0.16
+        self.Vn = kwargs[ "Vn" ] if "Vn" in kwargs else 0.15
+        self.alphap = kwargs[ "alphap" ] if "alphap" in kwargs else 1
+        self.alphan = kwargs[ "alphan" ] if "alphan" in kwargs else 5
+        self.xp = kwargs[ "xp" ] if "xp" in kwargs else 0.3
+        self.xn = kwargs[ "xn" ] if "xn" in kwargs else 0.5
+        self.eta = kwargs[ "eta" ] if "eta" in kwargs else 1
+        
+        self.h1 = kwargs[ "h1" ] if "h1" in kwargs else mim_iv
+        self.h2 = kwargs[ "h2" ] if "h2" in kwargs else mim_iv
+    
+    def I( self, t, x, *args ):
+        """
+        Function implementing the I-V relationship (memristance).
+        
+        The hyperbolic sine shape causes the device to have an increase in  conductivity beyond a certain voltage
+        threshold.
+        a1, a2 : These parameters closely relate to the thickness of the dielectric layer  in  a  memristor  device,
+        as  more  electrons  can  tunnel  through a thinner barrier leading to an increase in conductivity.
+        b : This parameter determines how much curvature is seen in the I-V  curve  relative  to  the  applied
+        voltage.  This  relates  to  how  much of the conduction in the device is Ohmic and how much is due to the
+        tunnel barrier.
+        
+        Parameters
+        ----------
+        t : time
+        x : state variable
+        
+        Attributes
+        ----------
+        a1 : amplitude of current in response to input voltage in forward bias (positive input voltage)
+        a2 : amplitude of current in response to input voltage in reverse bias (negative input voltage)
+        b :  used to control the intensity of the threshold function relating conductivity to input voltage  magnitude
+        
+        Returns
+        -------
+        I : current through the device at time t
+        """
+        gmin = args[ 0 ] if len( args ) > 0 else self.gmin
+        gmax = args[ 1 ] if len( args ) > 1 else self.gmax
+        bmin = args[ 2 ] if len( args ) > 2 else self.bmin
+        bmax = args[ 3 ] if len( args ) > 2 else self.bmax
+        
+        v = self.V( t )
+        i = self.h1( v, gmax, bmax ) * x + self.h2( v, gmin, bmin ) * (1 - x)
+        
+        return i
+    
+    def g( self, v, **kwargs ):
+        """
+        Function implementing the threshold voltage that must be surpassed to induce a change in the value of the
+        state variable.
+        
+        Provides the possibility of having different thresholds based on the polarity of the input voltage.
+        The exponential value subtracted is a constant term during simulations and ensures that the value of the
+        function g(V(t)) starts at 0 once either voltage threshold is surpassed.
+        The magnitude of the exponential represents how quickly the state changes once the threshold
+        is surpassed.
+        
+        Ap, An : These parameters control the speed of ion (or filament) motion.  This  could  be  related  to
+        the dielectric  material  used  since  oxygen  vacancies  have  a  different  mobility  depending  which
+        metal-oxide they are contained in.
+        Vp, Vn : These parameters represent the threshold voltages.  These may  be related to the number of oxygen
+        vacancies in a device in its initial state.  A device with more oxygen vacancies should have a larger  current
+        draw  which  may  lead  to  a  lower  switching  threshold if switching is assumed to be based on the total
+        charge applied.
+        
+        Parameters
+        ----------
+        v : Input voltage
+        
+        Attributes
+        ----------
+        Ap : Magnitude of exponential in forward bias (positive input voltage)
+        An : Magnitude of exponential in reverse bias (negative input voltage)
+        Vp : Positive voltage threshold
+        Vn : Negative voltage threshold
+        
+        Returns
+        -------
+        g : The rate at which the state variable x changes
+        """
+        Ap = kwargs[ "Ap" ] if "Ap" in kwargs else self.Ap
+        An = kwargs[ "An" ] if "An" in kwargs else self.An
+        Vp = kwargs[ "Vp" ] if "Vp" in kwargs else self.Vp
+        Vn = kwargs[ "Vn" ] if "Vn" in kwargs else self.Vn
+        
+        if v > Vp:
+            return Ap * (np.exp( v ) - np.exp( Vp ))
+        elif v < -Vn:
+            return -An * (np.exp( -v ) - np.exp( Vn ))
+        else:
+            return 0
+    
+    def f( self, v, x, **kwargs ):
+        """
+        Function used to divide the state variable motion into two different regions depending on the existing
+        state of the device.  The state variable motion is constant up until the point xp or xn.  At this point the
+        motion of the state variable is limited by an exponential function decaying with a rate of either alphap or
+        alphan.
+        The term eta was introduced to represent the direction of the motion of the
+        state variable relative to the voltage polarity.  When eta=1, a positive voltage above the threshold will
+        increase the value of the state variable, and when eta=–1, a positive voltage results in a decrease in state
+        variable.
+        
+        alphap, alphan, xp, xn : These parameters determine where state variable motion is no longer linear,
+        and they determine the degree to which state variable motion is dampened.  This could be related to the
+        electrode metal used on either side of the dielectric film since the metals chosen may react to the oxygen
+        vacancies differently.
+
+        Parameters
+        ----------
+        v : Input voltage
+        x : State variable
+        
+        Attributes
+        ----------
+        alphap : Exponential decay rate for when state variable x is increasing
+        alphan : Exponential decay rate for when state variable x is decreasing
+        xp : Positive threshold up till which x's motion is linear
+        xn : Negative threshold up till which x's motion is linear
+
+        Returns
+        -------
+        f : State variable x motion
+        """
+        xp = kwargs[ "xp" ] if "xp" in kwargs else self.xp
+        xn = kwargs[ "xn" ] if "xn" in kwargs else self.xn
+        eta = kwargs[ "eta" ] if "eta" in kwargs else self.eta
+        
+        if eta * v >= 0:
+            if x >= xp:
+                return np.exp( -(x - xp) ) * self.wp( x, **kwargs )
+            else:
+                return 1
+        else:
+            if x <= 1 - xn:
+                return np.exp( (x + xn - 1) ) * self.wn( x, **kwargs )
+            else:
+                return 1
+    
+    def wp( self, x, **kwargs ):
+        """
+        Windowing function ensuring that f(x)=0 when x(t)=1.
+        
+        Parameters
+        ----------
+        x : State variable
+        
+        Attributes
+        ----------
+        xp : Positive threshold up till which x's motion is linear
+        
+        Returns
+        -------
+        wp : Window for positive motion of state variable x
+        """
+        xp = kwargs[ "xp" ] if "xp" in kwargs else self.xp
+        
+        return (xp - x) / (1 - xp) + 1
+    
+    def wn( self, x, **kwargs ):
+        """
+        Windowing function ensuring that x(t)>=0 when the current  flow is reversed.
+
+        Parameters
+        ----------
+        x : State variable
+
+        Attributes
+        ----------
+        xn : Negative threshold up till which x's motion is linear
+
+        Returns
+        -------
+        wn : Window for negative motion of state variable x
+        """
+        xn = kwargs[ "xn" ] if "xn" in kwargs else self.xn
+        
+        return x / (1 - xn)
+    
+    def dxdt( self, t, x, *args ):
+        # Necessary to run curve_fit as it doesn't support passing named parameters
+        gmin = args[ 0 ] if len( args ) > 0 else self.gmin
+        gmax = args[ 1 ] if len( args ) > 1 else self.gmax
+        bmin = args[ 2 ] if len( args ) > 2 else self.bmin
+        bmax = args[ 3 ] if len( args ) > 3 else self.bmax
+        Ap = args[ 4 ] if len( args ) > 4 else self.Ap
+        An = args[ 5 ] if len( args ) > 5 else self.An
+        Vp = args[ 6 ] if len( args ) > 6 else self.Vp
+        Vn = args[ 7 ] if len( args ) > 7 else self.Vn
+        xp = args[ 8 ] if len( args ) > 8 else self.xp
+        xn = args[ 9 ] if len( args ) > 9 else self.xn
+        eta = args[ 10 ] if len( args ) > 10 else self.eta
+        
+        # compile args into kwargs for other functions
+        kwargs = { }
+        for k in Yakopcic_new.parameters():
+            kwargs[ k ] = locals()[ k ]
+        kwargs[ "eta" ] = eta
+        
+        v = self.V( t )
+        return eta * self.g( v, **kwargs ) * self.f( v, x, **kwargs )
+    
+    def fit( self ):
+        
+        def ode_fitting( t, gmin, bmin, gmax, bmax, Ap, An, Vp, Vn, xp, xn ):
+            args = [ gmin, bmin, gmax, bmax, Ap, An, Vp, Vn, xp, xn ]
+            print( args )
+            sol = solve_ivp( self.dxdt, (t[ 0 ], t[ -1 ]), [ self.x0 ], method="LSODA",
+                             t_eval=t,
+                             args=args,
+                             # p0=[0]
+                             )
+            
+            return self.I( t, sol.y[ 0, : ], *args )
+        
+        return ode_fitting
+    
+    def print( self ):
+        print( f"{self.type}:" )
+        self.print_equations()
+        self.print_parameters()
+        print( "\tInput V:" )
+        self.input.print()
+    
+    def print_equations( self, start="\t" ):
+        start_lv2 = start + "\t"
+        print( start, "Equations:" )
+        print( start_lv2, "I(t) = a_1 * x(t) * sinh(b * V(t)), V(t) >= 0" )
+        print( start_lv2, "I(t) = a_2 * x(t) * sinh(b * V(t)), V(t) < 0" )
+        print( start_lv2, "g(V(t)) = A_p * ( e^V(t) - e^V_p ), V(t) > V_p" )
+        print( start_lv2, "g(V(t)) = -A_n * ( e^-V(t) - e^V_n ), V(t) < -V_n" )
+        print( start_lv2, "g(V(t)) = 0,  -V_n <= V(t) <= V_p" )
+        print( start_lv2, "f(x) = e^( -( x - x_p ) ) * w_p(x, x_p), eta * V(t) >= 0, x >= X_p" )
+        print( start_lv2, "f(x) = 1, eta * V(t) > 0, x < X_p" )
+        print( start_lv2, "f(x) = e^( ( x + x_n - 1 ) ) * w_n(x, x_n), eta * V(t) < 0, x <= 1 - X_n" )
+        print( start_lv2, "f(x) = 1, eta * V(t) < 0, x <= 1 - X_n" )
+    
+    def print_parameters( self, start="\t", simple=False ):
+        start_lv2 = start + "\t" if not simple else ""
+        if not simple:
+            print( start, "Parameters:" )
+            print( start_lv2, f"Speeds of ion motion A_p {self.Ap}, A_n {self.An}" )
+            print( start_lv2, f"Threshold voltages V_p {self.Vp}, V_n {self.Vn}" )
+            print( start_lv2, f"Linearity threshold for state variable motion x_p {self.xp}, x_n {self.xn}" )
+            print( start_lv2, f"Direction of state variable motion eta {self.eta}" )
+        else:
+            return ([ self.gmin, self.bmin, self.gmax, self.bmin, self.Ap, self.An, self.Vp, self.Vn, self.xp, self.xn,
+                      self.eta ])
+    
+    @staticmethod
+    def parameters():
+        return [ "gmin", "bmin", "gmax", "bmax", "Ap", "An", "Vp", "Vn", "xp", "xn" ]
+
+
 class HPLabs():
     def __init__( self, input, window_function, **kwargs ):
         self.type = "HP Labs ion-drift model"
         
         self.input = input
         self.window_function = window_function
-        self.V = input.input_function
+        self.V = input
         self.F = window_function.func
         self.x0 = kwargs[ "x0" ] if "x0" in kwargs else 0.1
         
