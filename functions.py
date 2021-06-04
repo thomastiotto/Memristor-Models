@@ -27,32 +27,25 @@ def mim_mim_iv( v, gp, bp, gn, bn ):
                          [ lambda v: mim_iv( v, gp, bp ), lambda v: mim_iv( v, gn, bn ) ] )
 
 
-def euler_solver( f, t, dt, iv, I=None ):
-    with Timer( title="Euler" ):
-        print( "Running Euler" )
-        x_sol = [ iv ]
+def euler_solver( f, time, dt, iv, args=None, I=None ):
+    x_sol = [ iv ]
+    for t in time[ 1: ]:
         if I:
             current = [ 0.0 ]
+            current.append( I( t, x_sol[ -1 ] ) )
         
-        for t in progressbar( t[ :-1 ] ):
-            if I:
-                current.append( I( t, x_sol[ -1 ] ) )
-            
-            x_sol.append( x_sol[ -1 ] + f( t, x_sol[ -1 ] ) * dt )
-        
-        return (x_sol, I) if I else x_sol
+        x_sol.append( x_sol[ -1 ] + f( t, x_sol[ -1 ], *args ) * dt )
+    x_sol = np.array( x_sol )
+    
+    return (x_sol, I) if I else x_sol
 
 
-def rk4_solver( f, t, dt, iv, I=None ):
-    with Timer( title="Runge-Kutta RK4" ):
-        print( "Running Runge-Kutta RK4" )
-        x_sol = [ iv ]
+def rk4_solver( f, time, dt, iv, I=None ):
+    x_sol = [ iv ]
+    for t in time[ 1: ]:
         if I:
             current = [ 0.0 ]
-        
-        for t in progressbar( t[ :-1 ] ):
-            if I:
-                current.append( I( t, x_sol[ -1 ] ) )
+            current.append( I( t, x_sol[ -1 ] ) )
             
             k1 = f( t, x_sol[ -1 ] )
             k2 = f( t + dt / 2, x_sol[ -1 ] + dt * k1 / 2 )
@@ -60,6 +53,7 @@ def rk4_solver( f, t, dt, iv, I=None ):
             k4 = f( t + dt, x_sol[ -1 ] + dt * k3 )
             
             x_sol.append( x_sol[ -1 ] + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6 )
+        x_sol = np.array( x_sol )
         
         return (x_sol, I) if I else x_sol
 
@@ -134,21 +128,21 @@ def plot_memristor( v, i, t, title, figsize=(10, 4), iv_arrows=True, animated=Fa
     i_oom = order_of_magnitude.symbol( np.max( i ) )
     t_oom = order_of_magnitude.symbol( np.max( t ) )
     i_scaled = i * 1 / i_oom[ 0 ]
-    t_scaled = t * 1 / t_oom[ 0 ]
+    # t_scaled = t * 1 / t_oom[ 0 ]
     
     fig, axes = plt.subplots( 1, 2, figsize=figsize )
     
     ax11 = axes[ 0 ]
     ax11.set_ylabel( f"Current ({i_oom[ 1 ]}A)", color="b" )
     ax11.tick_params( 'y', colors='b' )
-    ax11.set_xlim( np.min( t_scaled ), np.max( t_scaled ) )
+    ax11.set_xlim( np.min( t ), np.max( t ) )
     ax11.set_ylim( [ np.min( i_scaled ) - np.abs( 0.5 * np.min( i_scaled ) ),
                      np.max( i_scaled ) + np.abs( 0.5 * np.max( i_scaled ) ) ] )
     ax12 = ax11.twinx()
     ax11.set_xlabel( f"Time ({t_oom[ 1 ]}s)" )
     ax12.set_ylabel( 'Voltage (V)', color='r' )
     ax12.tick_params( 'y', colors='r' )
-    ax12.set_xlim( np.min( t_scaled ), np.max( t_scaled ) )
+    ax12.set_xlim( np.min( t ), np.max( t ) )
     ax12.set_ylim( [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
     ax2 = axes[ 1 ]
     ax2.set_xlim( [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
@@ -160,9 +154,9 @@ def plot_memristor( v, i, t, title, figsize=(10, 4), iv_arrows=True, animated=Fa
     fig.tight_layout()
     
     if animated:
-        lines = __animate_memristor( v, i_scaled, t_scaled, fig, [ ax11, ax12, ax2 ], filename )
+        lines = __animate_memristor( v, i_scaled, t, fig, [ ax11, ax12, ax2 ], filename )
     else:
-        lines = __plot_memristor( v, i_scaled, t_scaled, [ ax11, ax12, ax2 ], iv_arrows )
+        lines = __plot_memristor( v, i_scaled, t, [ ax11, ax12, ax2 ], iv_arrows )
     
     return fig, lines, (ax11, ax12, ax2)
 

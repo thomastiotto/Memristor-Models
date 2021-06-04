@@ -282,7 +282,7 @@ class Yakopcic_new():
         self.type = "Yakopcic new model"
         
         self.input = input
-        self.V = input.input_function
+        self.V = input
         self.x0 = kwargs[ "x0" ] if "x0" in kwargs else 0.1
         
         self.passed_parameters = kwargs
