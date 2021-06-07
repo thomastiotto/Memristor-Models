@@ -11,12 +11,9 @@ import os
 import multiprocessing as mp
 import argparse
 
-from functions import *
-from models import *
-from experiments import *
-
 import tkinter as tk
 from tkinter import ttk
+from tkinter import filedialog as fd
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
@@ -210,12 +207,14 @@ class FitWindow( tk.Toplevel ):
     
     # TODO vary the polarity threshold
     def update_output( self ):
-        self.on_label.set( f"{self.master.gmax_p.get():.2e} * sinh({self.master.bmax_p.get():.2f} * V(t)), V(t) >= 0  "
-                           f"|  {self.master.gmax_n.get():.2e} * sinh({self.master.bmax_n.get():.2f} * V(t)), "
-                           f"V(t) < 0" )
-        self.off_label.set( f"{self.master.gmin_p.get():.2e} * sinh({self.master.bmin_p.get():.2f} * V(t)), V(t) >= 0  "
-                            f"|  {self.master.gmin_n.get():.2e} * sinh({self.master.bmin_n.get():.2f} * V(t)), "
-                            f"V(t) < 0" )
+        self.on_label.set(
+                f"h1 = {self.master.gmax_p.get():.2e} * sinh({self.master.bmax_p.get():.2f} * V(t)), V(t) >= 0  "
+                f"|  {self.master.gmax_n.get():.2e} * sinh({self.master.bmax_n.get():.2f} * V(t)), "
+                f"V(t) < 0" )
+        self.off_label.set(
+                f"h2 = {self.master.gmin_p.get():.2e} * sinh({self.master.bmin_p.get():.2f} * V(t)), V(t) >= 0  "
+                f"|  {self.master.gmin_n.get():.2e} * sinh({self.master.bmin_n.get():.2f} * V(t)), "
+                f"V(t) < 0" )
     
     def output_setup( self ):
         self.error = tk.StringVar()
@@ -234,10 +233,18 @@ class FitWindow( tk.Toplevel ):
         
         self.update_output()
         
-        ttk.Label( self, text="On fit" ).grid( column=0, row=1 )
+        ttk.Label( self, text="Stable ON fit:" ).grid( column=0, row=1 )
         ttk.Label( self, textvariable=self.on_label ).grid( column=1, row=1, sticky=tk.W )
-        ttk.Label( self, text="Off fit" ).grid( column=0, row=2 )
+        ttk.Label( self, text="Stable OFF fit:" ).grid( column=0, row=2 )
         ttk.Label( self, textvariable=self.off_label ).grid( column=1, row=2, sticky=tk.W )
+        
+        ttk.Label( self,
+                   text="Select the negative (Vn) and positive (Vp) threshold voltages which will be used to fit the "
+                        "h1 and h2 equations.\nThese equations determine the conductivity profile in the Stable ON "
+                        "and Stable OFF states.\nYou can change the values by pulling or clicking on the sliders, "
+                        "inputting a value directly and pressing Enter, or selecting the entry box and using Up and "
+                        "Down arrows." ).grid(
+                column=0, row=5, columnspan=3 )
     
     def input_setup( self ):
         # Vp
@@ -295,12 +302,14 @@ class PlotWindow( tk.Toplevel ):
         self.destroy()
     
     def update_output( self ):
-        self.on_label.set( f"{self.master.gmax_p.get():.2e} * sinh({self.master.bmax_p.get():.2f} * V(t)), V(t) >= 0  "
-                           f"|  {self.master.gmax_n.get():.2e} * sinh({self.master.bmax_n.get():.2f} * V(t)), "
-                           f"V(t) < 0" )
-        self.off_label.set( f"{self.master.gmin_p.get():.2e} * sinh({self.master.bmin_p.get():.2f} * V(t)), V(t) >= 0  "
-                            f"|  {self.master.gmin_n.get():.2e} * sinh({self.master.bmin_n.get():.2f} * V(t)), "
-                            f"V(t) < 0" )
+        self.on_label.set(
+                f"h1 = {self.master.gmax_p.get():.2e} * sinh({self.master.bmax_p.get():.2f} * V(t)), V(t) >= 0  "
+                f"|  {self.master.gmax_n.get():.2e} * sinh({self.master.bmax_n.get():.2f} * V(t)), "
+                f"V(t) < 0" )
+        self.off_label.set(
+                f"h2 = {self.master.gmin_p.get():.2e} * sinh({self.master.bmin_p.get():.2f} * V(t)), V(t) >= 0  "
+                f"|  {self.master.gmin_n.get():.2e} * sinh({self.master.bmin_n.get():.2f} * V(t)), "
+                f"V(t) < 0" )
     
     def output_setup( self ):
         self.error = tk.StringVar()
@@ -323,6 +332,13 @@ class PlotWindow( tk.Toplevel ):
         ttk.Label( self, textvariable=self.on_label ).grid( column=1, row=1, sticky=tk.W )
         ttk.Label( self, text="Off fit" ).grid( column=0, row=2 )
         ttk.Label( self, textvariable=self.off_label ).grid( column=1, row=2, sticky=tk.W )
+        
+        ttk.Label( self,
+                   text="Select the parameters used to simulated the state variable evolution.\nChanging Vp and Vn "
+                        "does not affect the fit for h1 and h2.\nYou can change the "
+                        "values by pulling or clicking on the sliders, "
+                        "inputting a value directly and pressing Enter, or selecting the entry box and using Up and "
+                        "Down arrows." ).grid( column=0, row=11, columnspan=3 )
     
     def input_setup( self ):
         # Ap
@@ -548,7 +564,7 @@ class MainWindow( tk.Tk ):
         
         # dimensions of the main window
         self.title( "Main" )
-        self.xy = (200, 120)
+        self.xy = (200, 150)
         self.geometry( f"{self.xy[ 0 ]}x{self.xy[ 1 ]}+0+0" )
         self.resizable( False, False )
         
@@ -563,16 +579,7 @@ class MainWindow( tk.Tk ):
         self.alphap = tk.DoubleVar()
         self.alphan = tk.DoubleVar()
         
-        self.Ap.set( 1.0 )
-        self.An.set( 1.0 )
-        self.Vp.set( 0.0 )
-        self.Vn.set( 0.0 )
-        self.xp.set( 0.1 )
-        self.xn.set( 0.1 )
-        self.alphap.set( 0.1 )
-        self.alphan.set( 0.1 )
-        
-        self.read_input()
+        self.init_variables()
         
         self.main_setup()
         
@@ -587,10 +594,6 @@ class MainWindow( tk.Tk ):
         self.bmin_p = tk.DoubleVar()
         self.gmin_n = tk.DoubleVar()
         self.bmin_n = tk.DoubleVar()
-        
-        popt_on, popt_off, _, _ = fit( self.voltage, self.current, self.Vp, self.Vn )
-        self.set_on_pars( popt_on )
-        self.set_off_pars( popt_off )
     
     def nudge_var( self, var, direction, amount=0.001 ):
         if direction == "up":
@@ -645,8 +648,8 @@ class MainWindow( tk.Tk ):
         except:
             pass
     
-    def read_input( self ):
-        with open( f"./plots/Radius 10 um/-4V_1.pkl", "rb" ) as file:
+    def read_input( self, device_file ):
+        with open( device_file, "rb" ) as file:
             df = pickle.load( file )
         
         self.time = np.array( df[ "t" ].to_list() )[ :-1 ]
@@ -661,11 +664,59 @@ class MainWindow( tk.Tk ):
     def open_plot_window( self ):
         self.plot_window = PlotWindow( self, xy=self.xy )
     
+    def select_file( self ):
+        filetypes = (
+                ('Pickled files', '*.pkl'),
+                ('All files', '*.*')
+                )
+        
+        self.device_file = fd.askopenfilenames(
+                title="Select a device measurement file",
+                initialdir=".",
+                filetypes=filetypes )[ 0 ]
+        
+        self.fit_button[ "state" ] = "normal"
+        self.plot_button[ "state" ] = "normal"
+        self.reset_button[ "state" ] = "normal"
+        
+        self.read_input( self.device_file )
+        
+        popt_on, popt_off, _, _ = fit( self.voltage, self.current, self.Vp, self.Vn )
+        self.set_on_pars( popt_on )
+        self.set_off_pars( popt_off )
+        
+        self.plot_update( None )
+    
+    def init_variables( self ):
+        self.Ap.set( 1.0 )
+        self.An.set( 1.0 )
+        self.Vp.set( 0.0 )
+        self.Vn.set( 0.0 )
+        self.xp.set( 0.1 )
+        self.xn.set( 0.1 )
+        self.alphap.set( 0.1 )
+        self.alphan.set( 0.1 )
+    
+    def reset( self ):
+        self.read_input( self.device_file )
+        
+        popt_on, popt_off, _, _ = fit( self.voltage, self.current, self.Vp, self.Vn )
+        self.set_on_pars( popt_on )
+        self.set_off_pars( popt_off )
+        
+        self.init_variables()
+        
+        self.plot_update( None )
+    
     def main_setup( self ):
-        self.fit_button = ttk.Button( self, text="Fit", command=self.open_fit_window )
+        self.open_button = ttk.Button( self, text="Load", command=self.select_file )
+        self.open_button.pack()
+        self.fit_button = ttk.Button( self, text="Fit", command=self.open_fit_window, state="disabled" )
         self.fit_button.pack()
-        self.plot_button = ttk.Button( self, text="Plot", command=self.open_plot_window )
+        self.plot_button = ttk.Button( self, text="Plot", command=self.open_plot_window, state="disabled" )
         self.plot_button.pack()
+        self.reset_button = ttk.Button( self, text="Reset", command=self.reset, state="disabled" )
+        self.reset_button.pack()
         self.quit_button = ttk.Button( self, text="Quit", command=self.destroy )
         self.quit_button.pack()
 
