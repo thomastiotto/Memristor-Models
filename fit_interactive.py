@@ -96,8 +96,7 @@ class Model():
         v = self.V( t )
         return mim_mim_iv( v, *on_pars ) * x + mim_mim_iv( v, *off_pars ) * (1 - x)
     
-    def dxdt( self, t, x, Ap, An, Vp, Vn, xp, xn, alphap, alphan, ):
-        eta = 1
+    def dxdt( self, t, x, Ap, An, Vp, Vn, xp, xn, alphap, alphan, eta=1 ):
         v = self.V( t )
         return eta * self.g( v, Ap, An, Vp, Vn ) * self.f( v, x, xp, xn, alphap, alphan, eta )
 
@@ -114,6 +113,12 @@ class FitWindow( tk.Toplevel ):
         self.rowconfigure( 0, weight=10 )
         self.columnconfigure( 1, weight=10 )
         
+        # Local thresholds so changing them in PlotWindow does not affect fit
+        self.Vp = tk.DoubleVar()
+        self.Vn = tk.DoubleVar()
+        self.Vp.set( self.master.Vp.get() )
+        self.Vn.set( self.master.Vn.get() )
+        
         self.input_setup()
         self.output_setup()
         self.initial_plot()
@@ -123,13 +128,18 @@ class FitWindow( tk.Toplevel ):
         self.master.fit_button[ "state" ] = "disabled"
     
     def on_close( self ):
+        self.master.Vp.set( self.Vp.get() )
+        self.master.Vn.set( self.Vn.get() )
+        
+        self.master.plot_update( None )
+        
         self.master.fit_button[ "state" ] = "normal"
         self.destroy()
     
     def initial_plot( self ):
         v = self.master.voltage
         i = self.master.current
-        _, _, on_mask, off_mask = fit( v, i, self.master.Vp, self.master.Vn )
+        _, _, on_mask, off_mask = fit( v, i, self.Vp, self.Vn )
         
         self.fig, self.axis = plt.subplots( 1, 1 )
         self.axis.scatter( v[ on_mask ],
@@ -168,7 +178,7 @@ class FitWindow( tk.Toplevel ):
     def plot_update( self, _ ):
         v = self.master.voltage
         i = self.master.current
-        popt_on, popt_off, on_mask, off_mask = fit( v, i, self.master.Vp, self.master.Vn )
+        popt_on, popt_off, on_mask, off_mask = fit( v, i, self.Vp, self.Vn )
         
         self.master.set_on_pars( popt_on )
         self.master.set_off_pars( popt_off )
@@ -234,31 +244,31 @@ class FitWindow( tk.Toplevel ):
         Vp_label = ttk.Label( self, text="Vp" )
         Vp_label.grid( column=0, row=3, padx=0, pady=5 )
         
-        Vp_slider = ttk.Scale( self, from_=0, to=np.max( self.master.voltage ), variable=self.master.Vp,
+        Vp_slider = ttk.Scale( self, from_=0, to=np.max( self.master.voltage ), variable=self.Vp,
                                command=self.master.plot_update )
         Vp_slider.grid( column=1, row=3, padx=0, pady=5, sticky="EW" )
         
-        Vp_entry = ttk.Entry( self, textvariable=self.master.Vp )
+        Vp_entry = ttk.Entry( self, textvariable=self.Vp )
         Vp_entry.grid( column=2, row=3, padx=0, pady=5 )
         
         Vp_entry.bind( "<Return>", self.master.plot_update )
-        Vp_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.Vp, "up" ) )
-        Vp_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.Vp, "down" ) )
+        Vp_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.Vp, "up" ) )
+        Vp_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.Vp, "down" ) )
         
         # Vn
         Vn_label = ttk.Label( self, text="Vn" )
         Vn_label.grid( column=0, row=4, padx=0, pady=5 )
         
-        Vn_slider = ttk.Scale( self, from_=0, to=np.abs( np.min( self.master.voltage ) ), variable=self.master.Vn,
+        Vn_slider = ttk.Scale( self, from_=0, to=np.abs( np.min( self.master.voltage ) ), variable=self.Vn,
                                command=self.master.plot_update )
         Vn_slider.grid( column=1, row=4, padx=0, pady=5, sticky="EW" )
         
-        Vn_entry = ttk.Entry( self, textvariable=self.master.Vn )
+        Vn_entry = ttk.Entry( self, textvariable=self.Vn )
         Vn_entry.grid( column=2, row=4, padx=0, pady=5 )
         
         Vn_entry.bind( "<Return>", self.master.plot_update )
-        Vn_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.Vn, "up" ) )
-        Vn_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.Vn, "down" ) )
+        Vn_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.Vn, "up" ) )
+        Vn_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.Vn, "down" ) )
 
 
 class PlotWindow( tk.Toplevel ):
@@ -334,7 +344,7 @@ class PlotWindow( tk.Toplevel ):
         An_label = ttk.Label( self, text="An" )
         An_label.grid( column=0, row=4, padx=0, pady=5 )
         
-        An_slider = ttk.Scale( self, from_=0.0001, to=10, variable=self.master.An,
+        An_slider = ttk.Scale( self, from_=0.0001, to=100, variable=self.master.An,
                                command=self.master.plot_update )
         An_slider.grid( column=1, row=4, padx=0, pady=5, sticky="EW" )
         
