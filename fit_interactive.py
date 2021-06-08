@@ -21,6 +21,7 @@ from functions import *
 
 
 # TODO mouse clicks to set parameters?
+# TODO make I-V equations modular
 #####################################################
 #                         MODEL
 #####################################################
@@ -50,12 +51,10 @@ class Model():
         self.I = self.I_mim_mim_mim_mim
     
     def g( self, v, Ap, An, Vp, Vn ):
-        if v > Vp:
-            return Ap * (np.exp( v ) - np.exp( Vp ))
-        elif v < -Vn:
-            return -An * (np.exp( -v ) - np.exp( Vn ))
-        else:
-            return 0
+        return np.select( [ v > Vp, v < -Vn ],
+                          [ Ap * (np.exp( v ) - np.exp( Vp )),
+                            -An * (np.exp( -v ) - np.exp( Vn )) ],
+                          default=0 )
     
     def wp( self, x, xp ):
         return ((xp - x) / (1 - xp)) + 1
@@ -64,16 +63,14 @@ class Model():
         return x / (1 - xn)
     
     def f( self, v, x, xp, xn, alphap, alphan, eta ):
-        if eta * v > 0:
-            if x >= xp:
-                return np.exp( -alphap * (x - xp) ) * self.wp( x, xp )
-            else:
-                return 1
-        else:
-            if x <= 1 - xn:
-                return np.exp( alphan * (x + xn - 1) ) * self.wn( x, xn )
-            else:
-                return 1
+        return np.select( [ eta * v > 0, eta * v <= 0 ],
+                          [ np.select( [ x >= xp, x < xp ],
+                                       [ np.exp( -alphap * (x - xp) ) * self.wp( x, xp ),
+                                         1 ] ),
+                            np.select( [ x <= 1 - xn, x > 1 - xn ],
+                                       [ np.exp( alphan * (x + xn - 1) ) * self.wn( x, xn ),
+                                         1 ] )
+                            ] )
     
     def ohmic_iv( self, v, g ):
         return g * v
@@ -360,7 +357,7 @@ class PlotWindow( tk.Toplevel ):
         An_label = ttk.Label( self, text="An" )
         An_label.grid( column=0, row=4, padx=0, pady=5 )
         
-        An_slider = ttk.Scale( self, from_=0.0001, to=100, variable=self.master.An,
+        An_slider = ttk.Scale( self, from_=0.0001, to=10, variable=self.master.An,
                                command=self.master.plot_update )
         An_slider.grid( column=1, row=4, padx=0, pady=5, sticky="EW" )
         
@@ -524,6 +521,26 @@ class PlotWindow( tk.Toplevel ):
         t = self.master.time
         v = self.memristor.V( t )
         i = self.memristor.I( t, x, self.master.get_on_pars(), self.master.get_off_pars() )
+        
+        fig_debug, axes_debug = plt.subplots( 5, 1 )
+        axes_debug[ 0 ].plot( t, v )
+        axes_debug[ 0 ].set_ylabel( "Voltage" )
+        axes_debug[ 1 ].plot( t, i )
+        axes_debug[ 1 ].set_ylabel( "Current" )
+        axes_debug[ 2 ].plot( t, x )
+        axes_debug[ 2 ].set_ylabel( "State Variable" )
+        axes_debug[ 3 ].plot( t, self.memristor.g( v, self.master.Ap.get(), self.master.An.get(), self.master.Vp.get(),
+                                                   self.master.Vn.get() ) )
+        axes_debug[ 3 ].set_ylabel( "g" )
+        axes_debug[ 4 ].plot( t,
+                              self.memristor.f( v, x, self.master.xp.get(), self.master.xn.get(),
+                                                self.master.alphap.get(),
+                                                self.master.alphan.get(), 1 ) )
+        axes_debug[ 4 ].set_ylabel( "f" )
+        for ax in axes_debug.ravel():
+            ax.set_xlabel( "Time" )
+        fig_debug.tight_layout()
+        fig_debug.show()
         
         # Adjust to new limits
         # self.axes[ 0 ].set_xlim( [ 0, np.max( t ) ] )
