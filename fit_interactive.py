@@ -107,12 +107,6 @@ class FitWindow( tk.Toplevel ):
         self.rowconfigure( 0, weight=10 )
         self.columnconfigure( 1, weight=10 )
         
-        # Local thresholds so changing them in PlotWindow does not affect fit
-        self.Vp = tk.DoubleVar()
-        self.Vn = tk.DoubleVar()
-        self.Vp.set( self.master.Vp.get() )
-        self.Vn.set( self.master.Vn.get() )
-        
         self.input_setup()
         self.output_setup()
         self.initial_plot()
@@ -122,8 +116,8 @@ class FitWindow( tk.Toplevel ):
         self.master.fit_button[ "state" ] = "disabled"
     
     def on_close( self ):
-        self.master.Vp.set( self.Vp.get() )
-        self.master.Vn.set( self.Vn.get() )
+        self.master.Vp.set( self.master.Vp_fit.get() )
+        self.master.Vn.set( self.master.Vn_fit.get() )
         
         self.master.plot_update( None )
         
@@ -133,7 +127,7 @@ class FitWindow( tk.Toplevel ):
     def initial_plot( self ):
         v = self.master.voltage
         i = self.master.current
-        _, _, on_mask, off_mask = fit( v, i, self.Vp, self.Vn )
+        _, _, on_mask, off_mask = fit( v, i, self.master.Vp_fit, self.master.Vn_fit )
         
         self.fig, self.axis = plt.subplots( 1, 1 )
         self.axis.scatter( v[ on_mask ],
@@ -172,7 +166,7 @@ class FitWindow( tk.Toplevel ):
     def plot_update( self, _ ):
         v = self.master.voltage
         i = self.master.current
-        popt_on, popt_off, on_mask, off_mask = fit( v, i, self.Vp, self.Vn )
+        popt_on, popt_off, on_mask, off_mask = fit( v, i, self.master.Vp_fit, self.master.Vn_fit )
         
         self.master.set_on_pars( popt_on )
         self.master.set_off_pars( popt_off )
@@ -248,31 +242,31 @@ class FitWindow( tk.Toplevel ):
         Vp_label = ttk.Label( self, text="Vp" )
         Vp_label.grid( column=0, row=3, padx=0, pady=5 )
         
-        Vp_slider = ttk.Scale( self, from_=0, to=np.max( self.master.voltage ), variable=self.Vp,
+        Vp_slider = ttk.Scale( self, from_=0, to=np.max( self.master.voltage ), variable=self.master.Vp_fit,
                                command=self.master.plot_update )
         Vp_slider.grid( column=1, row=3, padx=0, pady=5, sticky="EW" )
         
-        Vp_entry = ttk.Entry( self, textvariable=self.Vp )
+        Vp_entry = ttk.Entry( self, textvariable=self.master.Vp_fit )
         Vp_entry.grid( column=2, row=3, padx=0, pady=5 )
         
         Vp_entry.bind( "<Return>", self.master.plot_update )
-        Vp_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.Vp, "up" ) )
-        Vp_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.Vp, "down" ) )
+        Vp_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.Vp_fit, "up" ) )
+        Vp_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.Vp_fit, "down" ) )
         
         # Vn
         Vn_label = ttk.Label( self, text="Vn" )
         Vn_label.grid( column=0, row=4, padx=0, pady=5 )
         
-        Vn_slider = ttk.Scale( self, from_=0, to=np.abs( np.min( self.master.voltage ) ), variable=self.Vn,
+        Vn_slider = ttk.Scale( self, from_=0, to=np.abs( np.min( self.master.voltage ) ), variable=self.master.Vn_fit,
                                command=self.master.plot_update )
         Vn_slider.grid( column=1, row=4, padx=0, pady=5, sticky="EW" )
         
-        Vn_entry = ttk.Entry( self, textvariable=self.Vn )
+        Vn_entry = ttk.Entry( self, textvariable=self.master.Vn_fit )
         Vn_entry.grid( column=2, row=4, padx=0, pady=5 )
         
         Vn_entry.bind( "<Return>", self.master.plot_update )
-        Vn_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.Vn, "up" ) )
-        Vn_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.Vn, "down" ) )
+        Vn_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.Vn_fit, "up" ) )
+        Vn_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.Vn_fit, "down" ) )
 
 
 class PlotWindow( tk.Toplevel ):
@@ -280,7 +274,7 @@ class PlotWindow( tk.Toplevel ):
         super( PlotWindow, self ).__init__( master )
         
         self.title( "Simulated memristor" )
-        self.geometry( f"1200x1000+{xy[ 0 ] + 10}+{xy[ 1 ]}" )
+        self.geometry( f"1200x1100+{xy[ 0 ] + 10}+{xy[ 1 ]}" )
         self.resizable( False, False )
         
         self.memristor = Model( self.master.time, self.master.voltage )
@@ -457,6 +451,9 @@ class PlotWindow( tk.Toplevel ):
         alphan_entry.bind( "<Return>", self.master.plot_update )
         alphan_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.alphan, "up" ) )
         alphan_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.alphan, "down" ) )
+        
+        #     debug
+        debug_button = ttk.Button( self, text="Debug", command=self.debug ).grid( column=0, row=12 )
     
     def initial_plot( self ):
         # simulate the model
@@ -495,11 +492,43 @@ class PlotWindow( tk.Toplevel ):
         self.fig.canvas.draw()
     
     def plot_data( self ):
-        i_oom = order_of_magnitude.symbol( np.max( self.master.current ) )
-        i_scaled = self.master.current * 1 / i_oom[ 0 ]
+        i = self.master.current
         
-        self.axes[ 0 ].plot( self.master.time, i_scaled, color="g", alpha=0.5 )
-        self.axes[ 2 ].plot( self.master.voltage, i_scaled, color="g", alpha=0.5 )
+        self.axes[ 0 ].plot( self.master.time, i, color="g", alpha=0.5 )
+        self.axes[ 2 ].plot( self.master.voltage, i, color="g", alpha=0.5 )
+    
+    def debug( self ):
+        x = euler_solver( self.memristor.dxdt, self.master.time,
+                          dt=np.mean( np.diff( self.master.time ) ),
+                          iv=self.master.x0,
+                          args=self.master.get_sim_pars() )
+        t = self.master.time
+        v = self.memristor.V( t )
+        i = self.memristor.I( t, x, self.master.get_on_pars(), self.master.get_off_pars() )
+        
+        fig_debug, axes_debug = plt.subplots( 5, 1, figsize=(12, 10) )
+        axes_debug[ 0 ].plot( t, v )
+        axes_debug[ 0 ].set_ylabel( "Voltage" )
+        axes_debug[ 1 ].plot( t, i )
+        axes_debug[ 1 ].set_ylabel( "Current" )
+        axes_debug[ 2 ].plot( t, x )
+        axes_debug[ 2 ].set_ylabel( "State Variable" )
+        axes_debug[ 3 ].plot( t, self.memristor.g( v, self.master.Ap.get(), self.master.An.get(),
+                                                   self.master.Vp.get(),
+                                                   self.master.Vn.get() ) )
+        axes_debug[ 3 ].set_ylabel( "g" )
+        axes_debug[ 4 ].plot( t,
+                              self.memristor.f( v, x, self.master.xp.get(), self.master.xn.get(),
+                                                self.master.alphap.get(),
+                                                self.master.alphan.get(), 1 ) )
+        axes_debug[ 4 ].set_ylabel( "f" )
+        for ax in axes_debug.ravel():
+            ax.set_xlabel( "Time" )
+        fig_debug.tight_layout()
+        fig_debug.show()
+        
+        print( f"max(i): {np.max( i )}, min(i): {np.min( i )} " )
+        print( f"max(x): {np.max( x )}, min(x): {np.min( x )} " )
     
     def plot_update( self, _ ):
         # simulate the model
@@ -522,55 +551,17 @@ class PlotWindow( tk.Toplevel ):
         v = self.memristor.V( t )
         i = self.memristor.I( t, x, self.master.get_on_pars(), self.master.get_off_pars() )
         
-        fig_debug, axes_debug = plt.subplots( 5, 1 )
-        axes_debug[ 0 ].plot( t, v )
-        axes_debug[ 0 ].set_ylabel( "Voltage" )
-        axes_debug[ 1 ].plot( t, i )
-        axes_debug[ 1 ].set_ylabel( "Current" )
-        axes_debug[ 2 ].plot( t, x )
-        axes_debug[ 2 ].set_ylabel( "State Variable" )
-        axes_debug[ 3 ].plot( t, self.memristor.g( v, self.master.Ap.get(), self.master.An.get(), self.master.Vp.get(),
-                                                   self.master.Vn.get() ) )
-        axes_debug[ 3 ].set_ylabel( "g" )
-        axes_debug[ 4 ].plot( t,
-                              self.memristor.f( v, x, self.master.xp.get(), self.master.xn.get(),
-                                                self.master.alphap.get(),
-                                                self.master.alphan.get(), 1 ) )
-        axes_debug[ 4 ].set_ylabel( "f" )
-        for ax in axes_debug.ravel():
-            ax.set_xlabel( "Time" )
-        fig_debug.tight_layout()
-        fig_debug.show()
-        
-        # Adjust to new limits
-        # self.axes[ 0 ].set_xlim( [ 0, np.max( t ) ] )
-        # self.axes[ 1 ].set_xlim( [ 0, np.max( t ) ] )
-        # self.axes[ 1 ].set_ylim(
-        #         [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
-        # self.axes[ 2 ].set_xlim(
-        #         [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
-        
-        i_oom = order_of_magnitude.symbol( np.max( i ) )
-        i_scaled = i * 1 / i_oom[ 0 ]
-        
         # remove old lines
         for ax in self.axes:
             ax.clear()
         
         # Plot new graphs
-        self.axes[ 0 ].plot( t, i_scaled, color="b" )
+        self.axes[ 0 ].plot( t, i, color="b" )
         self.axes[ 1 ].plot( t, v, color="r" )
-        self.axes[ 2 ].plot( v, i_scaled, color="b" )
+        self.axes[ 2 ].plot( v, i, color="b" )
         
         # plot real data
         self.plot_data()
-        
-        # Adjust to new limits
-        # self.axes[ 0 ].set_ylim( [ np.min( i_scaled ) - np.abs( 0.5 * np.min( i_scaled ) ),
-        #                            np.max( i_scaled ) + np.abs( 0.5 * np.max( i_scaled ) ) ] )
-        # self.axes[ 0 ].set_ylabel( f"Current ({i_oom[ 1 ]}A)", color="b" )
-        # self.axes[ 2 ].set_ylim( [ np.min( i_scaled ) - np.abs( 0.5 * np.min( i_scaled ) ),
-        #                            np.max( i_scaled ) + np.abs( 0.5 * np.max( i_scaled ) ) ] )
         
         self.fig.canvas.draw()
 
@@ -601,6 +592,10 @@ class MainWindow( tk.Tk ):
         self.main_setup()
         
         self.plot_window = self.fit_window = None
+        
+        # variables for fitting
+        self.Vp_fit = tk.DoubleVar()
+        self.Vn_fit = tk.DoubleVar()
         
         # variables for I-V curve
         self.gmax_p = tk.DoubleVar()
