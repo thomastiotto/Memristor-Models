@@ -53,11 +53,6 @@ for dirPath, _, fileList in os.walk( rootDir ):
         with open( f"./plots/{dirName}/{plot_name}_{i}.pkl", "wb" ) as file:
             pickle.dump( df, file )
         
-        df[ "I" ] = df[ "I" ] * -1
-        df[ "V" ] = df[ "V" ] * -1
-        with open( f"./plots/{dirName}/{plot_name}_inv_{i}.pkl", "wb" ) as file:
-            pickle.dump( df, file )
-        
         fig, _, _ = plot_memristor( df[ "V" ], df[ "I" ], df[ "t" ], plot_name )
         fig.savefig( f"./plots/{dirName}/{plot_name}_{i}.png" )
         fig.show()
