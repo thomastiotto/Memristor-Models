@@ -1,5 +1,8 @@
+import numbers
+
 import numpy as np
 import scipy.signal
+from scipy import interpolate
 from order_of_magnitude import order_of_magnitude
 
 import matplotlib.pyplot as plt
@@ -11,32 +14,38 @@ from block_timer.timer import Timer
 from progressbar import progressbar
 
 
-def euler_solver( f, t, dt, iv, I=None ):
-    with Timer( title="Euler" ):
-        print( "Running Euler" )
-        x_sol = [ iv ]
-        if I:
-            current = [ 0.0 ]
-        
-        for t in progressbar( t[ :-1 ] ):
-            if I:
-                current.append( I( t, x_sol[ -1 ] ) )
-            
-            x_sol.append( x_sol[ -1 ] + f( t, x_sol[ -1 ] ) * dt )
-        
-        return (x_sol, I) if I else x_sol
+def ohmic_iv( v, g ):
+    return g * v
 
 
-def rk4_solver( f, t, dt, iv, I=None ):
-    with Timer( title="Runge-Kutta RK4" ):
-        print( "Running Runge-Kutta RK4" )
-        x_sol = [ iv ]
+def mim_iv( v, g, b ):
+    return g * np.sinh( b * v )
+
+
+def mim_mim_iv( v, gp, bp, gn, bn ):
+    return np.piecewise( v, [ v >= 0, v < 0 ],
+                         [ lambda v: mim_iv( v, gp, bp ), lambda v: mim_iv( v, gn, bn ) ] )
+
+
+def euler_solver( f, time, dt, iv, args=None, I=None ):
+    x_sol = [ iv ]
+    for t in time[ 1: ]:
         if I:
             current = [ 0.0 ]
+            current.append( I( t, x_sol[ -1 ] ) )
         
-        for t in progressbar( t[ :-1 ] ):
-            if I:
-                current.append( I( t, x_sol[ -1 ] ) )
+        x_sol.append( x_sol[ -1 ] + f( t, x_sol[ -1 ], *args ) * dt )
+    x_sol = np.array( x_sol )
+    
+    return (x_sol, I) if I else x_sol
+
+
+def rk4_solver( f, time, dt, iv, I=None ):
+    x_sol = [ iv ]
+    for t in time[ 1: ]:
+        if I:
+            current = [ 0.0 ]
+            current.append( I( t, x_sol[ -1 ] ) )
             
             k1 = f( t, x_sol[ -1 ] )
             k2 = f( t + dt / 2, x_sol[ -1 ] + dt * k1 / 2 )
@@ -44,6 +53,7 @@ def rk4_solver( f, t, dt, iv, I=None ):
             k4 = f( t + dt, x_sol[ -1 ] + dt * k3 )
             
             x_sol.append( x_sol[ -1 ] + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6 )
+        x_sol = np.array( x_sol )
         
         return (x_sol, I) if I else x_sol
 
@@ -103,46 +113,62 @@ def __plot_memristor( v, i, t, axes, iv_arrows ):
     
     line11, = ax11.plot( t, i, color="b" )
     line12, = ax12.plot( t, v, color="r" )
-    line2, = ax2.plot( v, i )
+    line2, = ax2.plot( v, i, color="b" )
     
     if iv_arrows:
+        import matplotlib
+        matplotlib.rcParams[ 'lines.markersize' ] = 5
+        
         line2a1, line2a2 = arrows( v, i, ax2 )
     
     return (line11, line12, line2) if not iv_arrows else (line11, line12, line2, line2a1, line2a2)
 
 
-def plot_memristor( v, i, t, title, figsize=(10, 4), iv_arrows=True, animated=False, filename=None ):
-    i_oom = order_of_magnitude.symbol( np.max( i ) )
-    t_oom = order_of_magnitude.symbol( np.max( t ) )
-    i_scaled = i * 1 / i_oom[ 0 ]
-    t_scaled = t * 1 / t_oom[ 0 ]
+def plot_memristor( v, i, t, title=None, figsize=(10, 4), iv_arrows=True, animated=False, filename=None, scaled=False ):
+    i_oom = ("", "")
+    t_oom = ("", "")
+    if scaled:
+        i_oom = order_of_magnitude.symbol( np.max( i ) )
+        t_oom = order_of_magnitude.symbol( np.max( t ) )
+        i = i * 1 / i_oom[ 0 ]
+        t = t * 1 / t_oom[ 0 ]
     
     fig, axes = plt.subplots( 1, 2, figsize=figsize )
+    
     ax11 = axes[ 0 ]
     ax11.set_ylabel( f"Current ({i_oom[ 1 ]}A)", color="b" )
     ax11.tick_params( 'y', colors='b' )
-    ax11.set_xlim( np.min( t_scaled ), np.max( t_scaled ) )
-    ax11.set_ylim( [ np.min( i_scaled ) - np.abs( 0.5 * np.min( i_scaled ) ),
-                     np.max( i_scaled ) + np.abs( 0.5 * np.max( i_scaled ) ) ] )
+    # ax11.set_xlim( np.min( t ), np.max( t ) )
+    # ax11.set_ylim( [ np.min( i_scaled ) - np.abs( 0.5 * np.min( i_scaled ) ),
+    #                  np.max( i_scaled ) + np.abs( 0.5 * np.max( i_scaled ) ) ] )
     ax12 = ax11.twinx()
     ax11.set_xlabel( f"Time ({t_oom[ 1 ]}s)" )
     ax12.set_ylabel( 'Voltage (V)', color='r' )
     ax12.tick_params( 'y', colors='r' )
-    ax12.set_xlim( np.min( t_scaled ), np.max( t_scaled ) )
-    ax12.set_ylim( [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
+    # ax12.set_xlim( np.min( t ), np.max( t ) )
+    # ax12.set_ylim( [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
     ax2 = axes[ 1 ]
-    ax2.set_xlim( [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
-    ax2.set_ylim( [ np.min( i_scaled ) - np.abs( 0.5 * np.min( i_scaled ) ),
-                    np.max( i_scaled ) + np.abs( 0.5 * np.max( i_scaled ) ) ] )
+    # ax2.set_xlim( [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
+    # ax2.set_ylim( [ np.min( i_scaled ) - np.abs( 0.5 * np.min( i_scaled ) ),
+    #                 np.max( i_scaled ) + np.abs( 0.5 * np.max( i_scaled ) ) ] )
     ax2.set_ylabel( f"Current ({i_oom[ 1 ]}A)" )
     ax2.set_xlabel( "Voltage (V)" )
-    fig.suptitle( f"Memristor Voltage and Current vs. Time ({title})" )
-    fig.tight_layout()
+    if title:
+        fig.suptitle( f"Memristor Voltage and Current vs. Time ({title})" )
+    else:
+        fig.suptitle( f"Memristor Voltage and Current vs. Time" )
+    # fig.tight_layout()
+    fig.subplots_adjust( left=0.1,
+                         bottom=0.1,
+                         right=0.9,
+                         top=0.9,
+                         wspace=0.4,
+                         hspace=0.4 )
     
     if animated:
-        lines = __animate_memristor( v, i_scaled, t_scaled, fig, [ ax11, ax12, ax2 ], filename )
+        lines = __animate_memristor( v, i, t, fig, [ ax11, ax12, ax2 ], filename )
     else:
-        lines = __plot_memristor( v, i_scaled, t_scaled, [ ax11, ax12, ax2 ], iv_arrows )
+        lines = __plot_memristor( v, i, t, [ ax11, ax12, ax2 ], iv_arrows )
     
     return fig, lines, (ax11, ax12, ax2)
 
@@ -205,11 +231,7 @@ def add_arrow_to_line2D( axes, line, arrow_locs=[ 0.2, 0.4, 0.6, 0.8 ], arrowsty
 
 # TODO pulsed breaks around 0 with certain frequency/time combinations
 class InputVoltage():
-    def __init__( self, shape, vp=1, vn=None, frequency=None, period=None, t_max=0 ):
-        assert shape in [ "sine", "triangle" ]
-        if shape == "triangle": assert t_max > 0
-        assert frequency or period
-        
+    def __init__( self, shape=None, vp=None, vn=None, frequency=None, period=None, t_max=None ):
         self.shape = shape
         self.vp = vp
         self.vn = vn if vn else vp
@@ -217,20 +239,49 @@ class InputVoltage():
         self.period = 1 / frequency if frequency else period
         self.t_max = t_max
     
-    def input_function( self, t ):
-        if self.shape == "sine":
-            return self.sine( t )
-        elif self.shape == "triangle":
-            return self.triangle( t )
+    def __call__( self, t ):
+        pass
     
-    def sine( self, t ):
+    def print( self, start="\t" ):
+        start_lv2 = start + "\t"
+        print( f"{start_lv2}Shape {self.shape}" )
+        print( f"{start_lv2}Magnitude +{self.vp} / -{self.vn} V" )
+        print( f"{start_lv2}Frequency {self.frequency} Hz" )
+        print( f"{start_lv2}Period {self.period} s" )
+
+
+class Interpolated( InputVoltage ):
+    def __init__( self, x, y, degree=1 ):
+        super( Interpolated, self ).__init__( "custom" )
+        
+        self.model = interpolate.splrep( x, y, s=0, k=degree )
+    
+    def __call__( self, t ):
+        return interpolate.splev( t, self.model, der=0 )
+
+
+class Sine( InputVoltage ):
+    def __init__( self, vp=1, vn=None, frequency=None, period=None, t_max=0 ):
+        assert frequency or period
+        
+        super( Sine, self ).__init__( "sine", vp, vn, frequency, period, t_max )
+    
+    def __call__( self, t ):
         pos = self.vp * np.sin( 2 * self.frequency * np.multiply( np.pi, t ) )
         neg = self.vn * np.sin( 2 * self.frequency * np.multiply( np.pi, t ) )
         v = np.where( pos > 0, pos, neg )
         
         return v
+
+
+class Triangle( InputVoltage ):
+    def __init__( self, vp=1, vn=None, frequency=None, period=None, t_max=0 ):
+        assert frequency or period
+        assert t_max > 0
+        
+        super( Triangle, self ).__init__( "triangle", vp, vn, frequency, period, t_max )
     
-    def triangle( self, t ):
+    def __call__( self, t ):
         pos = self.vp * np.abs( scipy.signal.sawtooth( 2 * self.frequency * np.pi * t + np.pi / 2, 0.5 ) )
         neg = -1 * self.vn * np.abs( scipy.signal.sawtooth( 2 * self.frequency * np.pi * t + np.pi / 2, 0.5 ) )
         
@@ -242,13 +293,6 @@ class InputVoltage():
         v = np.where( pos > 0, pos, neg )
         
         return v
-    
-    def print( self, start="\t" ):
-        start_lv2 = start + "\t"
-        print( f"{start_lv2}Shape {self.shape}" )
-        print( f"{start_lv2}Magnitude +{self.vp} / -{self.vn} V" )
-        print( f"{start_lv2}Frequency {self.frequency} Hz" )
-        print( f"{start_lv2}Period {self.period} s" )
 
 
 class WindowFunction():

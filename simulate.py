@@ -19,22 +19,37 @@ from experiments import *
 ###############################################################################
 
 parser = argparse.ArgumentParser()
-parser.add_argument( "-m", '--model', type=str, choices=[ "HP", "Oblea" ],
+parser.add_argument( "-m", '--model', type=str, choices=[ "HP", "Oblea", "Miao", "Jo", "Miller" ],
                      help="The memristor model to use." )
 parser.add_argument( "-i", '--input', type=str, choices=[ "sine", "pulsed" ],
                      help="The input shape to use." )
+parser.add_argument( "-n", '--new', dest="new", action="store_true",
+                     help="Use updated Yakopcic model." )
+parser.set_defaults( new=False )
 args = parser.parse_args()
+
+if args.new:
+    if args.model == "Oblea":
+        if args.input == "sine":
+            experiment = oblea_sine_new()
+        else:
+            experiment = oblea_pulsed_new()
+else:
+    if args.model == "Oblea":
+        if args.input == "sine":
+            experiment = oblea_sine()
+        else:
+            experiment = oblea_pulsed()
 
 if args.model == "HP":
     if args.input == "sine":
         experiment = hp_labs_sine()
     else:
         experiment = hp_labs_pulsed()
-if args.model == "Oblea":
-    if args.input == "sine":
-        experiment = oblea_sine()
-    else:
-        experiment = oblea_pulsed()
+if args.model == "Miao":
+    experiment = miao()
+if args.model == "Jo":
+    experiment = jo()
 
 time = experiment.simulation[ "time" ]
 dt = experiment.simulation[ "dt" ]

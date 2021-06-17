@@ -167,7 +167,7 @@ def reset( event ):
 
 def update( val ):
     # Read updated time from slider
-    experiment.set_time( slider_time.val )
+    experiment.recalculate_time( slider_time.val )
     
     # Adjust to new limits
     axes[ 0 ].set_xlim( [ 0, slider_time.val ] )
