@@ -274,16 +274,21 @@ class FitWindow( tk.Toplevel ):
         Vn_entry = ttk.Entry( self, textvariable=self.master.Vn_fit )
         Vn_entry.grid( column=2, row=4, padx=0, pady=5 )
         
+        # fitting functions
+        functions_frame = ttk.Frame( self )
+        functions_frame.grid( column=1, row=5 )
         # h1
-        h1_combobox = ttk.Combobox( self, values=[ "MIMD", "Ohmic", "Schottky" ], state="readonly" )
+        ttk.Label( functions_frame, text="ON fit:" ).grid( column=0, row=0 )
+        h1_combobox = ttk.Combobox( functions_frame, values=[ "MIMD", "Ohmic", "Schottky" ], state="disabled" )
         h1_combobox.current( 0 )
-        h1_combobox.grid( column=0, row=5, padx=0, pady=5 )
+        h1_combobox.grid( column=1, row=0, padx=0, pady=5 )
         h1_combobox.bind( "<<ComboboxSelected>>", self.set_fit_function )
         
         # h2
-        h2_combobox = ttk.Combobox( self, values=[ "MIMD", "Ohmic", "Schottky" ], state="readonly" )
+        ttk.Label( functions_frame, text="OFF fit:" ).grid( column=2, row=0 )
+        h2_combobox = ttk.Combobox( functions_frame, values=[ "MIMD", "Ohmic", "Schottky" ], state="disabled" )
         h2_combobox.current( 0 )
-        h2_combobox.grid( column=1, row=5, padx=0, pady=5 )
+        h2_combobox.grid( column=3, row=0, padx=0, pady=5 )
         h2_combobox.bind( "<<ComboboxSelected>>", self.set_fit_function )
         
         Vn_entry.bind( "<Return>", self.master.plot_update )
@@ -472,11 +477,11 @@ class PlotWindow( tk.Toplevel ):
         alphan_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.alphan, "up" ) )
         alphan_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.alphan, "down" ) )
         
-        save_button = ttk.Button( self, text="Save", command=self.save_parameters ).grid( column=0, row=12 )
+        save_button = ttk.Button( self, text="Save", command=self.save ).grid( column=0, row=12 )
         #     debug
         debug_button = ttk.Button( self, text="Debug", command=self.debug ).grid( column=1, row=12 )
     
-    def save_parameters( self ):
+    def save( self ):
         parameters = {
                 "x0"    : self.master.x0,
                 "Ap"    : self.master.Ap.get(),
@@ -507,6 +512,7 @@ class PlotWindow( tk.Toplevel ):
         with open( "./fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + ".pkl",
                    "wb" ) as file:
             pickle.dump( parameters, file )
+        self.fig.savefig( "./fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + ".png" )
     
     def initial_plot( self ):
         # simulate the model
@@ -648,7 +654,7 @@ class MainWindow( tk.Tk ):
         
         self.init_variables()
         
-        self.main_setup()
+        self.input_setup()
         
         self.plot_window = self.fit_window = None
         
@@ -742,8 +748,6 @@ class MainWindow( tk.Tk ):
         
         self.time = np.array( df[ "t" ].to_list() )[ :-1 ]
         self.current = np.array( df[ "I" ].to_list() )[ :-1 ]
-        self.resistance = np.array( df[ "R" ].to_list() )[ :-1 ]
-        self.conductance = 1 / self.resistance
         self.voltage = np.array( df[ "V" ].to_list() )[ :-1 ]
     
     def open_fit_window( self ):
@@ -798,7 +802,7 @@ class MainWindow( tk.Tk ):
         
         self.plot_update( None )
     
-    def main_setup( self ):
+    def input_setup( self ):
         self.open_button = ttk.Button( self, text="Load", command=self.select_file )
         self.open_button.pack()
         self.fit_button = ttk.Button( self, text="Fit", command=self.open_fit_window, state="disabled" )
