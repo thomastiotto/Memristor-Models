@@ -1,15 +1,9 @@
-import copy
 import pickle
 
-import numpy as np
-from scipy.integrate import solve_ivp
-
-import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button
-from matplotlib.ticker import ScalarFormatter
 
-from functions import *
-from experiments import *
+from backend.functions import *
+from backend.experiments import *
 
 experiment = oblea_sine()
 
@@ -242,7 +236,7 @@ sliders = voltage_sliders + experiment_sliders + memristor_sliders
 ################################################
 
 def load_data( event ):
-    with open( f"./plots/Radius 10 um/-4V_1.pkl", "rb" ) as file:
+    with open( f"../plots/Radius 10 um/-4V_1.pkl", "rb" ) as file:
         df = pickle.load( file )
     
     time = df[ "t" ].to_list()

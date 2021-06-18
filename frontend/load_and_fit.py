@@ -1,7 +1,3 @@
-import os
-import pandas as pd
-import matplotlib.pyplot as plt
-import re
 import pickle
 from block_timer.timer import Timer
 
@@ -9,14 +5,14 @@ from scipy.optimize import curve_fit
 from scipy.integrate import solve_ivp
 import scipy.stats as stats
 
-from functions import *
-from models import Yakopcic
+from backend.functions import *
+from backend.models import Yakopcic
 
 ###############################################################################
 #                         Load data
 ###############################################################################
 
-with open( f"./plots/Radius 10 um/-4V_1.pkl", "rb" ) as file:
+with open( f"./pickles/Radius 10 um/-4V_1.pkl", "rb" ) as file:
     df = pickle.load( file )
 
 time = df[ "t" ].to_list()

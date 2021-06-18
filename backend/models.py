@@ -226,7 +226,6 @@ class Yakopcic():
         
         def ode_fitting( t, a1, a2, b, Ap, An, Vp, Vn, alphap, alphan, xp, xn ):
             args = [ a1, a2, b, Ap, An, Vp, Vn, alphap, alphan, xp, xn ]
-            print( args )
             sol = solve_ivp( self.dxdt, (t[ 0 ], t[ -1 ]), [ self.x0 ], method="LSODA",
                              t_eval=t,
                              args=args,

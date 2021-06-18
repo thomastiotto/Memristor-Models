@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.integrate import solve_ivp
 
 import functions
 import models
@@ -127,8 +126,8 @@ class miao( Experiment ):
         
         self.name = "Miao"
         self.fitting.update(
-                { "bounds": None,
-                  "p0"    : None }
+                { "bounds": ([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ 1, 1, 1, 1e4, 1e4, 1, 1, 1, 1, 1, 1 ]),
+                  "p0"    : [ 0.1, 0.1, 0.1, 1, 1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ] }
                 )
 
 
@@ -139,8 +138,8 @@ class jo( Experiment ):
                 sim_args={ "t_max": 20, "frequency": 100e3, "x0": 0.1 },
                 model=models.Yakopcic,
                 input_function=functions.Triangle,
-                memristor_args={ "a1"    : 3.7e-6,
-                                 "a2"    : 4.35e-6,
+                memristor_args={ "a1"    : 3.7e-7,
+                                 "a2"    : 4.35e-7,
                                  "b"     : 0.7,
                                  "Ap"    : 0.005,
                                  "An"    : 0.08,
@@ -186,67 +185,8 @@ class oblea_sine( Experiment ):
         
         self.name = "Oblea sine"
         self.fitting.update(
-                { "bounds": ([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ 1, 1, 1, 1e4, 1e4, 1, 1, 1, 1, 1 ]),
-                  "p0"    : [ 0.1, 0.1, 0.1, 1000, 1000, 0.1, 0.1, 0.1, 0.1, 0.1 ] }
-                )
-
-
-class oblea_sine_new( Experiment ):
-    # TODO frequency of simulation (sampling frequency) != frequency of input
-    def __init__( self ):
-        super( oblea_sine_new, self ).__init__(
-                sim_args={ "t_max": 40e-3, "frequency": 100e3, "x0": 0.11 },
-                model=models.Yakopcic_new,
-                input_function=functions.Sine,
-                memristor_args={ "gmin": 0.17,
-                                 "bmin": 0.05,
-                                 "gmax": 0.17,
-                                 "bmax": 0.05,
-                                 "Ap"  : 4000,
-                                 "An"  : 4000,
-                                 "Vp"  : 0.16,
-                                 "Vn"  : 0.15,
-                                 "xp"  : 0.3,
-                                 "xn"  : 0.5,
-                                 "eta" : 1
-                                 },
-                input_args={ "frequency": 100, "vp": 0.45, "vn": 0.45 },
-                )
-        
-        self.name = "Oblea sine new model"
-        self.fitting.update(
-                { "bounds": ([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ 1, 1, 1, 1e4, 1e4, 1, 1, 1, 1, 1 ]),
-                  "p0"    : [ 0.1, 0.1, 0.1, 1000, 1000, 0.1, 0.1, 0.1, 0.1, 0.1 ] }
-                )
-
-
-class oblea_pulsed_new( Experiment ):
-    def __init__( self ):
-        super( oblea_pulsed_new, self ).__init__(
-                sim_args={ "t_max": 50e-3, "frequency": 100e3, "x0": 0.001 },
-                model=models.Yakopcic_new,
-                input_function=functions.Triangle,
-                memristor_args={
-                        "a1"    : 0.097,
-                        "a2"    : 0.097,
-                        "b"     : 0.05,
-                        "Ap"    : 4000,
-                        "An"    : 4000,
-                        "Vp"    : 0.16,
-                        "Vn"    : 0.15,
-                        "alphap": 1,
-                        "alphan": 5,
-                        "xp"    : 0.3,
-                        "xn"    : 0.5,
-                        "eta"   : 1
-                        },
-                input_args={ "frequency": 100, "vp": 0.25, "vn": 0.25 },
-                )
-        
-        self.name = "Oblea pulsed new model"
-        self.fitting.update(
-                { "bounds": ([ 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ 1, 1, 1, 1e4, 1e4, 1, 1, 1, 1 ]),
-                  "p0"    : [ 0.1, 0.1, 0.01, 1000, 1000, 0.1, 0.1, 0.1, 0.1 ] }
+                { "bounds": ([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ 1, 1, 1, 1e4, 1e4, 1, 1, 1, 1, 1, 1 ]),
+                  "p0"    : [ 0.1, 0.1, 0.01, 1000, 1000, 0.1, 0.1, 1, 1, 0.1, 0.1 ] }
                 )
 
 

@@ -1,16 +1,8 @@
-import copy
-
-import numpy as np
-from scipy.integrate import solve_ivp
-
-import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button
-from matplotlib.ticker import ScalarFormatter
 
-import functions
-from functions import *
-from models import *
-from experiments import *
+from backend.functions import *
+from backend.models import *
+from backend.experiments import *
 
 experiment = hp_labs_sine()
 

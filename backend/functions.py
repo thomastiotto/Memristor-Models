@@ -1,6 +1,5 @@
-import numbers
-
 import numpy as np
+import os
 import scipy.signal
 from scipy import interpolate
 from order_of_magnitude import order_of_magnitude
@@ -10,8 +9,7 @@ import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import matplotlib.animation as animation
 
-from block_timer.timer import Timer
-from progressbar import progressbar
+from tqdm import tqdm
 
 
 def ohmic_iv( v, g ):
@@ -28,8 +26,10 @@ def mim_mim_iv( v, gp, bp, gn, bn ):
 
 
 def euler_solver( f, time, dt, iv, args=None, I=None ):
+    args = args if args is not None else [ ]
     x_sol = [ iv ]
-    for t in time[ 1: ]:
+    
+    for t in tqdm( time[ 1: ] ):
         if I:
             current = [ 0.0 ]
             current.append( I( t, x_sol[ -1 ] ) )
@@ -40,27 +40,27 @@ def euler_solver( f, time, dt, iv, args=None, I=None ):
     return (x_sol, I) if I else x_sol
 
 
-def rk4_solver( f, time, dt, iv, I=None ):
+def rk4_solver( f, time, dt, iv, args=None, I=None ):
+    args = args if args is not None else [ ]
     x_sol = [ iv ]
-    for t in time[ 1: ]:
+    
+    for t in tqdm( time[ 1: ] ):
         if I:
             current = [ 0.0 ]
             current.append( I( t, x_sol[ -1 ] ) )
-            
-            k1 = f( t, x_sol[ -1 ] )
-            k2 = f( t + dt / 2, x_sol[ -1 ] + dt * k1 / 2 )
-            k3 = f( t + dt / 2, x_sol[ -1 ] + dt * k2 / 2 )
-            k4 = f( t + dt, x_sol[ -1 ] + dt * k3 )
-            
-            x_sol.append( x_sol[ -1 ] + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6 )
-        x_sol = np.array( x_sol )
         
-        return (x_sol, I) if I else x_sol
+        k1 = f( t, x_sol[ -1 ], *args )
+        k2 = f( t + dt / 2, x_sol[ -1 ] + dt * k1 / 2, *args )
+        k3 = f( t + dt / 2, x_sol[ -1 ] + dt * k2 / 2, *args )
+        k4 = f( t + dt, x_sol[ -1 ] + dt * k3, *args )
+        
+        x_sol.append( x_sol[ -1 ] + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6 )
+    x_sol = np.array( x_sol )
+    
+    return (x_sol, I) if I else x_sol
 
 
 def __animate_memristor( v, i, t, fig, axes, filename ):
-    import os
-    
     ax11 = axes[ 0 ]
     ax12 = axes[ 1 ]
     ax2 = axes[ 2 ]
@@ -91,7 +91,7 @@ def __animate_memristor( v, i, t, fig, axes, filename ):
     writer = Writer( fps=15, metadata=dict( artist='Me' ), bitrate=1800 )
     
     ani = animation.FuncAnimation( fig, update, frames=np.arange( 0, len( t ), 10 ), blit=True )
-    ani.save( f"{filename}.mp4", writer=writer )
+    ani.save( f"./videos/{filename}.mp4", writer=writer )
     
     return (line11, line12, line2)
 
@@ -138,19 +138,19 @@ def plot_memristor( v, i, t, title=None, figsize=(10, 4), iv_arrows=True, animat
     ax11 = axes[ 0 ]
     ax11.set_ylabel( f"Current ({i_oom[ 1 ]}A)", color="b" )
     ax11.tick_params( 'y', colors='b' )
-    # ax11.set_xlim( np.min( t ), np.max( t ) )
-    # ax11.set_ylim( [ np.min( i_scaled ) - np.abs( 0.5 * np.min( i_scaled ) ),
-    #                  np.max( i_scaled ) + np.abs( 0.5 * np.max( i_scaled ) ) ] )
+    ax11.set_xlim( np.min( t ), np.max( t ) )
+    ax11.set_ylim( [ np.min( i ) - np.abs( 0.5 * np.min( i ) ),
+                     np.max( i ) + np.abs( 0.5 * np.max( i ) ) ] )
     ax12 = ax11.twinx()
     ax11.set_xlabel( f"Time ({t_oom[ 1 ]}s)" )
     ax12.set_ylabel( 'Voltage (V)', color='r' )
     ax12.tick_params( 'y', colors='r' )
-    # ax12.set_xlim( np.min( t ), np.max( t ) )
-    # ax12.set_ylim( [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
+    ax12.set_xlim( np.min( t ), np.max( t ) )
+    ax12.set_ylim( [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
     ax2 = axes[ 1 ]
-    # ax2.set_xlim( [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
-    # ax2.set_ylim( [ np.min( i_scaled ) - np.abs( 0.5 * np.min( i_scaled ) ),
-    #                 np.max( i_scaled ) + np.abs( 0.5 * np.max( i_scaled ) ) ] )
+    ax2.set_xlim( [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
+    ax2.set_ylim( [ np.min( i ) - np.abs( 0.5 * np.min( i ) ),
+                    np.max( i ) + np.abs( 0.5 * np.max( i ) ) ] )
     ax2.set_ylabel( f"Current ({i_oom[ 1 ]}A)" )
     ax2.set_xlabel( "Voltage (V)" )
     if title:

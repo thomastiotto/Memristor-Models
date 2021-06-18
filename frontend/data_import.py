@@ -1,17 +1,16 @@
 import os
 
 import pandas as pd
-import matplotlib.pyplot as plt
 import re
 import pickle
 
-from functions import *
+from backend.functions import *
 
-rootDir = './anouk_data'
+rootDir = "./raw_data"
 for dirPath, _, fileList in os.walk( rootDir ):
-    print( 'Found directory: %s' % dirPath )
+    print( f"Found directory: {dirPath}" )
     for fname in fileList:
-        print( '\t%s' % fname )
+        print( f"\t{fname}" )
     
     files = [ file for file in fileList if not file.startswith( "." ) and not file.endswith( ".pkl" ) ]
     
@@ -22,7 +21,11 @@ for dirPath, _, fileList in os.walk( rootDir ):
         dirName = os.path.basename( dirPath )
         f_path = dirPath + "/" + f
         try:
-            os.mkdir( f"./plots/{dirName}" )
+            os.makedirs( f"./plots/{dirName}" )
+        except:
+            pass
+        try:
+            os.makedirs( f"./pickles/{dirName}" )
         except:
             pass
         
@@ -50,7 +53,7 @@ for dirPath, _, fileList in os.walk( rootDir ):
         
         df[ "t" ] = df[ "t" ] - df[ "t" ][ 0 ]
         
-        with open( f"./plots/{dirName}/{plot_name}_{i}.pkl", "wb" ) as file:
+        with open( f"./pickles/{dirName}/{plot_name}_{i}.pkl", "wb" ) as file:
             pickle.dump( df, file )
         
         fig, _, _ = plot_memristor( df[ "V" ], df[ "I" ], df[ "t" ], plot_name )

@@ -1,23 +1,15 @@
+import json
 import pickle
-import matplotlib.pyplot as plt
-import numpy as np
-from block_timer.timer import Timer
-from scipy.integrate import solve_ivp
-from scipy.optimize import curve_fit
-from progressbar import progressbar
-import scipy.stats as stats
-from order_of_magnitude import order_of_magnitude
 import os
-import multiprocessing as mp
-import argparse
 
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog as fd
 
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from scipy.integrate import solve_ivp
 
-from functions import *
+from backend.functions import *
 
 
 # TODO mouse clicks to set parameters?
@@ -31,8 +23,11 @@ class Model():
     def __init__( self, time, voltage ):
         self.V = Interpolated( time, voltage )
         
-        self.h1 = self.mim_mim_quad_iv
-        self.h2 = self.mim_mim_iv
+        self.functions = { "MIMD"    : self.mim_iv,
+                           "Ohmic"   : self.ohmic_iv,
+                           "Schottky": self.schottky_iv }
+        self.set_h1( "MIMD", "MIMD" )
+        self.set_h2( "MIMD", "MIMD" )
     
     def g( self, v, Ap, An, Vp, Vn ):
         return np.select( [ v > Vp, v < -Vn ],
@@ -60,35 +55,42 @@ class Model():
         v = self.V( t )
         return eta * self.g( v, Ap, An, Vp, Vn ) * self.f( v, x, xp, xn, alphap, alphan, eta )
     
+    def ohmic_iv( self, v, g ):
+        return g * v
+    
     def mim_iv( self, v, g, b ):
         return g * np.sinh( b * v )
     
+    def schottky_iv( v, g, b ):
+        return g * (1 - np.exp( -b * v ))
+    
     def mim_mim_iv( self, v, gp, bp, gn, bn ):
         return np.piecewise( v, [ v < 0, v >= 0 ],
-                             [ lambda v: self.mim_iv( v, gn, bn ), lambda v: self.mim_iv( v, gp, bp ) ] )
+                             [ lambda v: mim_iv( v, gn, bn ), lambda v: mim_iv( v, gp, bp ) ] )
     
-    def quadratic_iv( self, v, a, b, c ):
-        return a * np.power( v, 2 ) + b * v + c
-    
-    def mim_mim_quad_iv( self, v, gp, bp, gn, bn, a, b, c ):
-        return np.piecewise( v,
-                             [ v >= 0,
-                               (v <= 0) & (v > -2),
-                               v <= -2 ],
-                             [ lambda v: self.mim_iv( v, gp, bp ),
-                               lambda v: self.mim_iv( v, gn, bn ),
-                               lambda v: self.quadratic_iv( v, a, b, c ) ]
-                             )
+    def I_mim_mim( self, t, x, gmax, bmax, gmin, bmin ):
+        v = self.V( t )
+        return mim_iv( v, gmax, bmax ) * x + mim_iv( v, gmin, bmin ) * (1 - x)
     
     def I( self, t, x, on_pars, off_pars ):
         v = self.V( t )
-        on_mask = ((v > 0) & (np.gradient( v ) < 0)) | ((v < 0) & (np.gradient( v ) < 0))
-        off_mask = ((v < 0) & (np.gradient( v ) > 0)) | ((v > 0) & (np.gradient( v ) > 0))
-        
-        return np.piecewise( v,
-                             [ ],
-                             [ ] )
         return self.h1( v, *on_pars ) * x + self.h2( v, *off_pars ) * (1 - x)
+    
+    def set_h1( self, func, func_neg=None ):
+        if func_neg:
+            self.h1 = lambda v, gp, bp, gn, bn: np.piecewise( v, [ v < 0, v >= 0 ],
+                                                              [ lambda v: self.functions[ func ]( v, gn, bn ),
+                                                                lambda v: self.functions[ func_neg ]( v, gp, bp ) ] )
+        else:
+            self.h1 = lambda v, g, b: self.functions[ func ]( v, g, b )
+    
+    def set_h2( self, func, func_neg=None ):
+        if func_neg:
+            self.h2 = lambda v, gp, bp, gn, bn: np.piecewise( v, [ v < 0, v >= 0 ],
+                                                              [ lambda v: self.functions[ func ]( v, gn, bn ),
+                                                                lambda v: self.functions[ func_neg ]( v, gp, bp ) ] )
+        else:
+            self.h2 = lambda v, g, b: self.functions[ func ]( v, g, b )
 
 
 class FitWindow( tk.Toplevel ):
@@ -131,7 +133,7 @@ class FitWindow( tk.Toplevel ):
                            color="b",
                            label=f"On state" )
         self.axis.scatter( v[ on_mask ],
-                           self.master.memristor.h1( v[ on_mask ], *self.master.get_on_pars() ),
+                           mim_mim_iv( v[ on_mask ], *self.master.get_on_pars() ),
                            color="c",
                            label="On fit",
                            s=1 )
@@ -140,7 +142,7 @@ class FitWindow( tk.Toplevel ):
                            color="r",
                            label=f"Off state" )
         self.axis.scatter( v[ off_mask ],
-                           self.master.memristor.h2( v[ off_mask ], *self.master.get_off_pars() ),
+                           mim_mim_iv( v[ off_mask ], *self.master.get_off_pars() ),
                            color="m",
                            label="Off fit",
                            s=1 )
@@ -156,6 +158,8 @@ class FitWindow( tk.Toplevel ):
         # placing the canvas on the Tkinter window
         canvas.get_tk_widget().grid( column=0, row=0, columnspan=3 )
         self.fig.canvas.draw()
+        
+        self.update_output()
     
     def plot_update( self, _ ):
         v = self.master.voltage
@@ -174,7 +178,7 @@ class FitWindow( tk.Toplevel ):
                            color="b",
                            label=f"On state" )
         self.axis.scatter( v[ on_mask ],
-                           self.master.memristor.h1( v[ on_mask ], *self.master.get_on_pars() ),
+                           mim_mim_iv( v[ on_mask ], *self.master.get_on_pars() ),
                            color="c",
                            label="On fit",
                            s=1 )
@@ -183,12 +187,23 @@ class FitWindow( tk.Toplevel ):
                            color="r",
                            label=f"Off state" )
         self.axis.scatter( v[ off_mask ],
-                           self.master.memristor.h2( v[ off_mask ], *self.master.get_off_pars() ),
+                           mim_mim_iv( v[ off_mask ], *self.master.get_off_pars() ),
                            color="m",
                            label="Off fit",
                            s=1 )
         
         self.fig.canvas.draw()
+    
+    # TODO vary the polarity threshold
+    def update_output( self ):
+        self.on_label.set(
+                f"h1 = {self.master.gmax_p.get():.2e} * sinh({self.master.bmax_p.get():.2f} * V(t)), V(t) >= 0  "
+                f"|  {self.master.gmax_n.get():.2e} * sinh({self.master.bmax_n.get():.2f} * V(t)), "
+                f"V(t) < 0" )
+        self.off_label.set(
+                f"h2 = {self.master.gmin_p.get():.2e} * sinh({self.master.bmin_p.get():.2f} * V(t)), V(t) >= 0  "
+                f"|  {self.master.gmin_n.get():.2e} * sinh({self.master.bmin_n.get():.2f} * V(t)), "
+                f"V(t) < 0" )
     
     def output_setup( self ):
         self.error = tk.StringVar()
@@ -205,6 +220,8 @@ class FitWindow( tk.Toplevel ):
         self.on_label = tk.StringVar()
         self.off_label = tk.StringVar()
         
+        self.update_output()
+        
         ttk.Label( self, text="Stable ON fit:" ).grid( column=0, row=1 )
         ttk.Label( self, textvariable=self.on_label ).grid( column=1, row=1, sticky=tk.W )
         ttk.Label( self, text="Stable OFF fit:" ).grid( column=0, row=2 )
@@ -217,6 +234,9 @@ class FitWindow( tk.Toplevel ):
                         "inputting a value directly and pressing Enter, or selecting the entry box and using Up and "
                         "Down arrows." ).grid(
                 column=0, row=6, columnspan=3 )
+    
+    def set_fit_function( self ):
+        return
     
     def input_setup( self ):
         # Vp
@@ -244,6 +264,23 @@ class FitWindow( tk.Toplevel ):
         
         Vn_entry = ttk.Entry( self, textvariable=self.master.Vn_fit )
         Vn_entry.grid( column=2, row=4, padx=0, pady=5 )
+        
+        # fitting functions
+        functions_frame = ttk.Frame( self )
+        functions_frame.grid( column=1, row=5 )
+        # h1
+        ttk.Label( functions_frame, text="ON fit:" ).grid( column=0, row=0 )
+        h1_combobox = ttk.Combobox( functions_frame, values=[ "MIMD", "Ohmic", "Schottky" ], state="disabled" )
+        h1_combobox.current( 0 )
+        h1_combobox.grid( column=1, row=0, padx=0, pady=5 )
+        h1_combobox.bind( "<<ComboboxSelected>>", self.set_fit_function )
+        
+        # h2
+        ttk.Label( functions_frame, text="OFF fit:" ).grid( column=2, row=0 )
+        h2_combobox = ttk.Combobox( functions_frame, values=[ "MIMD", "Ohmic", "Schottky" ], state="disabled" )
+        h2_combobox.current( 0 )
+        h2_combobox.grid( column=3, row=0, padx=0, pady=5 )
+        h2_combobox.bind( "<<ComboboxSelected>>", self.set_fit_function )
         
         Vn_entry.bind( "<Return>", self.master.plot_update )
         Vn_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.Vn_fit, "up" ) )
@@ -431,35 +468,60 @@ class PlotWindow( tk.Toplevel ):
         alphan_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.alphan, "up" ) )
         alphan_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.alphan, "down" ) )
         
+        save_button = ttk.Button( self, text="Save", command=self.save ).grid( column=0, row=12 )
         #     debug
-        debug_button = ttk.Button( self, text="Debug", command=self.debug ).grid( column=0, row=12 )
+        debug_button = ttk.Button( self, text="Debug", command=self.debug ).grid( column=1, row=12 )
+    
+    def save( self ):
+        parameters = {
+                "x0"    : self.master.x0,
+                "Ap"    : self.master.Ap.get(),
+                "An"    : self.master.An.get(),
+                "Vp"    : self.master.Vp.get(),
+                "Vn"    : self.master.Vn.get(),
+                "xp"    : self.master.xp.get(),
+                "xn"    : self.master.xn.get(),
+                "alphap": self.master.alphap.get(),
+                "alphan": self.master.alphan.get(),
+                "gmax_p": self.master.gmax_p.get(),
+                "bmax_p": self.master.bmax_p.get(),
+                "gmax_n": self.master.gmax_n.get(),
+                "bmax_n": self.master.bmax_n.get(),
+                "gmin_p": self.master.gmin_p.get(),
+                "bmin_p": self.master.bmin_p.get(),
+                "gmin_n": self.master.gmin_n.get(),
+                "bmin_n": self.master.bmin_n.get()
+                }
+        try:
+            os.mkdir( f"../fitted" )
+        except:
+            pass
         
-        self.scale = tk.DoubleVar( value=1.0 )
-        scale_slider = ttk.Scale( self, from_=0.0001, to=1, variable=self.scale,
-                                  command=self.master.plot_update )
-        scale_slider.grid( column=1, row=13, padx=0, pady=5, sticky="EW" )
-        
-        scale_entry = ttk.Entry( self, textvariable=self.scale )
-        scale_entry.grid( column=2, row=13, padx=0, pady=5 )
+        with open( "./fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + ".txt",
+                   "w" ) as file:
+            file.write( json.dumps( parameters ) )
+        with open( "./fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + ".pkl",
+                   "wb" ) as file:
+            pickle.dump( parameters, file )
+        self.fig.savefig( "./fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + ".png" )
     
     def initial_plot( self ):
         # simulate the model
-        # x_solve_ivp = solve_ivp( self.master.memristor.dxdt, (self.master.time[ 0 ], self.master.time[ -1 ]),
-        #                          [ self.master.x0 ],
-        #                          method="LSODA",
-        #                          t_eval=self.master.time,
-        #                          args=[ self.master.Ap.get(), self.master.An.get(), self.master.Vp.get(),
-        #                                 self.master.Vn.get(), self.master.xp.get(), self.master.xn.get() ] )
-        #
-        # # updated simulation results
-        # t = x_solve_ivp.t
-        # x = x_solve_ivp.y[ 0, : ]
+        x_solve_ivp = solve_ivp( self.master.memristor.dxdt, (self.master.time[ 0 ], self.master.time[ -1 ]),
+                                 [ self.master.x0 ],
+                                 method="LSODA",
+                                 t_eval=self.master.time,
+                                 args=self.master.get_sim_pars() )
         
-        x = euler_solver( self.master.memristor.dxdt, self.master.time,
-                          dt=np.mean( np.diff( self.master.time ) ),
-                          iv=self.master.x0,
-                          args=self.master.get_sim_pars() )
-        t = self.master.time
+        # updated simulation results
+        t = x_solve_ivp.t
+        x = x_solve_ivp.y[ 0, : ]
+        
+        # x = euler_solver( self.master.memristor.dxdt, self.master.time,
+        #                   dt=np.mean( np.diff( self.master.time ) ),
+        #                   iv=self.master.x0,
+        #                   args=self.master.get_sim_pars() )
+        # t = self.master.time
         v = self.master.memristor.V( t )
         i = self.master.memristor.I( t, x, self.master.get_on_pars(), self.master.get_off_pars() )
         
@@ -519,22 +581,21 @@ class PlotWindow( tk.Toplevel ):
     
     def plot_update( self, _ ):
         # simulate the model
-        # x_solve_ivp = solve_ivp( self.master.memristor.dxdt, (self.master.time[ 0 ], self.master.time[ -1 ]),
-        #                          [ self.master.x0 ],
-        #                          method="LSODA",
-        #                          t_eval=self.master.time,
-        #                          args=[ self.master.Ap.get(), self.master.An.get(), self.master.Vp.get(),
-        #                                 self.master.Vn.get(), self.master.xp.get(), self.master.xn.get() ] )
-        #
-        # # updated simulation results
-        # t = x_solve_ivp.t
-        # x = x_solve_ivp.y[ 0, : ]
+        x_solve_ivp = solve_ivp( self.master.memristor.dxdt, (self.master.time[ 0 ], self.master.time[ -1 ]),
+                                 [ self.master.x0 ],
+                                 method="LSODA",
+                                 t_eval=self.master.time,
+                                 args=self.master.get_sim_pars() )
         
-        x = euler_solver( self.master.memristor.dxdt, self.master.time,
-                          dt=np.mean( np.diff( self.master.time ) ),
-                          iv=self.master.x0,
-                          args=self.master.get_sim_pars() )
-        t = self.master.time
+        # updated simulation results
+        t = x_solve_ivp.t
+        x = x_solve_ivp.y[ 0, : ]
+        
+        # x = euler_solver( self.master.memristor.dxdt, self.master.time,
+        #                   dt=np.mean( np.diff( self.master.time ) ),
+        #                   iv=self.master.x0,
+        #                   args=self.master.get_sim_pars() )
+        # t = self.master.time
         v = self.master.memristor.V( t )
         i = self.master.memristor.I( t, x, self.master.get_on_pars(), self.master.get_off_pars() )
         
@@ -546,6 +607,17 @@ class PlotWindow( tk.Toplevel ):
         self.axes[ 0 ].plot( t, i, color="b" )
         self.axes[ 1 ].plot( t, v, color="r" )
         self.axes[ 2 ].plot( v, i, color="b" )
+        
+        self.axes[ 0 ].set_xlim( np.min( t ), np.max( t ) )
+        self.axes[ 0 ].set_ylim( [ np.min( i ) - np.abs( 0.5 * np.min( i ) ),
+                                   np.max( i ) + np.abs( 0.5 * np.max( i ) ) ] )
+        self.axes[ 1 ].set_xlim( np.min( t ), np.max( t ) )
+        self.axes[ 1 ].set_ylim(
+                [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
+        self.axes[ 2 ].set_xlim(
+                [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
+        self.axes[ 2 ].set_ylim( [ np.min( i ) - np.abs( 0.5 * np.min( i ) ),
+                                   np.max( i ) + np.abs( 0.5 * np.max( i ) ) ] )
         
         # plot real data
         self.plot_data()
@@ -582,7 +654,7 @@ class MainWindow( tk.Tk ):
         
         self.init_variables()
         
-        self.main_setup()
+        self.input_setup()
         
         self.plot_window = self.fit_window = None
         
@@ -599,9 +671,6 @@ class MainWindow( tk.Tk ):
         self.bmin_p = tk.DoubleVar()
         self.gmin_n = tk.DoubleVar()
         self.bmin_n = tk.DoubleVar()
-        self.a = tk.DoubleVar()
-        self.b = tk.DoubleVar()
-        self.c = tk.DoubleVar()
     
     def fit( self, v, i, Vp, Vn ):
         Vp = Vp.get()
@@ -609,12 +678,10 @@ class MainWindow( tk.Tk ):
         
         on_mask = ((v > 0) & (np.gradient( v ) < 0)) \
                   | ((v < 0) & (np.gradient( v ) < 0)
-                     & (v > -Vn)
-                     )
+                     & (v > -Vn))
         off_mask = ((v < 0) & (np.gradient( v ) > 0)) \
                    | ((v > 0) & (np.gradient( v ) > 0)
-                      & (v < Vp)
-                      )
+                      & (v < Vp))
         
         popt_on, pcov_on = scipy.optimize.curve_fit( self.memristor.h1, v[ on_mask ], i[ on_mask ] )
         popt_off, pcov_off = scipy.optimize.curve_fit( self.memristor.h2, v[ off_mask ], i[ off_mask ] )
@@ -635,21 +702,17 @@ class MainWindow( tk.Tk ):
                  self.alphap.get(), self.alphan.get() ]
     
     def get_on_pars( self ):
-        on_pars = [ self.gmax_p.get(), self.bmax_p.get(), self.gmax_n.get(), self.bmax_n.get(),
-                    self.a.get(), self.b.get(), self.c.get() ]
+        on_pars = [ self.gmax_p.get(), self.bmax_p.get(), self.gmax_n.get(), self.bmax_n.get() ]
         
         return on_pars
     
     def set_on_pars( self, on_pars ):
-        gmax_p, bmax_p, gmax_n, bmax_n, a, b, c = on_pars
+        gmax_p, bmax_p, gmax_n, bmax_n = on_pars
         
         self.gmax_p.set( gmax_p )
         self.bmax_p.set( bmax_p )
         self.gmax_n.set( gmax_n )
         self.bmax_n.set( bmax_n )
-        self.a.set( a )
-        self.b.set( b )
-        self.c.set( c )
     
     def set_off_pars( self, off_pars ):
         gmin_p, bmin_p, gmin_n, bmin_n = off_pars
@@ -685,8 +748,6 @@ class MainWindow( tk.Tk ):
         
         self.time = np.array( df[ "t" ].to_list() )[ :-1 ]
         self.current = np.array( df[ "I" ].to_list() )[ :-1 ]
-        self.resistance = np.array( df[ "R" ].to_list() )[ :-1 ]
-        self.conductance = 1 / self.resistance
         self.voltage = np.array( df[ "V" ].to_list() )[ :-1 ]
     
     def open_fit_window( self ):
@@ -741,7 +802,7 @@ class MainWindow( tk.Tk ):
         
         self.plot_update( None )
     
-    def main_setup( self ):
+    def input_setup( self ):
         self.open_button = ttk.Button( self, text="Load", command=self.select_file )
         self.open_button.pack()
         self.fit_button = ttk.Button( self, text="Fit", command=self.open_fit_window, state="disabled" )
