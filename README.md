@@ -1,4 +1,4 @@
-# Memristor Modelling
+# Memristor Models
 
 Python implementations and simulations of HP Labs Ion Drift memristor model from literature.
 
