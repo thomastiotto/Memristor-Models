@@ -101,9 +101,7 @@ class FitWindow( tk.Toplevel ):
         self.geometry( f"1200x600+{xy[ 0 ] + 10}+{xy[ 1 ]}" )
         self.resizable( False, False )
         
-        # input window setup
         self.rowconfigure( 0, weight=10 )
-        self.columnconfigure( 1, weight=10 )
         
         self.input_setup()
         self.output_setup()
@@ -127,7 +125,7 @@ class FitWindow( tk.Toplevel ):
         i = self.master.current
         _, _, on_mask, off_mask = self.master.fit( v, i, self.master.Vp_fit, self.master.Vn_fit )
         
-        self.fig, self.axis = plt.subplots( 1, 1 )
+        self.fig, self.axis = plt.subplots( 1, 1, figsize=(12, 6) )
         self.axis.scatter( v[ on_mask ],
                            i[ on_mask ],
                            color="b",
@@ -156,10 +154,8 @@ class FitWindow( tk.Toplevel ):
         canvas = FigureCanvasTkAgg( self.fig, master=self )
         canvas.draw()
         # placing the canvas on the Tkinter window
-        canvas.get_tk_widget().grid( column=0, row=0, columnspan=3 )
+        canvas.get_tk_widget().grid( column=0, row=0, sticky=tk.N + tk.S + tk.E + tk.W )
         self.fig.canvas.draw()
-        
-        self.update_output()
     
     def plot_update( self, _ ):
         v = self.master.voltage
@@ -194,97 +190,49 @@ class FitWindow( tk.Toplevel ):
         
         self.fig.canvas.draw()
     
-    # TODO vary the polarity threshold
-    def update_output( self ):
-        self.on_label.set(
-                f"h1 = {self.master.gmax_p.get():.2e} * sinh({self.master.bmax_p.get():.2f} * V(t)), V(t) >= 0  "
-                f"|  {self.master.gmax_n.get():.2e} * sinh({self.master.bmax_n.get():.2f} * V(t)), "
-                f"V(t) < 0" )
-        self.off_label.set(
-                f"h2 = {self.master.gmin_p.get():.2e} * sinh({self.master.bmin_p.get():.2f} * V(t)), V(t) >= 0  "
-                f"|  {self.master.gmin_n.get():.2e} * sinh({self.master.bmin_n.get():.2f} * V(t)), "
-                f"V(t) < 0" )
-    
     def output_setup( self ):
-        self.error = tk.StringVar()
-        self.error.set( str( 0.0 ) )
+        self.output_frame = tk.Frame( self, highlightbackground="black", highlightthickness=1 )
+        self.output_frame.grid( row=2, column=0, sticky=tk.N + tk.S + tk.E + tk.W )
         
-        # error_frame = ttk.Frame( self )
-        # ttk.Label( error_frame, text="Error" ).grid( column=0, row=0 )
-        # ttk.Label( error_frame, textvariable=self.error ).grid( column=0, row=1, sticky=tk.W )
-        # for widget in error_frame.winfo_children():
-        #     widget.grid( padx=0, pady=0 )
-        # error_frame.grid( column=2, row=0 )
-        #
-        
-        self.on_label = tk.StringVar()
-        self.off_label = tk.StringVar()
-        
-        self.update_output()
-        
-        ttk.Label( self, text="Stable ON fit:" ).grid( column=0, row=1 )
-        ttk.Label( self, textvariable=self.on_label ).grid( column=1, row=1, sticky=tk.W )
-        ttk.Label( self, text="Stable OFF fit:" ).grid( column=0, row=2 )
-        ttk.Label( self, textvariable=self.off_label ).grid( column=1, row=2, sticky=tk.W )
-        
-        ttk.Label( self,
+        ttk.Label( self.output_frame,
                    text="Select the negative (Vn) and positive (Vp) threshold voltages which will be used to fit the "
                         "h1 and h2 equations.\nThese equations determine the conductivity profile in the Stable ON "
                         "and Stable OFF states.\nYou can change the values by pulling or clicking on the sliders, "
                         "inputting a value directly and pressing Enter, or selecting the entry box and using Up and "
                         "Down arrows." ).grid(
-                column=0, row=6, columnspan=3 )
+                column=0, row=0 )
     
     def set_fit_function( self ):
         return
     
     def input_setup( self ):
+        self.input_frame = tk.Frame( self, highlightbackground="black", highlightthickness=1 )
+        self.input_frame.grid( row=1, column=0, sticky=tk.N + tk.S + tk.E + tk.W )
+        self.input_frame.columnconfigure( 1, weight=5 )
+        self.input_frame.columnconfigure( 4, weight=5 )
+        
         # Vp
-        Vp_label = ttk.Label( self, text="Vp" )
-        Vp_label.grid( column=0, row=3, padx=0, pady=5 )
+        Vp_label = ttk.Label( self.input_frame, text="Vp" )
+        Vp_label.grid( column=0, row=0, padx=0, pady=5 )
         
-        Vp_slider = ttk.Scale( self, from_=0, to=np.max( self.master.voltage ), variable=self.master.Vp_fit,
+        Vp_slider = ttk.Scale( self.input_frame, from_=0, to=np.max( self.master.voltage ), variable=self.master.Vp_fit,
                                command=self.master.plot_update )
-        Vp_slider.grid( column=1, row=3, padx=0, pady=5, sticky="EW" )
+        Vp_slider.grid( column=1, row=0, padx=0, pady=5, sticky="EW" )
         
-        Vp_entry = ttk.Entry( self, textvariable=self.master.Vp_fit )
-        Vp_entry.grid( column=2, row=3, padx=0, pady=5 )
-        
-        Vp_entry.bind( "<Return>", self.master.plot_update )
-        Vp_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.Vp_fit, "up" ) )
-        Vp_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.Vp_fit, "down" ) )
+        Vp_entry = ttk.Entry( self.input_frame, textvariable=self.master.Vp_fit )
+        Vp_entry.grid( column=2, row=0, padx=0, pady=5 )
         
         # Vn
-        Vn_label = ttk.Label( self, text="Vn" )
-        Vn_label.grid( column=0, row=4, padx=0, pady=5 )
+        Vn_label = ttk.Label( self.input_frame, text="Vn" )
+        Vn_label.grid( column=3, row=0, padx=0, pady=5 )
         
-        Vn_slider = ttk.Scale( self, from_=0, to=np.abs( np.min( self.master.voltage ) ), variable=self.master.Vn_fit,
+        Vn_slider = ttk.Scale( self.input_frame, from_=0, to=np.abs( np.min( self.master.voltage ) ),
+                               variable=self.master.Vn_fit,
                                command=self.master.plot_update )
-        Vn_slider.grid( column=1, row=4, padx=0, pady=5, sticky="EW" )
+        Vn_slider.grid( column=4, row=0, padx=0, pady=5, sticky="EW" )
         
-        Vn_entry = ttk.Entry( self, textvariable=self.master.Vn_fit )
-        Vn_entry.grid( column=2, row=4, padx=0, pady=5 )
-        
-        # fitting functions
-        functions_frame = ttk.Frame( self )
-        functions_frame.grid( column=1, row=5 )
-        # h1
-        ttk.Label( functions_frame, text="ON fit:" ).grid( column=0, row=0 )
-        h1_combobox = ttk.Combobox( functions_frame, values=[ "MIMD", "Ohmic", "Schottky" ], state="disabled" )
-        h1_combobox.current( 0 )
-        h1_combobox.grid( column=1, row=0, padx=0, pady=5 )
-        h1_combobox.bind( "<<ComboboxSelected>>", self.set_fit_function )
-        
-        # h2
-        ttk.Label( functions_frame, text="OFF fit:" ).grid( column=2, row=0 )
-        h2_combobox = ttk.Combobox( functions_frame, values=[ "MIMD", "Ohmic", "Schottky" ], state="disabled" )
-        h2_combobox.current( 0 )
-        h2_combobox.grid( column=3, row=0, padx=0, pady=5 )
-        h2_combobox.bind( "<<ComboboxSelected>>", self.set_fit_function )
-        
-        Vn_entry.bind( "<Return>", self.master.plot_update )
-        Vn_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.Vn_fit, "up" ) )
-        Vn_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.Vn_fit, "down" ) )
+        Vn_entry = ttk.Entry( self.input_frame, textvariable=self.master.Vn_fit )
+        Vn_entry.grid( column=5, row=0, padx=0, pady=5 )
 
 
 class PlotWindow( tk.Toplevel ):
@@ -293,7 +241,9 @@ class PlotWindow( tk.Toplevel ):
         
         self.title( "Simulated memristor" )
         self.geometry( f"1200x1100+{xy[ 0 ] + 10}+{xy[ 1 ]}" )
-        self.resizable( False, False )
+        # self.resizable( False, False )
+        
+        self.rowconfigure( 0, weight=10 )
         
         self.input_setup()
         self.output_setup()
@@ -308,169 +258,177 @@ class PlotWindow( tk.Toplevel ):
         self.master.plot_button[ "state" ] = "normal"
         self.destroy()
     
-    def update_output( self ):
+    def update_output( self, _ ):
         self.on_label.set(
-                f"h1 = {self.master.gmax_p.get():.2e} * sinh({self.master.bmax_p.get():.2f} * V(t)), V(t) >= 0  "
-                f"|  {self.master.gmax_n.get():.2e} * sinh({self.master.bmax_n.get():.2f} * V(t)), "
+                f"{self.master.gmax_p.get():.2e} * sinh({self.master.bmax_p.get():.2f} * V(t)), V(t) >= 0"
+                f"\n{self.master.gmax_n.get():.2e} * sinh({self.master.bmax_n.get():.2f} * V(t)), "
                 f"V(t) < 0" )
         self.off_label.set(
-                f"h2 = {self.master.gmin_p.get():.2e} * sinh({self.master.bmin_p.get():.2f} * V(t)), V(t) >= 0  "
-                f"|  {self.master.gmin_n.get():.2e} * sinh({self.master.bmin_n.get():.2f} * V(t)), "
+                f"{self.master.gmin_p.get():.2e} * sinh({self.master.bmin_p.get():.2f} * V(t)), V(t) >= 0"
+                f"\n{self.master.gmin_n.get():.2e} * sinh({self.master.bmin_n.get():.2f} * V(t)), "
                 f"V(t) < 0" )
     
     def output_setup( self ):
         self.error = tk.StringVar()
         self.error.set( str( 0.0 ) )
         
-        # error_frame = ttk.Frame( self )
-        # ttk.Label( error_frame, text="Error" ).grid( column=0, row=0 )
-        # ttk.Label( error_frame, textvariable=self.error ).grid( column=0, row=1, sticky=tk.W )
-        # for widget in error_frame.winfo_children():
-        #     widget.grid( padx=0, pady=0 )
-        # error_frame.grid( column=2, row=0 )
-        #
-        
         self.on_label = tk.StringVar()
         self.off_label = tk.StringVar()
         
-        self.update_output()
+        self.update_output( None )
         
-        ttk.Label( self, text="On fit" ).grid( column=0, row=1 )
-        ttk.Label( self, textvariable=self.on_label ).grid( column=1, row=1, sticky=tk.W )
-        ttk.Label( self, text="Off fit" ).grid( column=0, row=2 )
-        ttk.Label( self, textvariable=self.off_label ).grid( column=1, row=2, sticky=tk.W )
+        self.output_frame = tk.Frame( self, highlightbackground="black", highlightthickness=1 )
+        self.output_frame.grid( row=4, column=0, sticky=tk.N + tk.S + tk.E + tk.W )
         
-        ttk.Label( self,
-                   text="Select the parameters used to simulated the state variable evolution.\nChanging Vp and Vn "
-                        "does not affect the fit for h1 and h2.\nYou can change the "
-                        "values by pulling or clicking on the sliders, "
-                        "inputting a value directly and pressing Enter, or selecting the entry box and using Up and "
-                        "Down arrows." ).grid( column=0, row=11, columnspan=3 )
+        ttk.Label( self.function_frame, text="h1 =" ).grid( row=3, column=0, padx=0, pady=5 )
+        ttk.Label( self.function_frame, text="h2 =" ).grid( row=3, column=3, padx=0, pady=5 )
+        ttk.Label( self.function_frame, textvariable=self.on_label ).grid( row=3, column=1, columnspan=2, sticky=tk.W )
+        ttk.Label( self.function_frame, textvariable=self.off_label ).grid( row=3, column=4, columnspan=2, sticky=tk.W )
+        
+        ttk.Label( self.output_frame,
+                   text="Select the parameters used to simulated the state variable evolution and the Stable ON and "
+                        "Stable OFF states fit.\nChanging Vp and Vn does not affect the fit for h1 and h2.\n"
+                        "You can change the values by pulling or clicking on the sliders, "
+                        "inputting a value directly and pressing Enter, or by selecting the entry box and using Up and "
+                        "Down arrows." ).grid( column=0, row=2, columnspan=2 )
     
     def input_setup( self ):
+        self.plot_frame = tk.Frame( self, highlightbackground="black", highlightthickness=1 )
+        self.plot_frame.grid( row=1, column=0, sticky=tk.N + tk.S + tk.E + tk.W )
+        self.plot_frame.columnconfigure( 1, weight=5 )
+        
         # Ap
-        Ap_label = ttk.Label( self, text="Ap" )
+        Ap_label = ttk.Label( self.plot_frame, text="Ap" )
         Ap_label.grid( column=0, row=3, padx=0, pady=5 )
         
-        Ap_slider = ttk.Scale( self, from_=0.0001, to=10, variable=self.master.Ap,
+        Ap_slider = ttk.Scale( self.plot_frame, from_=0.0001, to=10, variable=self.master.Ap,
                                command=self.master.plot_update )
         Ap_slider.grid( column=1, row=3, padx=0, pady=5, sticky="EW" )
         
-        Ap_entry = ttk.Entry( self, textvariable=self.master.Ap )
+        Ap_entry = ttk.Entry( self.plot_frame, textvariable=self.master.Ap )
         Ap_entry.grid( column=2, row=3, padx=0, pady=5 )
         
-        Ap_entry.bind( "<Return>", self.master.plot_update )
-        Ap_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.Ap, "up" ) )
-        Ap_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.Ap, "down" ) )
-        
         # An
-        An_label = ttk.Label( self, text="An" )
+        An_label = ttk.Label( self.plot_frame, text="An" )
         An_label.grid( column=0, row=4, padx=0, pady=5 )
         
-        An_slider = ttk.Scale( self, from_=0.0001, to=10, variable=self.master.An,
+        An_slider = ttk.Scale( self.plot_frame, from_=0.0001, to=10, variable=self.master.An,
                                command=self.master.plot_update )
         An_slider.grid( column=1, row=4, padx=0, pady=5, sticky="EW" )
         
-        An_entry = ttk.Entry( self, textvariable=self.master.An )
+        An_entry = ttk.Entry( self.plot_frame, textvariable=self.master.An )
         An_entry.grid( column=2, row=4, padx=0, pady=5 )
         
-        An_entry.bind( "<Return>", self.master.plot_update )
-        An_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.An, "up" ) )
-        An_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.An, "down" ) )
-        
         # Vp
-        Vp_label = ttk.Label( self, text="Vp" )
+        Vp_label = ttk.Label( self.plot_frame, text="Vp" )
         Vp_label.grid( column=0, row=5, padx=0, pady=5 )
         
-        Vp_slider = ttk.Scale( self, from_=0, to=np.max( self.master.voltage ), variable=self.master.Vp,
+        Vp_slider = ttk.Scale( self.plot_frame, from_=0, to=np.max( self.master.voltage ), variable=self.master.Vp,
                                command=self.master.plot_update )
         Vp_slider.grid( column=1, row=5, padx=0, pady=5, sticky="EW" )
         
-        Vp_entry = ttk.Entry( self, textvariable=self.master.Vp )
+        Vp_entry = ttk.Entry( self.plot_frame, textvariable=self.master.Vp )
         Vp_entry.grid( column=2, row=5, padx=0, pady=5 )
         
-        Vp_entry.bind( "<Return>", self.master.plot_update )
-        Vp_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.Vp, "up" ) )
-        Vp_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.Vp, "down" ) )
-        
         # Vn
-        Vn_label = ttk.Label( self, text="Vn" )
+        Vn_label = ttk.Label( self.plot_frame, text="Vn" )
         Vn_label.grid( column=0, row=6, padx=0, pady=5 )
         
-        Vn_slider = ttk.Scale( self, from_=0, to=np.abs( np.min( self.master.voltage ) ), variable=self.master.Vn,
+        Vn_slider = ttk.Scale( self.plot_frame, from_=0, to=np.abs( np.min( self.master.voltage ) ),
+                               variable=self.master.Vn,
                                command=self.master.plot_update )
         Vn_slider.grid( column=1, row=6, padx=0, pady=5, sticky="EW" )
         
-        Vn_entry = ttk.Entry( self, textvariable=self.master.Vn )
+        Vn_entry = ttk.Entry( self.plot_frame, textvariable=self.master.Vn )
         Vn_entry.grid( column=2, row=6, padx=0, pady=5 )
         
-        Vn_entry.bind( "<Return>", self.master.plot_update )
-        Vn_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.Vn, "up" ) )
-        Vn_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.Vn, "down" ) )
-        
         # xp
-        xp_label = ttk.Label( self, text="xp" )
+        xp_label = ttk.Label( self.plot_frame, text="xp" )
         xp_label.grid( column=0, row=7, padx=0, pady=5 )
         
-        xp_slider = ttk.Scale( self, from_=0.0001, to=1, variable=self.master.xp,
+        xp_slider = ttk.Scale( self.plot_frame, from_=0.0001, to=1, variable=self.master.xp,
                                command=self.master.plot_update )
         xp_slider.grid( column=1, row=7, padx=0, pady=5, sticky="EW" )
         
-        xp_entry = ttk.Entry( self, textvariable=self.master.xp )
+        xp_entry = ttk.Entry( self.plot_frame, textvariable=self.master.xp )
         xp_entry.grid( column=2, row=7, padx=0, pady=5 )
         
-        xp_entry.bind( "<Return>", self.master.plot_update )
-        xp_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.xp, "up" ) )
-        xp_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.xp, "down" ) )
-        
         # xn
-        xn_label = ttk.Label( self, text="xn" )
+        xn_label = ttk.Label( self.plot_frame, text="xn" )
         xn_label.grid( column=0, row=8, padx=0, pady=5 )
         
-        xn_slider = ttk.Scale( self, from_=0.0001, to=1, variable=self.master.xn,
+        xn_slider = ttk.Scale( self.plot_frame, from_=0.0001, to=1, variable=self.master.xn,
                                command=self.master.plot_update )
         xn_slider.grid( column=1, row=8, padx=0, pady=5, sticky="EW" )
         
-        xn_entry = ttk.Entry( self, textvariable=self.master.xn )
+        xn_entry = ttk.Entry( self.plot_frame, textvariable=self.master.xn )
         xn_entry.grid( column=2, row=8, padx=0, pady=5 )
         
-        xn_entry.bind( "<Return>", self.master.plot_update )
-        xn_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.xn, "up" ) )
-        xn_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.xn, "down" ) )
-        
         # alphap
-        alphap_label = ttk.Label( self, text="alphap" )
+        alphap_label = ttk.Label( self.plot_frame, text="alphap" )
         alphap_label.grid( column=0, row=9, padx=0, pady=5 )
         
-        alphap_slider = ttk.Scale( self, from_=0.0001, to=10, variable=self.master.alphap,
+        alphap_slider = ttk.Scale( self.plot_frame, from_=0.0001, to=10, variable=self.master.alphap,
                                    command=self.master.plot_update )
         alphap_slider.grid( column=1, row=9, padx=0, pady=5, sticky="EW" )
         
-        alphap_entry = ttk.Entry( self, textvariable=self.master.alphap )
+        alphap_entry = ttk.Entry( self.plot_frame, textvariable=self.master.alphap )
         alphap_entry.grid( column=2, row=9, padx=0, pady=5 )
         
-        alphap_entry.bind( "<Return>", self.master.plot_update )
-        alphap_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.alphap, "up" ) )
-        alphap_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.alphap, "down" ) )
-        
         # alphan
-        alphan_label = ttk.Label( self, text="alphan" )
+        alphan_label = ttk.Label( self.plot_frame, text="alphan" )
         alphan_label.grid( column=0, row=10, padx=0, pady=5 )
         
-        alphan_slider = ttk.Scale( self, from_=0.0001, to=10, variable=self.master.alphan,
+        alphan_slider = ttk.Scale( self.plot_frame, from_=0.0001, to=10, variable=self.master.alphan,
                                    command=self.master.plot_update )
         alphan_slider.grid( column=1, row=10, padx=0, pady=5, sticky="EW" )
         
-        alphan_entry = ttk.Entry( self, textvariable=self.master.alphan )
+        alphan_entry = ttk.Entry( self.plot_frame, textvariable=self.master.alphan )
         alphan_entry.grid( column=2, row=10, padx=0, pady=5 )
         
-        alphan_entry.bind( "<Return>", self.master.plot_update )
-        alphan_entry.bind( '<Up>', lambda e: self.master.nudge_var( self.master.alphan, "up" ) )
-        alphan_entry.bind( '<Down>', lambda e: self.master.nudge_var( self.master.alphan, "down" ) )
+        # fitting functions
+        self.function_frame = tk.Frame( self, highlightbackground="black", highlightthickness=1 )
+        self.function_frame.grid( row=3, column=0, sticky=tk.N + tk.S + tk.E + tk.W )
         
-        save_button = ttk.Button( self, text="Save", command=self.save ).grid( column=0, row=12 )
+        ttk.Label( self.function_frame, text="Stable ON:" ).grid( row=0, column=1, columnspan=2,
+                                                                  sticky=tk.E + tk.W, padx=0, pady=5 )
+        ttk.Label( self.function_frame, text="Stable OFF:" ).grid( row=0, column=4, columnspan=2,
+                                                                   sticky=tk.E + tk.W, padx=0, pady=5 )
+        ttk.Label( self.function_frame, text="V >= 0" ).grid( column=0, row=1, padx=0, pady=5 )
+        ttk.Label( self.function_frame, text="V < 0" ).grid( column=0, row=2, padx=0, pady=5 )
+        
+        gmax_p_entry = ttk.Entry( self.function_frame, textvariable=self.master.gmax_p )
+        gmax_p_entry.grid( column=1, row=1, padx=0, pady=5 )
+        bmax_p_entry = ttk.Entry( self.function_frame, textvariable=self.master.bmax_p )
+        bmax_p_entry.grid( column=2, row=1, padx=0, pady=5 )
+        gmin_p_entry = ttk.Entry( self.function_frame, textvariable=self.master.gmin_p )
+        gmin_p_entry.grid( column=4, row=1, padx=0, pady=5 )
+        bmin_p_entry = ttk.Entry( self.function_frame, textvariable=self.master.bmin_p )
+        bmin_p_entry.grid( column=5, row=1, padx=0, pady=5 )
+        gmax_n_entry = ttk.Entry( self.function_frame, textvariable=self.master.gmax_n )
+        gmax_n_entry.grid( column=1, row=2, padx=0, pady=5 )
+        bmax_n_entry = ttk.Entry( self.function_frame, textvariable=self.master.bmax_n )
+        bmax_n_entry.grid( column=2, row=2, padx=0, pady=5 )
+        gmin_n_entry = ttk.Entry( self.function_frame, textvariable=self.master.gmin_n )
+        gmin_n_entry.grid( column=4, row=2, padx=0, pady=5 )
+        bmin_n_entry = ttk.Entry( self.function_frame, textvariable=self.master.bmin_n )
+        bmin_n_entry.grid( column=5, row=2, padx=0, pady=5 )
+        
+        self.button_frame = tk.Frame( self )
+        self.button_frame.grid( row=5, column=0 )
+        ttk.Button( self.button_frame, text="Save", command=self.save ).grid( column=0, row=0 )
         #     debug
-        debug_button = ttk.Button( self, text="Debug", command=self.debug ).grid( column=1, row=12 )
+        ttk.Button( self.button_frame, text="Debug", command=self.debug ).grid( column=1, row=0 )
+        
+        # bind keyboard input
+        entries = [ gmax_p_entry, bmax_p_entry, gmax_n_entry, bmax_n_entry, gmin_p_entry, bmin_p_entry, gmin_n_entry,
+                    bmin_n_entry, Ap_entry, An_entry, Vp_entry, Vn_entry, xp_entry, xn_entry, alphap_entry,
+                    alphan_entry ]
+        for var, ent in zip( self.master.get_fit_variables() + self.master.get_plot_variables(), entries ):
+            ent.bind( "<Return>", self.master.plot_update, add="+" )
+            ent.bind( "<Return>", self.update_output, add="+" )
+            ent.bind( '<Up>', lambda e, var_lmb=var: self.master.nudge_var( var_lmb, "up" ) )
+            ent.bind( '<Down>', lambda e, var_lmb=var: self.master.nudge_var( var_lmb, "down" ) )
     
     def save( self ):
         parameters = {
@@ -536,8 +494,7 @@ class PlotWindow( tk.Toplevel ):
         canvas = FigureCanvasTkAgg( self.fig, master=self )
         canvas.draw()
         # placing the canvas on the Tkinter window
-        canvas.get_tk_widget().grid( column=0, row=0, columnspan=3 )
-        
+        canvas.get_tk_widget().grid( row=0, column=0, sticky=tk.N + tk.S + tk.E + tk.W )
         self.fig.canvas.draw()
     
     def plot_data( self ):
@@ -568,8 +525,7 @@ class PlotWindow( tk.Toplevel ):
         axes_debug[ 3 ].set_ylabel( "g" )
         axes_debug[ 4 ].plot( t,
                               self.master.memristor.f( v, x, self.master.xp.get(), self.master.xn.get(),
-                                                       self.master.alphap.get(),
-                                                       self.master.alphan.get(), 1 ) )
+                                                       self.master.alphap.get(), self.master.alphan.get(), 1 ) )
         axes_debug[ 4 ].set_ylabel( "f" )
         for ax in axes_debug.ravel():
             ax.set_xlabel( "Time" )
@@ -696,6 +652,13 @@ class MainWindow( tk.Tk ):
         
         self.plot_update( None )
     
+    def get_fit_variables( self ):
+        return [ self.gmax_p, self.bmax_p, self.gmax_n, self.bmax_n, self.gmin_p, self.bmin_p, self.gmin_n,
+                 self.bmin_n ]
+    
+    def get_plot_variables( self ):
+        return [ self.Ap, self.An, self.Vp, self.Vn, self.xp, self.xn, self.alphap, self.alphan ]
+    
     def get_sim_pars( self ):
         return [ self.Ap.get(), self.An.get(), self.Vp.get(),
                  self.Vn.get(), self.xp.get(), self.xn.get(),
@@ -731,13 +694,13 @@ class MainWindow( tk.Tk ):
         try:
             if self.plot_window.state() == "normal":
                 self.plot_window.plot_update( self.plot_window )
-                self.plot_window.update_output()
+                self.plot_window.update_output( None )
         except:
             pass
         try:
             if self.fit_window.state() == "normal":
                 self.fit_window.plot_update( self.fit_window )
-                self.fit_window.update_output()
+                self.fit_window.update_output( None )
         
         except:
             pass
@@ -764,7 +727,7 @@ class MainWindow( tk.Tk ):
         
         self.device_file = fd.askopenfilenames(
                 title="Select a device measurement file",
-                initialdir=".",
+                initialdir="../pickles",
                 filetypes=filetypes )[ 0 ]
         
         self.fit_button[ "state" ] = "normal"

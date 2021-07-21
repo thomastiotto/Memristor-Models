@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import pandas as pd
 import re
@@ -26,6 +27,10 @@ for dirPath, _, fileList in os.walk( rootDir ):
             pass
         try:
             os.makedirs( f"./pickles/{dirName}" )
+        except:
+            pass
+        try:
+            os.makedirs( f"./data/{dirName}" )
         except:
             pass
         
@@ -59,3 +64,5 @@ for dirPath, _, fileList in os.walk( rootDir ):
         fig, _, _ = plot_memristor( df[ "V" ], df[ "I" ], df[ "t" ], plot_name )
         fig.savefig( f"./plots/{dirName}/{plot_name}_{i}.png" )
         fig.show()
+        
+        shutil.copyfile( f_path, f"./data/{dirName}/{plot_name}_{i}.csv" )
