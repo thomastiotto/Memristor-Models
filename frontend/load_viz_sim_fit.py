@@ -38,12 +38,12 @@ axes[ 0, 1 ].plot( voltage, current )
 V = Interpolated( time, voltage )
 
 
-def I( t, x, gmax1, gmin1, b1, b2, gmax2, gmin2, b3, b4 ):
+def I( t, x, gmax_p, gmin_p, bmax_p, bmin_p, gmax_n, gmin_n, bmax_n, bmin_n ):
     v = V( t )
     
     i = np.where( v >= 0,
-                  gmax1 * np.sinh( b1 * v ) * x + gmin1 * np.sinh( b2 * v ) * (1 - x),
-                  gmax2 * np.sinh( b3 * v ) * x + gmin2 * np.sinh( b4 * v ) * (1 - x)
+                  gmax_p * np.sinh( bmax_p * v ) * x + gmin_p * np.sinh( bmin_p * v ) * (1 - x),
+                  gmax_n * np.sinh( bmax_n * v ) * x + gmin_n * np.sinh( bmin_n * v ) * (1 - x)
                   )
     
     return i
@@ -99,36 +99,39 @@ alphan = 1
 
 eta = 1
 
-gmax1 = 9e-5
-gmin1 = 1.5e-5
-b1 = 4.96
-b2 = 6.91
-gmax2 = 1.7e-4
-gmin2 = 4.4E-7
-b3 = 3.23
-b4 = 2.6
+gmax_p = 9e-5
+bmax_p = 4.96
+gmin_p = 1.5e-5
+bmin_p = 6.91
+gmax_n = 1.7e-4
+bmax_n = 3.23
+gmin_n = 4.4e-7
+bmin_n = 2.6
 
-xo = 0
+xo = 0.11
 
 params_dxdt = [ Ap, An, Vp, Vn, xp, xn, alphap, alphan, eta ]
-params_I = [ gmax1, gmin1, b1, b2, gmax2, gmin2, b3, b4 ]
+params_I = [ gmax_p, gmin_p, bmax_p, bmin_p, gmax_n, gmin_n, bmax_n, bmin_n ]
 
 ###############################################################################
 #                         Simulate
 ###############################################################################
 
 
-# x_solve_ivp = solve_ivp( dxdt, (time[ 0 ], time[ -1 ]), [ xo ], method="LSODA", t_eval=time, vectorized=True,
+# x_solve_ivp = solve_ivp( dxdt, (time[ 0 ], time[ -1 ]),
+#                          [ xo ],
+#                          method="LSODA",
+#                          t_eval=time,
 #                          args=params_dxdt )
-# x = x_solve_ivp.y[ 0, : ]
 #
 # time_sim = x_solve_ivp.t
-# current_sim = I( time_sim, x, *params_I )
+# x = x_solve_ivp.y[ 0, : ]
 # voltage_sim = V( time_sim )
+# current_sim = I( time_sim, x, *params_I )
 
-x_euler = euler_solver( dxdt, time, 1 / 10000, xo, params_dxdt )
+x = solver( dxdt, time, 1 / 10000, xo, params_dxdt )
 time_sim = time
-current_sim = I( time_sim, x_euler, *params_I )
+current_sim = I( time_sim, x, *params_I )
 voltage_sim = V( time_sim )
 
 ###############################################################################
@@ -152,5 +155,5 @@ plt.ylabel( "Current (mA)" )
 plt.show()
 
 plt.figure()
-plt.plot( time_sim, x_euler )
+plt.plot( time_sim, x )
 plt.show()

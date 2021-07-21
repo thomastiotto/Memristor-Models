@@ -386,6 +386,16 @@ class PlotWindow( tk.Toplevel ):
         alphan_entry = ttk.Entry( self.plot_frame, textvariable=self.master.alphan )
         alphan_entry.grid( column=2, row=10, padx=0, pady=5 )
         
+        x0_label = ttk.Label( self.plot_frame, text="x0" )
+        x0_label.grid( column=0, row=11, padx=0, pady=5 )
+        
+        x0_slider = ttk.Scale( self.plot_frame, from_=0, to=1, variable=self.master.x0,
+                               command=self.master.plot_update )
+        x0_slider.grid( column=1, row=11, padx=0, pady=5, sticky="EW" )
+        
+        x0_entry = ttk.Entry( self.plot_frame, textvariable=self.master.x0 )
+        x0_entry.grid( column=2, row=11, padx=0, pady=5 )
+        
         # fitting functions
         self.function_frame = tk.Frame( self, highlightbackground="black", highlightthickness=1 )
         self.function_frame.grid( row=3, column=0, sticky=tk.N + tk.S + tk.E + tk.W )
@@ -423,7 +433,7 @@ class PlotWindow( tk.Toplevel ):
         # bind keyboard input
         entries = [ gmax_p_entry, bmax_p_entry, gmax_n_entry, bmax_n_entry, gmin_p_entry, bmin_p_entry, gmin_n_entry,
                     bmin_n_entry, Ap_entry, An_entry, Vp_entry, Vn_entry, xp_entry, xn_entry, alphap_entry,
-                    alphan_entry ]
+                    alphan_entry, x0_entry ]
         for var, ent in zip( self.master.get_fit_variables() + self.master.get_plot_variables(), entries ):
             ent.bind( "<Return>", self.master.plot_update, add="+" )
             ent.bind( "<Return>", self.update_output, add="+" )
@@ -432,7 +442,7 @@ class PlotWindow( tk.Toplevel ):
     
     def save( self ):
         parameters = {
-                "x0"    : self.master.x0,
+                "x0"    : self.master.x0.get(),
                 "Ap"    : self.master.Ap.get(),
                 "An"    : self.master.An.get(),
                 "Vp"    : self.master.Vp.get(),
@@ -465,21 +475,21 @@ class PlotWindow( tk.Toplevel ):
     
     def initial_plot( self ):
         # simulate the model
-        x_solve_ivp = solve_ivp( self.master.memristor.dxdt, (self.master.time[ 0 ], self.master.time[ -1 ]),
-                                 [ self.master.x0 ],
-                                 method="LSODA",
-                                 t_eval=self.master.time,
-                                 args=self.master.get_sim_pars() )
+        # x_solve_ivp = solve_ivp( self.master.memristor.dxdt, (self.master.time[ 0 ], self.master.time[ -1 ]),
+        #                          [ self.master.x0.get() ],
+        #                          method="LSODA",
+        #                          t_eval=self.master.time,
+        #                          args=self.master.get_sim_pars() )
+        #
+        # # updated simulation results
+        # t = x_solve_ivp.t
+        # x = x_solve_ivp.y[ 0, : ]
         
-        # updated simulation results
-        t = x_solve_ivp.t
-        x = x_solve_ivp.y[ 0, : ]
-        
-        # x = euler_solver( self.master.memristor.dxdt, self.master.time,
-        #                   dt=np.mean( np.diff( self.master.time ) ),
-        #                   iv=self.master.x0,
-        #                   args=self.master.get_sim_pars() )
-        # t = self.master.time
+        x = solver( self.master.memristor.dxdt, self.master.time,
+                    dt=1 / 10000,
+                    iv=self.master.x0.get(),
+                    args=self.master.get_sim_pars() )
+        t = self.master.time
         v = self.master.memristor.V( t )
         i = self.master.memristor.I( t, x, self.master.get_on_pars(), self.master.get_off_pars() )
         
@@ -504,10 +514,8 @@ class PlotWindow( tk.Toplevel ):
         self.axes[ 2 ].plot( self.master.voltage, i, color="g", alpha=0.5 )
     
     def debug( self ):
-        x = euler_solver( self.master.memristor.dxdt, self.master.time,
-                          dt=np.mean( np.diff( self.master.time ) ),
-                          iv=self.master.x0,
-                          args=self.master.get_sim_pars() )
+        x = solver( self.master.memristor.dxdt, self.master.time, dt=np.mean( np.diff( self.master.time ) ),
+                    iv=self.master.x0.get(), args=self.master.get_sim_pars() )
         t = self.master.time
         v = self.master.memristor.V( t )
         i = self.master.memristor.I( t, x, self.master.get_on_pars(), self.master.get_off_pars() )
@@ -537,21 +545,21 @@ class PlotWindow( tk.Toplevel ):
     
     def plot_update( self, _ ):
         # simulate the model
-        x_solve_ivp = solve_ivp( self.master.memristor.dxdt, (self.master.time[ 0 ], self.master.time[ -1 ]),
-                                 [ self.master.x0 ],
-                                 method="LSODA",
-                                 t_eval=self.master.time,
-                                 args=self.master.get_sim_pars() )
+        # x_solve_ivp = solve_ivp( self.master.memristor.dxdt, (self.master.time[ 0 ], self.master.time[ -1 ]),
+        #                          [ self.master.x0 ],
+        #                          method="LSODA",
+        #                          t_eval=self.master.time,
+        #                          args=self.master.get_sim_pars() )
+        #
+        # # updated simulation results
+        # t = x_solve_ivp.t
+        # x = x_solve_ivp.y[ 0, : ]
         
-        # updated simulation results
-        t = x_solve_ivp.t
-        x = x_solve_ivp.y[ 0, : ]
-        
-        # x = euler_solver( self.master.memristor.dxdt, self.master.time,
-        #                   dt=np.mean( np.diff( self.master.time ) ),
-        #                   iv=self.master.x0,
-        #                   args=self.master.get_sim_pars() )
-        # t = self.master.time
+        x = solver( self.master.memristor.dxdt, self.master.time,
+                    dt=1 / 10000,
+                    iv=self.master.x0.get(),
+                    args=self.master.get_sim_pars() )
+        t = self.master.time
         v = self.master.memristor.V( t )
         i = self.master.memristor.I( t, x, self.master.get_on_pars(), self.master.get_off_pars() )
         
@@ -598,7 +606,7 @@ class MainWindow( tk.Tk ):
         self.resizable( False, False )
         
         # variables for simulation
-        self.x0 = 0.11
+        self.x0 = tk.DoubleVar()
         self.Ap = tk.DoubleVar()
         self.An = tk.DoubleVar()
         self.Vp = tk.DoubleVar()
@@ -657,7 +665,7 @@ class MainWindow( tk.Tk ):
                  self.bmin_n ]
     
     def get_plot_variables( self ):
-        return [ self.Ap, self.An, self.Vp, self.Vn, self.xp, self.xn, self.alphap, self.alphan ]
+        return [ self.Ap, self.An, self.Vp, self.Vn, self.xp, self.xn, self.alphap, self.alphan, self.x0 ]
     
     def get_sim_pars( self ):
         return [ self.Ap.get(), self.An.get(), self.Vp.get(),
@@ -745,6 +753,7 @@ class MainWindow( tk.Tk ):
         self.plot_update( None )
     
     def init_variables( self ):
+        self.x0.set( 0.11 )
         self.Ap.set( 1.0 )
         self.An.set( 1.0 )
         self.Vp.set( 0.0 )
