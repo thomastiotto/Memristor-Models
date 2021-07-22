@@ -108,7 +108,7 @@ bmax_n = 3.23
 gmin_n = 4.4e-7
 bmin_n = 2.6
 
-xo = 0.11
+x0 = 0
 
 params_dxdt = [ Ap, An, Vp, Vn, xp, xn, alphap, alphan, eta ]
 params_I = [ gmax_p, gmin_p, bmax_p, bmin_p, gmax_n, gmin_n, bmax_n, bmin_n ]
@@ -129,7 +129,7 @@ params_I = [ gmax_p, gmin_p, bmax_p, bmin_p, gmax_n, gmin_n, bmax_n, bmin_n ]
 # voltage_sim = V( time_sim )
 # current_sim = I( time_sim, x, *params_I )
 
-x = solver( dxdt, time, 1 / 10000, xo, params_dxdt )
+x = solver( dxdt, time, 1 / 10000, x0, params_dxdt )
 time_sim = time
 current_sim = I( time_sim, x, *params_I )
 voltage_sim = V( time_sim )

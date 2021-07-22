@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog as fd
 
+import yaml
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from scipy.integrate import solve_ivp
 
@@ -23,11 +24,19 @@ class Model():
     def __init__( self, time, voltage ):
         self.V = Interpolated( time, voltage )
         
-        self.functions = { "MIMD"    : self.mim_iv,
-                           "Ohmic"   : self.ohmic_iv,
-                           "Schottky": self.schottky_iv }
-        self.set_h1( "MIMD", "MIMD" )
-        self.set_h2( "MIMD", "MIMD" )
+        self.h1 = self.mimd
+        self.h2 = self.mimd
+    
+    def mimd( self, v, g_p, b_p, g_n, b_n ):
+        return np.where( v >= 0,
+                         g_p * np.sinh( b_p * v ),
+                         g_n * np.sinh( b_n * v )
+                         )
+    
+    def I( self, t, x, on_pars, off_pars ):
+        v = self.V( t )
+        
+        return self.h1( v, *on_pars ) * x + self.h2( v, *off_pars ) * (1 - x)
     
     def g( self, v, Ap, An, Vp, Vn ):
         return np.select( [ v > Vp, v < -Vn ],
@@ -39,58 +48,22 @@ class Model():
         return ((xp - x) / (1 - xp)) + 1
     
     def wn( self, x, xn ):
-        return x / (1 - xn)
+        return x / xn
     
     def f( self, v, x, xp, xn, alphap, alphan, eta ):
-        return np.select( [ eta * v > 0, eta * v <= 0 ],
+        return np.select( [ eta * v >= 0, eta * v <= 0 ],
                           [ np.select( [ x >= xp, x < xp ],
                                        [ np.exp( -alphap * (x - xp) ) * self.wp( x, xp ),
                                          1 ] ),
-                            np.select( [ x <= 1 - xn, x > 1 - xn ],
-                                       [ np.exp( alphan * (x + xn - 1) ) * self.wn( x, xn ),
+                            np.select( [ x <= xn, x > xn ],
+                                       [ np.exp( alphan * (x - xn) ) * self.wn( x, xn ),
                                          1 ] )
                             ] )
     
     def dxdt( self, t, x, Ap, An, Vp, Vn, xp, xn, alphap, alphan, eta=1 ):
         v = self.V( t )
+        
         return eta * self.g( v, Ap, An, Vp, Vn ) * self.f( v, x, xp, xn, alphap, alphan, eta )
-    
-    def ohmic_iv( self, v, g ):
-        return g * v
-    
-    def mim_iv( self, v, g, b ):
-        return g * np.sinh( b * v )
-    
-    def schottky_iv( v, g, b ):
-        return g * (1 - np.exp( -b * v ))
-    
-    def mim_mim_iv( self, v, gp, bp, gn, bn ):
-        return np.piecewise( v, [ v < 0, v >= 0 ],
-                             [ lambda v: mim_iv( v, gn, bn ), lambda v: mim_iv( v, gp, bp ) ] )
-    
-    def I_mim_mim( self, t, x, gmax, bmax, gmin, bmin ):
-        v = self.V( t )
-        return mim_iv( v, gmax, bmax ) * x + mim_iv( v, gmin, bmin ) * (1 - x)
-    
-    def I( self, t, x, on_pars, off_pars ):
-        v = self.V( t )
-        return self.h1( v, *on_pars ) * x + self.h2( v, *off_pars ) * (1 - x)
-    
-    def set_h1( self, func, func_neg=None ):
-        if func_neg:
-            self.h1 = lambda v, gp, bp, gn, bn: np.piecewise( v, [ v < 0, v >= 0 ],
-                                                              [ lambda v: self.functions[ func ]( v, gn, bn ),
-                                                                lambda v: self.functions[ func_neg ]( v, gp, bp ) ] )
-        else:
-            self.h1 = lambda v, g, b: self.functions[ func ]( v, g, b )
-    
-    def set_h2( self, func, func_neg=None ):
-        if func_neg:
-            self.h2 = lambda v, gp, bp, gn, bn: np.piecewise( v, [ v < 0, v >= 0 ],
-                                                              [ lambda v: self.functions[ func ]( v, gn, bn ),
-                                                                lambda v: self.functions[ func_neg ]( v, gp, bp ) ] )
-        else:
-            self.h2 = lambda v, g, b: self.functions[ func ]( v, g, b )
 
 
 class FitWindow( tk.Toplevel ):
@@ -301,7 +274,7 @@ class PlotWindow( tk.Toplevel ):
         Ap_label = ttk.Label( self.plot_frame, text="Ap" )
         Ap_label.grid( column=0, row=3, padx=0, pady=5 )
         
-        Ap_slider = ttk.Scale( self.plot_frame, from_=0.0001, to=10, variable=self.master.Ap,
+        Ap_slider = ttk.Scale( self.plot_frame, from_=0.0001, to=100, variable=self.master.Ap,
                                command=self.master.plot_update )
         Ap_slider.grid( column=1, row=3, padx=0, pady=5, sticky="EW" )
         
@@ -312,7 +285,7 @@ class PlotWindow( tk.Toplevel ):
         An_label = ttk.Label( self.plot_frame, text="An" )
         An_label.grid( column=0, row=4, padx=0, pady=5 )
         
-        An_slider = ttk.Scale( self.plot_frame, from_=0.0001, to=10, variable=self.master.An,
+        An_slider = ttk.Scale( self.plot_frame, from_=0.0001, to=100, variable=self.master.An,
                                command=self.master.plot_update )
         An_slider.grid( column=1, row=4, padx=0, pady=5, sticky="EW" )
         
@@ -437,12 +410,13 @@ class PlotWindow( tk.Toplevel ):
         for var, ent in zip( self.master.get_fit_variables() + self.master.get_plot_variables(), entries ):
             ent.bind( "<Return>", self.master.plot_update, add="+" )
             ent.bind( "<Return>", self.update_output, add="+" )
+            ent.bind( "<Tab>", self.master.plot_update, add="+" )
+            ent.bind( "<Tab>", self.update_output, add="+" )
             ent.bind( '<Up>', lambda e, var_lmb=var: self.master.nudge_var( var_lmb, "up" ) )
             ent.bind( '<Down>', lambda e, var_lmb=var: self.master.nudge_var( var_lmb, "down" ) )
     
     def save( self ):
         parameters = {
-                "x0"    : self.master.x0.get(),
                 "Ap"    : self.master.Ap.get(),
                 "An"    : self.master.An.get(),
                 "Vp"    : self.master.Vp.get(),
@@ -451,6 +425,7 @@ class PlotWindow( tk.Toplevel ):
                 "xn"    : self.master.xn.get(),
                 "alphap": self.master.alphap.get(),
                 "alphan": self.master.alphan.get(),
+                "x0"    : self.master.x0.get(),
                 "gmax_p": self.master.gmax_p.get(),
                 "bmax_p": self.master.bmax_p.get(),
                 "gmax_n": self.master.gmax_n.get(),
@@ -461,17 +436,18 @@ class PlotWindow( tk.Toplevel ):
                 "bmin_n": self.master.bmin_n.get()
                 }
         try:
-            os.mkdir( f"../fitted" )
+            os.makedirs( "../fitted" )
         except:
             pass
         
-        with open( "./fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + ".txt",
+        with open( "../fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + ".txt",
                    "w" ) as file:
-            file.write( json.dumps( parameters ) )
-        with open( "./fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + ".pkl",
+            yaml.dump( parameters, file )
+        
+        with open( "../fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + ".pkl",
                    "wb" ) as file:
             pickle.dump( parameters, file )
-        self.fig.savefig( "./fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + ".png" )
+        self.fig.savefig( "../fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + ".png" )
     
     def initial_plot( self ):
         # simulate the model
@@ -601,7 +577,7 @@ class MainWindow( tk.Tk ):
         
         # dimensions of the main window
         self.title( "Main" )
-        self.xy = (200, 150)
+        self.xy = (180, 180)
         self.geometry( f"{self.xy[ 0 ]}x{self.xy[ 1 ]}+0+0" )
         self.resizable( False, False )
         
@@ -616,12 +592,6 @@ class MainWindow( tk.Tk ):
         self.alphap = tk.DoubleVar()
         self.alphan = tk.DoubleVar()
         
-        self.init_variables()
-        
-        self.input_setup()
-        
-        self.plot_window = self.fit_window = None
-        
         # variables for fitting
         self.Vp_fit = tk.DoubleVar()
         self.Vn_fit = tk.DoubleVar()
@@ -635,6 +605,12 @@ class MainWindow( tk.Tk ):
         self.bmin_p = tk.DoubleVar()
         self.gmin_n = tk.DoubleVar()
         self.bmin_n = tk.DoubleVar()
+        
+        self.init_variables()
+        
+        self.input_setup()
+        
+        self.plot_window = self.fit_window = None
     
     def fit( self, v, i, Vp, Vn ):
         Vp = Vp.get()
@@ -732,36 +708,48 @@ class MainWindow( tk.Tk ):
                 ('Pickled files', '*.pkl'),
                 ('All files', '*.*')
                 )
-        
-        self.device_file = fd.askopenfilenames(
-                title="Select a device measurement file",
-                initialdir="../pickles",
-                filetypes=filetypes )[ 0 ]
-        
-        self.fit_button[ "state" ] = "normal"
-        self.plot_button[ "state" ] = "normal"
-        self.reset_button[ "state" ] = "normal"
-        
-        self.read_input( self.device_file )
-        
-        self.memristor = Model( self.time, self.voltage )
-        
-        popt_on, popt_off, _, _ = self.fit( self.voltage, self.current, self.Vp, self.Vn )
-        self.set_on_pars( popt_on )
-        self.set_off_pars( popt_off )
-        
-        self.plot_update( None )
+        try:
+            self.device_file = fd.askopenfilenames(
+                    title="Select a device measurement file",
+                    initialdir="../pickles",
+                    filetypes=filetypes )[ 0 ]
+            
+            self.parameters_button[ "state" ] = "normal"
+            self.fit_button[ "state" ] = "normal"
+            self.plot_button[ "state" ] = "normal"
+            self.reset_button[ "state" ] = "normal"
+            
+            self.read_input( self.device_file )
+            
+            self.memristor = Model( self.time, self.voltage )
+            
+            popt_on, popt_off, _, _ = self.fit( self.voltage, self.current, self.Vp, self.Vn )
+            self.set_on_pars( popt_on )
+            self.set_off_pars( popt_off )
+            
+            self.plot_update( None )
+        except:
+            pass
     
-    def init_variables( self ):
-        self.x0.set( 0.11 )
-        self.Ap.set( 1.0 )
-        self.An.set( 1.0 )
-        self.Vp.set( 0.0 )
-        self.Vn.set( 0.0 )
-        self.xp.set( 0.1 )
-        self.xn.set( 0.1 )
-        self.alphap.set( 0.1 )
-        self.alphan.set( 0.1 )
+    def init_variables( self, parameters={ } ):
+        self.x0.set( parameters[ "x0" ] ) if "x0" in parameters else self.x0.set( 0.11 )
+        self.Ap.set( parameters[ "Ap" ] ) if "Ap" in parameters else self.Ap.set( 1.0 )
+        self.An.set( parameters[ "An" ] ) if "An" in parameters else self.An.set( 1.0 )
+        self.Vp.set( parameters[ "Vp" ] ) if "Vp" in parameters else self.Vp.set( 0.0 )
+        self.Vn.set( parameters[ "Vn" ] ) if "Vn" in parameters else self.Vn.set( 0.0 )
+        self.xp.set( parameters[ "xp" ] ) if "xp" in parameters else self.xp.set( 0.1 )
+        self.xn.set( parameters[ "xn" ] ) if "xn" in parameters else self.xn.set( 0.1 )
+        self.alphap.set( parameters[ "alphap" ] ) if "alphap" in parameters else self.alphap.set( 1.0 )
+        self.alphan.set( parameters[ "alphan" ] ) if "alphan" in parameters else self.alphan.set( 1.0 )
+        
+        self.gmax_p.set( parameters[ "gmax_p" ] ) if "gmax_p" in parameters else self.gmax_p.set( 1.0 )
+        self.bmax_p.set( parameters[ "bmax_p" ] ) if "bmax_p" in parameters else self.bmax_p.set( 1.0 )
+        self.gmax_n.set( parameters[ "gmax_n" ] ) if "gmax_n" in parameters else self.gmax_n.set( 1.0 )
+        self.bmax_n.set( parameters[ "bmax_n" ] ) if "bmax_n" in parameters else self.bmax_n.set( 1.0 )
+        self.gmin_p.set( parameters[ "gmin_p" ] ) if "gmin_p" in parameters else self.gmin_p.set( 1.0 )
+        self.bmin_p.set( parameters[ "bmin_p" ] ) if "bmin_p" in parameters else self.bmin_p.set( 1.0 )
+        self.gmin_n.set( parameters[ "gmin_n" ] ) if "gmin_n" in parameters else self.gmin_n.set( 1.0 )
+        self.bmin_n.set( parameters[ "bmin_n" ] ) if "bmin_n" in parameters else self.bmin_n.set( 1.0 )
     
     def reset( self ):
         self.read_input( self.device_file )
@@ -774,17 +762,50 @@ class MainWindow( tk.Tk ):
         
         self.plot_update( None )
     
+    def load_parameters( self ):
+        filetypes = (
+                ('Text files', '*.txt'),
+                ('YAML files', '*.yaml'),
+                ('All files', '*.*')
+                )
+        
+        try:
+            self.parameters_file = fd.askopenfilenames(
+                    title="Select a file containing model parameters",
+                    initialdir="../fitted",
+                    filetypes=filetypes )[ 0 ]
+            
+            self.read_input( self.device_file )
+            
+            self.memristor = Model( self.time, self.voltage )
+            
+            popt_on, popt_off, _, _ = self.fit( self.voltage, self.current, self.Vp, self.Vn )
+            self.set_on_pars( popt_on )
+            self.set_off_pars( popt_off )
+            
+            self.plot_update( None )
+        except:
+            pass
+        
+        with open( self.parameters_file, "r" ) as file:
+            parameters = yaml.load( file, Loader=yaml.SafeLoader )
+        
+        self.init_variables( parameters )
+    
     def input_setup( self ):
-        self.open_button = ttk.Button( self, text="Load", command=self.select_file )
-        self.open_button.pack()
+        self.data_button = ttk.Button( self, text="Load data", command=self.select_file )
+        self.data_button.pack( side="top", fill="x" )
+        self.parameters_button = ttk.Button( self, text="Load parameters", command=self.load_parameters,
+                                             state="disabled" )
+        self.parameters_button.pack( side="top", fill="x" )
         self.fit_button = ttk.Button( self, text="Fit", command=self.open_fit_window, state="disabled" )
-        self.fit_button.pack()
+        self.fit_button.pack( side="top", fill="x" )
         self.plot_button = ttk.Button( self, text="Plot", command=self.open_plot_window, state="disabled" )
-        self.plot_button.pack()
+        self.plot_button.pack( side="top", fill="x" )
         self.reset_button = ttk.Button( self, text="Reset", command=self.reset, state="disabled" )
-        self.reset_button.pack()
+        # self.reset_button.pack( side="top", fill="x" )
         self.quit_button = ttk.Button( self, text="Quit", command=self.destroy )
-        self.quit_button.pack()
+        self.quit_button.pack( side="top", fill="x" )
 
 
 app = MainWindow()
