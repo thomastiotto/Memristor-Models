@@ -1,6 +1,7 @@
 import json
 import pickle
 import os
+import pandas as pd
 
 import tkinter as tk
 from tkinter import ttk
@@ -250,8 +251,8 @@ class PlotWindow( tk.Toplevel ):
         
         self.update_output( None )
         
-        self.output_frame = tk.Frame( self, highlightbackground="black", highlightthickness=1 )
-        self.output_frame.grid( row=4, column=0, sticky=tk.N + tk.S + tk.E + tk.W )
+        self.output_frame = tk.Frame( self )
+        self.output_frame.grid( row=4, column=0, sticky=tk.N + tk.S + tk.E + tk.W, pady=10 )
         
         ttk.Label( self.function_frame, text="h1 =" ).grid( row=3, column=0, padx=0, pady=5 )
         ttk.Label( self.function_frame, text="h2 =" ).grid( row=3, column=3, padx=0, pady=5 )
@@ -266,8 +267,8 @@ class PlotWindow( tk.Toplevel ):
                         "Down arrows." ).grid( column=0, row=2, columnspan=2 )
     
     def input_setup( self ):
-        self.plot_frame = tk.Frame( self, highlightbackground="black", highlightthickness=1 )
-        self.plot_frame.grid( row=1, column=0, sticky=tk.N + tk.S + tk.E + tk.W )
+        self.plot_frame = tk.Frame( self, highlightbackground="#A4A4A4", highlightthickness=1 )
+        self.plot_frame.grid( row=1, column=0, sticky=tk.N + tk.S + tk.E + tk.W, pady=10 )
         self.plot_frame.columnconfigure( 1, weight=5 )
         
         # Ap
@@ -370,8 +371,8 @@ class PlotWindow( tk.Toplevel ):
         x0_entry.grid( column=2, row=11, padx=0, pady=5 )
         
         # fitting functions
-        self.function_frame = tk.Frame( self, highlightbackground="black", highlightthickness=1 )
-        self.function_frame.grid( row=3, column=0, sticky=tk.N + tk.S + tk.E + tk.W )
+        self.function_frame = tk.Frame( self, highlightbackground="#A4A4A4", highlightthickness=1 )
+        self.function_frame.grid( row=3, column=0, sticky=tk.N + tk.S + tk.E + tk.W, pady=10 )
         
         ttk.Label( self.function_frame, text="Stable ON:" ).grid( row=0, column=1, columnspan=2,
                                                                   sticky=tk.E + tk.W, padx=0, pady=5 )
@@ -398,10 +399,9 @@ class PlotWindow( tk.Toplevel ):
         bmin_n_entry.grid( column=5, row=2, padx=0, pady=5 )
         
         self.button_frame = tk.Frame( self )
-        self.button_frame.grid( row=5, column=0 )
-        ttk.Button( self.button_frame, text="Save", command=self.save ).grid( column=0, row=0 )
-        #     debug
-        ttk.Button( self.button_frame, text="Debug", command=self.debug ).grid( column=1, row=0 )
+        self.button_frame.grid( row=5, column=0, pady=10 )
+        ttk.Button( self.button_frame, text="Save fitting", command=self.save ).grid( row=0, column=0, padx=50 )
+        ttk.Button( self.button_frame, text="Debug", command=self.debug ).grid( row=0, column=1, padx=50 )
         
         # bind keyboard input
         entries = [ gmax_p_entry, bmax_p_entry, gmax_n_entry, bmax_n_entry, gmin_p_entry, bmin_p_entry, gmin_n_entry,
@@ -436,18 +436,21 @@ class PlotWindow( tk.Toplevel ):
                 "bmin_n": self.master.bmin_n.get()
                 }
         try:
-            os.makedirs( "../fitted" )
+            os.makedirs( f"../fitted/{os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ]}" )
         except:
             pass
         
-        with open( "../fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + ".txt",
+        with open( "../fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ]
+                   + "/parameters.txt",
                    "w" ) as file:
             yaml.dump( parameters, file )
         
-        with open( "../fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + ".pkl",
-                   "wb" ) as file:
-            pickle.dump( parameters, file )
-        self.fig.savefig( "../fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + ".png" )
+        df = pd.DataFrame( [ self.master.time, self.master.current, self.master.voltage ] ).transpose()
+        df.to_csv( "../fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + "/data.csv",
+                   index=False, header=[ "t", "I", "V" ] )
+        
+        self.fig.savefig( "../fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ]
+                          + "/iv.png" )
     
     def initial_plot( self ):
         # simulate the model
@@ -690,12 +693,22 @@ class MainWindow( tk.Tk ):
             pass
     
     def read_input( self, device_file ):
-        with open( device_file, "rb" ) as file:
-            df = pickle.load( file )
+        extension = os.path.splitext( device_file )[ 1 ]
         
-        self.time = np.array( df[ "t" ].to_list() )[ :-1 ]
-        self.current = np.array( df[ "I" ].to_list() )[ :-1 ]
-        self.voltage = np.array( df[ "V" ].to_list() )[ :-1 ]
+        if extension == ".pkl":
+            with open( device_file, "rb" ) as file:
+                df = pickle.load( file )
+                
+                self.time = np.array( df[ "t" ].to_list() )
+                self.current = np.array( df[ "I" ].to_list() )
+                self.voltage = np.array( df[ "V" ].to_list() )
+        elif extension == ".csv":
+            df = pd.read_csv( device_file )
+            self.time = df[ "t" ].to_numpy()
+            self.current = df[ "I" ].to_numpy()
+            self.voltage = df[ "V" ].to_numpy()
+        else:
+            raise UserWarning( "File is not of accepted type" )
     
     def open_fit_window( self ):
         self.fit_window = FitWindow( self, xy=self.xy )
@@ -706,6 +719,7 @@ class MainWindow( tk.Tk ):
     def select_file( self ):
         filetypes = (
                 ('Pickled files', '*.pkl'),
+                ('CSV files', '*.csv'),
                 ('All files', '*.*')
                 )
         try:
