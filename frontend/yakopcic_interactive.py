@@ -16,7 +16,7 @@ I = experiment.functions[ "I" ]
 ## Initial plot
 x_solve_ivp = solve_ivp( dxdt, (time[ 0 ], time[ -1 ]), [ x0 ], method="LSODA", t_eval=time )
 
-t = x_solve_ivp.t
+t = x_solve_ivp.time_sim
 x = x_solve_ivp.y[ 0, : ]
 
 v = V( t )

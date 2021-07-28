@@ -49,27 +49,27 @@ I = experiment.functions[ "I" ]
 ###############################################################################
 
 # Plot simulated memristor behaviour
-for solver in args.solvers:
+for solv in args.solvers:
     # Solve ODE iteratively using Euler's method
-    if solver == "EU":
+    if solv == "Euler":
         with Timer( title="Euler" ):
             print( "Simulating with Euler solver" )
-            x_euler = euler_solver( dxdt, time, dt, x0 )
+            x_euler = solver( dxdt, time, dt, x0, method="Euler" )
             x = x_euler
             t = time
             title = "Euler"
     
     # Solve ODE iteratively using Runge-Kutta's method
-    if solver == "RK4":
+    if solv == "RK4":
         with Timer( title="RK4" ):
             print( "Simulating with Runge-Kutta solver" )
-            x_rk4 = rk4_solver( dxdt, time, dt, x0 )
+            x_rk4 = solver( dxdt, time, dt, x0, method="RK4" )
             x = x_rk4
             t = time
             title = "Runge-Kutta"
     
     # Solve ODE with solver
-    if solver == "LSODA":
+    if solv == "LSODA":
         with Timer( title="LSODA" ):
             print( "Simulating with LSODA solver" )
             x_solve_ivp = solve_ivp( dxdt, (time[ 0 ], time[ -1 ]), [ x0 ], method="LSODA", t_eval=time )
@@ -89,9 +89,9 @@ for solver in args.solvers:
             os.mkdir( "./videos" )
         except:
             pass
-        if not os.path.exists( f"./videos/{experiment.name}_{solver}.mp4" ):
+        if not os.path.exists( f"./videos/{experiment.name}_{solv}.mp4" ):
             with Timer( title="Video" ):
-                plot_memristor( v, i, t, solver, (10, 4), True, True, f"{experiment.name} - {solver}", True )
+                plot_memristor( v, i, t, solv, (10, 4), True, True, f"{experiment.name} - {solv}", True )
             
             ####
     
@@ -134,23 +134,23 @@ for solver in args.solvers:
                                                         popt ) ] )
     
     # Solve ODE iteratively using Euler's method
-    if solver == "EU":
+    if solv == "Euler":
         with Timer( title="Euler" ):
             print( "Simulating with Euler solver" )
-            x_euler_fitted = euler_solver( dxdt, time, dt, x0, args=popt )
+            x_euler_fitted = solver( dxdt, time, dt, x0, method="Euler", args=popt )
             x = x_euler_fitted
             t = time
     
     # Solve ODE iteratively using Runge-Kutta's method
-    if solver == "RK4":
+    if solv == "RK4":
         with Timer( title="RK4" ):
             print( "Simulating with Runge-Kutta solver" )
-            x_rk4_fitted = rk4_solver( dxdt, time, dt, x0, args=popt )
+            x_rk4_fitted = solver( dxdt, time, dt, x0, method="RK4", args=popt )
             x = x_rk4_fitted
             t = time
     
     # Solve ODE with solver
-    if solver == "LSODA":
+    if solv == "LSODA":
         with Timer( title="LSODA" ):
             print( "Simulating with LSODA solver" )
             x_solve_ivp_fitted = solve_ivp( dxdt, (time[ 0 ], time[ -1 ]), [ x0 ], method="LSODA", t_eval=time,

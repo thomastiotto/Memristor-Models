@@ -38,7 +38,7 @@ def rk4_step( x, t, f, dt, args ):
     return x + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
 
 
-def solver( f, time, dt, iv, args, method="Euler", I=None, I_args=None ):
+def solver( f, time, dt, iv, args=[ ], method="Euler", I=None, I_args=None ):
     x_sol = [ iv ]
     
     if method == "Euler":
@@ -48,7 +48,7 @@ def solver( f, time, dt, iv, args, method="Euler", I=None, I_args=None ):
     
     current = [ 0.0 ]
     
-    for t in tqdm( time[ 1: ] ):
+    for t in time[ 1: ]:
         if I:
             current.append( I( t, x_sol[ -1 ], *I_args ) )
         

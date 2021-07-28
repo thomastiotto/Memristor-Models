@@ -6,6 +6,7 @@ import pandas as pd
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog as fd
+from tkinter.simpledialog import askstring
 
 import yaml
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -435,22 +436,25 @@ class PlotWindow( tk.Toplevel ):
                 "gmin_n": self.master.gmin_n.get(),
                 "bmin_n": self.master.bmin_n.get()
                 }
+        
+        folder_name = askstring( "Save fitting", "Enter name or leave blank for default.  "
+                                                 "Folder containing files will be placed in `../fitted/` " )
+        
+        if folder_name == "":
+            folder_name = os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ]
+        
         try:
-            os.makedirs( f"../fitted/{os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ]}" )
+            os.makedirs( f"../fitted/{folder_name}" )
         except:
             pass
         
-        with open( "../fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ]
-                   + "/parameters.txt",
-                   "w" ) as file:
+        with open( "../fitted/" + folder_name + "/parameters.txt", "w" ) as file:
             yaml.dump( parameters, file )
         
         df = pd.DataFrame( [ self.master.time, self.master.current, self.master.voltage ] ).transpose()
-        df.to_csv( "../fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ] + "/data.csv",
-                   index=False, header=[ "t", "I", "V" ] )
+        df.to_csv( "../fitted/" + folder_name + "/data.csv", index=False, header=[ "t", "I", "V" ] )
         
-        self.fig.savefig( "../fitted/" + os.path.splitext( os.path.basename( self.master.device_file ) )[ 0 ]
-                          + "/iv.png" )
+        self.fig.savefig( "../fitted/" + folder_name + "/iv.png" )
     
     def initial_plot( self ):
         # simulate the model
@@ -716,6 +720,7 @@ class MainWindow( tk.Tk ):
     def open_plot_window( self ):
         self.plot_window = PlotWindow( self, xy=self.xy )
     
+    # TODO loading with plot window open does not correctly rescale wrt real data
     def select_file( self ):
         filetypes = (
                 ('Pickled files', '*.pkl'),
@@ -776,6 +781,7 @@ class MainWindow( tk.Tk ):
         
         self.plot_update( None )
     
+    # TODO loading with plot window open does not update plot (works with load data)
     def load_parameters( self ):
         filetypes = (
                 ('Text files', '*.txt'),
