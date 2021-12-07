@@ -1,0 +1,24 @@
+block-timer==0.2.0
+certifi==2021.10.8
+colorama @ file:///home/conda/feedstock_root/build_artifacts/colorama_1602866480661/work
+cycler @ file:///home/conda/feedstock_root/build_artifacts/cycler_1635519461629/work
+docopt==0.6.2
+fonttools @ file:///Users/runner/miniforge3/conda-bld/fonttools_1638544525714/work
+kiwisolver @ file:///Users/runner/miniforge3/conda-bld/kiwisolver_1635836811404/work
+matplotlib @ file:///Users/runner/miniforge3/conda-bld/matplotlib-suite_1637205277914/work
+munkres==1.1.4
+num2words @ file:///home/conda/feedstock_root/build_artifacts/num2words_1626355108962/work
+numpy @ file:///Users/runner/miniforge3/conda-bld/numpy_1636145512693/work
+olefile @ file:///home/conda/feedstock_root/build_artifacts/olefile_1602866521163/work
+order-of-magnitude==2.3.1
+packaging @ file:///home/conda/feedstock_root/build_artifacts/packaging_1637239678211/work
+pandas==1.3.4
+Pillow @ file:///Users/runner/miniforge3/conda-bld/pillow_1636559107609/work
+progressbar33==2.4
+pyparsing @ file:///home/conda/feedstock_root/build_artifacts/pyparsing_1636757021002/work
+python-dateutil @ file:///home/conda/feedstock_root/build_artifacts/python-dateutil_1626286286081/work
+pytz @ file:///home/conda/feedstock_root/build_artifacts/pytz_1633452062248/work
+scipy @ file:///Users/runner/miniforge3/conda-bld/scipy_1637806996372/work
+six @ file:///home/conda/feedstock_root/build_artifacts/six_1620240208055/work
+tornado @ file:///Users/runner/miniforge3/conda-bld/tornado_1635819875142/work
+tqdm @ file:///home/conda/feedstock_root/build_artifacts/tqdm_1632160078689/work
