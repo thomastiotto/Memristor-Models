@@ -25,39 +25,65 @@ def mim_mim_iv( v, gp, bp, gn, bn ):
                          [ lambda v: mim_iv( v, gp, bp ), lambda v: mim_iv( v, gn, bn ) ] )
 
 
-def euler_solver( f, time, dt, iv, args=None, I=None ):
+def euler_step( x, t, f, dt, args ):
+    return x + f( t, x, *args ) * dt
+
+
+def rk4_step( x, t, f, dt, args ):
+    k1 = f( t, x, *args )
+    k2 = f( t + dt / 2, x + dt * k1 / 2, *args )
+    k3 = f( t + dt / 2, x + dt * k2 / 2, *args )
+    k4 = f( t + dt, x + dt * k3, *args )
+    
+    return x + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
+
+
+def solver( f, time, dt, iv, args=[ ], method="Euler", I=None, I_args=None ):
+    x_sol = [ iv ]
+    
+    if method == "Euler":
+        step = euler_step
+    if method == "RK4":
+        step = rk4_step
+    
+    current = [ 0.0 ]
+    
+    for t in time[ 1: ]:
+        if I:
+            current.append( I( t, x_sol[ -1 ], *I_args ) )
+        
+        x = step( x_sol[ -1 ], t, f, dt, args )
+        
+        if x < 0:
+            x = 0
+        if x > 1:
+            x = 1
+        
+        x_sol.append( x )
+    x_sol = np.array( x_sol )
+    
+    return (x_sol, current) if I else x_sol
+
+
+def rk4_solver( f, time, dt, iv, args=None, I=None, I_args=None ):
     args = args if args is not None else [ ]
     x_sol = [ iv ]
     
-    for t in tqdm( time[ 1: ] ):
-        if I:
-            current = [ 0.0 ]
-            current.append( I( t, x_sol[ -1 ] ) )
-        
-        x_sol.append( x_sol[ -1 ] + f( t, x_sol[ -1 ], *args ) * dt )
-    x_sol = np.array( x_sol )
-    
-    return (x_sol, I) if I else x_sol
-
-
-def rk4_solver( f, time, dt, iv, args=None, I=None ):
-    args = args if args is not None else [ ]
-    x_sol = [ iv ]
+    current = [ 0.0 ]
     
     for t in tqdm( time[ 1: ] ):
         if I:
-            current = [ 0.0 ]
-            current.append( I( t, x_sol[ -1 ] ) )
+            current.append( I( t, x_sol[ -1 ], *I_args ) )
         
-        k1 = f( t, x_sol[ -1 ], *args )
-        k2 = f( t + dt / 2, x_sol[ -1 ] + dt * k1 / 2, *args )
-        k3 = f( t + dt / 2, x_sol[ -1 ] + dt * k2 / 2, *args )
-        k4 = f( t + dt, x_sol[ -1 ] + dt * k3, *args )
+        if x < 0:
+            x = 0
+        if x > 1:
+            x = 1
         
-        x_sol.append( x_sol[ -1 ] + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6 )
+        x_sol.append( x )
     x_sol = np.array( x_sol )
     
-    return (x_sol, I) if I else x_sol
+    return (x_sol, current) if current else x_sol
 
 
 def __animate_memristor( v, i, t, fig, axes, filename ):

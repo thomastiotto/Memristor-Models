@@ -1,3 +1,4 @@
+import os
 import pickle
 from block_timer.timer import Timer
 
@@ -12,7 +13,7 @@ from backend.models import Yakopcic
 #                         Load data
 ###############################################################################
 
-with open( f"./pickles/Radius 10 um/-4V_1.pkl", "rb" ) as file:
+with open( f"../pickles/Radius 10 um/-4V_1.pkl", "rb" ) as file:
     df = pickle.load( file )
 
 time = df[ "t" ].to_list()

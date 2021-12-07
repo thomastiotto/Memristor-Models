@@ -2,6 +2,9 @@
 
 Python implementations and simulations of HP Labs Ion Drift and Yakopcic memristor models.
 
+![iv](https://github.com/Tioz90/Memristor-Models/blob/master/images/iv.png?raw=true)
+
+
 ## Files
 
 ### Frontend
@@ -28,6 +31,8 @@ Python implementations and simulations of HP Labs Ion Drift and Yakopcic memrist
 
 - `fit_interactive.py` launches a Tk-based GUI application that lets the user load a pickled file created by
   `data_import.py`, and fit the updated Yakopcic model [6] to the real device's behaviour.
+
+  ![interactive3](https://github.com/Tioz90/Memristor-Models/blob/master/images/interactive3.png?raw=true)
 
 - `fit_yakopcic.py` loads a pickled file created by `data_import.py`, and attempts to reproduce the semi-automated model
   parameter fitting procedure outlined in [6].
