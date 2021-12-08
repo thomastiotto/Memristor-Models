@@ -14,8 +14,15 @@ from backend.functions import *
 ###############################################################################
 
 with open( f"../pickles/Radius 10 um/-2V_3.pkl", "rb" ) as file:
-    df = pickle.load( file )
+    df2 = pickle.load( file )
 
+with open( f"../pickles/Radius 10 um/-3V_2.pkl", "rb" ) as file:
+    df3 = pickle.load( file )
+
+with open( f"../pickles/Radius 10 um/-4V_1.pkl", "rb" ) as file:
+    df4 = pickle.load( file )
+
+df = df2
 time = np.array( df[ "t" ].to_list() )
 current = np.array( df[ "I" ].to_list() )
 voltage = np.array( df[ "V" ].to_list() )
@@ -24,12 +31,12 @@ voltage = np.array( df[ "V" ].to_list() )
 #                         Plot data
 ###############################################################################
 
-# fig, axes = plt.subplots( 2, 2, figsize=(12, 8) )
-# fig.suptitle( "Data vs simulation" )
-# axes[ 0, 0 ].plot( time, current, c="b" )
-# axv1 = axes[ 0, 0 ].twinx()
-# axv1.plot( time, voltage, c="r" )
-# axes[ 0, 1 ].plot( voltage, current )
+fig, axes = plt.subplots( 2, 2, figsize=(12, 8) )
+fig.suptitle( "Data vs simulation" )
+axes[ 0, 0 ].plot( time, np.multiply( current, 1000 ), c="b" )
+axv1 = axes[ 0, 0 ].twinx()
+axv1.plot( time, voltage, c="r" )
+axes[ 0, 1 ].plot( voltage, np.multiply( current, 1000 ) )
 
 ###############################################################################
 #                         Define model
@@ -84,7 +91,7 @@ def dxdt( t, x, Ap, An, Vp, Vn, xp, xn, alphap, alphan, eta=1 ):
 
 
 ###############################################################################
-#                         Fit functions
+#                         Functions
 ###############################################################################
 
 def simulate( params_dxdt, params_I ):
@@ -140,10 +147,10 @@ eta = 1
 
 gmax_p = 9e-5
 bmax_p = 4.96
-gmin_p = 1.5e-5
-bmin_p = 6.91
 gmax_n = 1.7e-4
 bmax_n = 3.23
+gmin_p = 1.5e-5
+bmin_p = 6.91
 gmin_n = 4.4e-7
 bmin_n = 2.6
 
@@ -169,14 +176,14 @@ voltage_sim = V( time_sim )
 #                         Plot simulation
 ###############################################################################
 
-# axes[ 1, 0 ].plot( time_sim, np.multiply( current_sim, 1000 ), c="b" )
-# axv2 = axes[ 1, 0 ].twinx()
-# axv2.plot( time_sim, voltage_sim, c="r" )
-# axes[ 1, 1 ].plot( voltage_sim, np.multiply( current_sim, 1000 ) )
-# for ax in axes.flatten():
-#     ax.set_xlabel( "Time" )
-#     ax.set_ylabel( "Current (mA)" )
-# fig.show()
+axes[ 1, 0 ].plot( time_sim, np.multiply( current_sim, 1000 ), c="b" )
+axv2 = axes[ 1, 0 ].twinx()
+axv2.plot( time_sim, voltage_sim, c="r" )
+axes[ 1, 1 ].plot( voltage_sim, np.multiply( current_sim, 1000 ) )
+for ax in axes.flatten():
+    ax.set_xlabel( "Time" )
+    ax.set_ylabel( "Current (mA)" )
+fig.show()
 
 plt.figure()
 plt.title( "I-V comparison original" )
@@ -187,10 +194,11 @@ plt.xlabel( "Voltage (V)" )
 plt.ylabel( "Current (mA)" )
 plt.show()
 
+plt.figure()
+plt.plot( time_sim, x )
+plt.show()
 
-# plt.figure()
-# plt.plot( time_sim, x )
-# plt.show()
+fit = False
 
 
 ###############################################################################

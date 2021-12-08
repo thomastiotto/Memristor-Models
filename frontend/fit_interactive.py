@@ -17,6 +17,7 @@ from backend.functions import *
 
 # TODO mouse clicks to set parameters?
 # TODO make I-V equations modular
+# TODO update model+simulation with correct experimental timestep
 #####################################################
 #                         MODEL
 #####################################################
@@ -468,6 +469,7 @@ class PlotWindow( tk.Toplevel ):
         # t = x_solve_ivp.t
         # x = x_solve_ivp.y[ 0, : ]
         
+        # TODO dt should also be changeable
         x = solver( self.master.memristor.dxdt, self.master.time,
                     dt=1 / 10000,
                     iv=self.master.x0.get(),
@@ -496,6 +498,7 @@ class PlotWindow( tk.Toplevel ):
         self.axes[ 0 ].plot( self.master.time, i, color="g", alpha=0.5 )
         self.axes[ 2 ].plot( self.master.voltage, i, color="g", alpha=0.5 )
     
+    # TODO I don't think that the plots (eg current) are correct
     def debug( self ):
         x = solver( self.master.memristor.dxdt, self.master.time, dt=np.mean( np.diff( self.master.time ) ),
                     iv=self.master.x0.get(), args=self.master.get_sim_pars() )
