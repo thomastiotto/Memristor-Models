@@ -1,0 +1,32 @@
+Circuit: * Y:\Documents\LTspiceXVII\willian\Draft3.asc
+
+Direct Newton iteration for .op point succeeded.
+.step r=1
+.step r=11
+.step r=21
+.step r=31
+.step r=41
+.step r=51
+.step r=61
+.step r=71
+.step r=81
+.step r=91
+.step r=100
+
+Date: Thu Sep 09 11:01:24 2021
+Total elapsed time: 0.199 seconds.
+
+tnom = 27
+temp = 27
+method = modified trap
+totiter = 2091
+traniter = 2088
+tranpoints = 1045
+accept = 1045
+rejected = 0
+matrix size = 2
+fillins = 0
+solver = Normal
+Matrix Compiler1: 36 bytes object code size  0.3/0.3/[0.3]
+Matrix Compiler2: 96 bytes object code size  0.3/0.3/[0.3]
+
