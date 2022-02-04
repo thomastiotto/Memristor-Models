@@ -65,7 +65,7 @@ def solver( f, time, dt, iv, args=[ ], method="Euler", I=None, I_args=None ):
     return (x_sol, current) if I else x_sol
 
 
-def __animate_memristor( v, i, t, fig, axes, filename ):
+def __animate_memristor( v, i, t, fig, axes, filename, axes_scale='linear' ):
     ax11 = axes[ 0 ]
     ax12 = axes[ 1 ]
     ax2 = axes[ 2 ]
@@ -74,9 +74,22 @@ def __animate_memristor( v, i, t, fig, axes, filename ):
     x12data, y12data = [ ], [ ]
     x2data, y2data = [ ], [ ]
     
-    line11, = ax11.plot( [ ], [ ], color="b", animated=True )
-    line12, = ax12.plot( [ ], [ ], color="r", animated=True )
-    line2, = ax2.plot( [ ], [ ], animated=True )
+    if axes_scale == 'linear':
+        line11, = ax11.plot( t, i, color="b", animated=True )
+        line12, = ax12.plot( t, v, color="r", animated=True )
+        line2, = ax2.plot( v, i, color="b", animated=True )
+    elif axes_scale == 'logy':
+        line11, = ax11.semilogy( t, i, color="b", animated=True )
+        line12, = ax12.semilogy( t, v, color="r", animated=True )
+        line2, = ax2.semilogy( v, i, color="b", animated=True )
+    elif axes_scale == 'logx':
+        line11, = ax11.semilogx( t, i, color="b", animated=True )
+        line12, = ax12.semilogx( t, v, color="r", animated=True )
+        line2, = ax2.semilogx( v, i, color="b", animated=True )
+    elif axes_scale == 'loglog':
+        line11, = ax11.loglog( t, i, color="b", animated=True )
+        line12, = ax12.loglog( t, v, color="r", animated=True )
+        line2, = ax2.loglog( v, i, color="b", animated=True )
     
     def update( frame ):
         x11data.append( t[ frame ] )
@@ -111,14 +124,27 @@ def arrows( v, i, ax ):
     return l1, l2
 
 
-def __plot_memristor( v, i, t, axes, iv_arrows ):
+def __plot_memristor( v, i, t, axes, iv_arrows, axes_scale='linear' ):
     ax11 = axes[ 0 ]
     ax12 = axes[ 1 ]
     ax2 = axes[ 2 ]
     
-    line11, = ax11.plot( t, i, color="b" )
-    line12, = ax12.plot( t, v, color="r" )
-    line2, = ax2.plot( v, i, color="b" )
+    if axes_scale == 'linear':
+        line11, = ax11.plot( t, i, color="b" )
+        line12, = ax12.plot( t, v, color="r" )
+        line2, = ax2.plot( v, i, color="b" )
+    elif axes_scale == 'logy':
+        line11, = ax11.semilogy( t, i, color="b" )
+        line12, = ax12.semilogy( t, v, color="r" )
+        line2, = ax2.semilogy( v, i, color="b" )
+    elif axes_scale == 'logx':
+        line11, = ax11.semilogx( t, i, color="b" )
+        line12, = ax12.semilogx( t, v, color="r" )
+        line2, = ax2.semilogx( v, i, color="b" )
+    elif axes_scale == 'loglog':
+        line11, = ax11.loglog( t, i, color="b" )
+        line12, = ax12.loglog( t, v, color="r" )
+        line2, = ax2.loglog( v, i, color="b" )
     
     if iv_arrows:
         import matplotlib
@@ -129,7 +155,8 @@ def __plot_memristor( v, i, t, axes, iv_arrows ):
     return (line11, line12, line2) if not iv_arrows else (line11, line12, line2, line2a1, line2a2)
 
 
-def plot_memristor( v, i, t, title=None, figsize=(10, 4), iv_arrows=True, animated=False, filename=None, scaled=False ):
+def plot_memristor( v, i, t, title=None, figsize=(10, 4), iv_arrows=True, animated=False, filename=None, scaled=False,
+                    axes_scale='linear' ):
     i_oom = ("", "")
     t_oom = ("", "")
     if scaled:
@@ -171,9 +198,9 @@ def plot_memristor( v, i, t, title=None, figsize=(10, 4), iv_arrows=True, animat
                          hspace=0.4 )
     
     if animated:
-        lines = __animate_memristor( v, i, t, fig, [ ax11, ax12, ax2 ], filename )
+        lines = __animate_memristor( v, i, t, fig, [ ax11, ax12, ax2 ], filename, axes_scale=axes_scale )
     else:
-        lines = __plot_memristor( v, i, t, [ ax11, ax12, ax2 ], iv_arrows )
+        lines = __plot_memristor( v, i, t, [ ax11, ax12, ax2 ], iv_arrows, axes_scale=axes_scale )
     
     return fig, lines, (ax11, ax12, ax2)
 

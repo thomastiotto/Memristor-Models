@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CsvFileAttributes">
+    <option name="attributeMap">
+      <map>
+        <entry key="/raw_data/second_data/small/DG01_3D I_V Sweep_p1V_m1.1V_0.01V_steps 2_3_2022 3_56_01 PM 1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/raw_data/second_data/small/DG01_3D I_V Sweep_p1V_m1.2V_0.01V_steps 2_3_2022 3_56_22 PM 1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/raw_data/second_data/small/DG01_3D I_V Sweep_p1V_m2V_0.01V_steps 2_3_2022 4_00_12 PM 1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
