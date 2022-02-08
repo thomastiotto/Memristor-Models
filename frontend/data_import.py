@@ -9,8 +9,8 @@ from backend.functions import *
 
 axes_scale = 'linear'
 
-rootDir = "../raw_data"
-importDir = "../imported_data"
+rootDir = "./raw_data"
+importDir = "./imported_data"
 for dirPath, _, fileList in os.walk( rootDir ):
     print( f"Found directory: {dirPath}" )
     for fname in fileList:
@@ -37,27 +37,28 @@ for dirPath, _, fileList in os.walk( rootDir ):
         except:
             pass
         
-        if os.path.splitext( f_path )[ 1 ] == ".dat":
+        if not os.path.splitext( f_path )[ 1 ] == ".dat" or f.startswith( "DG" ):
+            pass
+        elif os.path.splitext( f_path )[ 1 ] == ".dat":
             df = pd.read_csv( f_path, delim_whitespace=True )
             df.columns = [ "t", "V", "I" ]
             plot_name = f"-{voltages[ 1 ]}"
+        elif f.startswith( "DG" ):
+            df = pd.read_csv( f_path )
+            try:
+                df.drop( columns="absI", inplace=True )
+            except:
+                pass
+            df.columns = [ "V", "I" ]
+            df[ "t" ] = df.index
+            plot_name = f"-{voltages[ 2 ]}"
         else:
-            if f.startswith( "DG" ):
-                df = pd.read_csv( f_path )
-                try:
-                    df.drop( columns="absI", inplace=True )
-                except:
-                    pass
-                df.columns = [ "V", "I" ]
-                df[ "t" ] = df.index
-                plot_name = f"-{voltages[ 2 ]}"
-            else:
-                df = pd.read_csv( f_path, index_col=0 )
-                df.drop( columns=df.columns[ 4 ], inplace=True )
-                df.columns = [ "t", "V", "I", "R" ]
-                df.reset_index( inplace=True )
-                df.drop( columns="Item", inplace=True )
-                plot_name = f"-{voltages[ 2 ]}"
+            df = pd.read_csv( f_path, index_col=0 )
+            df.drop( columns=df.columns[ 4 ], inplace=True )
+            df.columns = [ "t", "V", "I", "R" ]
+            df.reset_index( inplace=True )
+            df.drop( columns="Item", inplace=True )
+            plot_name = f"-{voltages[ 2 ]}"
         
         df[ "t" ] = df[ "t" ] - df[ "t" ][ 0 ]
         
