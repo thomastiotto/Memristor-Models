@@ -7,7 +7,7 @@ import pickle
 
 from backend.functions import *
 
-axes_scale = 'linear'
+axes_scale = 'logy'
 
 rootDir = "../raw_data"
 importDir = "../imported_data"
