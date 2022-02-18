@@ -733,7 +733,7 @@ class MainWindow( tk.Tk ):
         try:
             self.device_file = fd.askopenfilenames(
                     title="Select a device measurement file",
-                    initialdir="../pickles",
+                    initialdir="../imported_data/pickles",
                     filetypes=filetypes )[ 0 ]
             
             self.parameters_button[ "state" ] = "normal"
