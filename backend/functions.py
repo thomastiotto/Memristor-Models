@@ -77,15 +77,9 @@ def __animate_memristor( v, i, t, fig, axes, filename, axes_scale='linear' ):
     if axes_scale == 'linear':
         line11, = ax11.plot( t, i, color="b", animated=True )
         line2, = ax2.plot( v, i, color="b", animated=True )
-    elif axes_scale == 'logy':
+    elif axes_scale == 'log':
         line11, = ax11.semilogy( t, i, color="b", animated=True )
         line2, = ax2.semilogy( v, i, color="b", animated=True )
-    elif axes_scale == 'logx':
-        line11, = ax11.semilogx( t, i, color="b", animated=True )
-        line2, = ax2.semilogx( v, i, color="b", animated=True )
-    elif axes_scale == 'loglog':
-        line11, = ax11.loglog( t, i, color="b", animated=True )
-        line2, = ax2.loglog( v, i, color="b", animated=True )
     # -- voltage always on a linear scale
     line12, = ax12.plot( t, v, color="r", animated=True )
     
@@ -127,18 +121,8 @@ def __plot_memristor( v, i, t, axes, iv_arrows, axes_scale='linear' ):
     ax12 = axes[ 1 ]
     ax2 = axes[ 2 ]
     
-    if axes_scale == 'linear':
-        line11, = ax11.plot( t, i, color="b" )
-        line2, = ax2.plot( v, i, color="b" )
-    elif axes_scale == 'logy':
-        line11, = ax11.semilogy( t, i, color="b" )
-        line2, = ax2.semilogy( v, i, color="b" )
-    elif axes_scale == 'logx':
-        line11, = ax11.semilogx( t, i, color="b" )
-        line2, = ax2.semilogx( v, i, color="b" )
-    elif axes_scale == 'loglog':
-        line11, = ax11.loglog( t, i, color="b" )
-        line2, = ax2.loglog( v, i, color="b" )
+    line11, = ax11.plot( t, i, color="b" )
+    line2, = ax2.plot( v, i, color="b" )
     # voltage always on a linear scale
     line12, = ax12.plot( t, v, color="r" )
     
@@ -152,7 +136,7 @@ def __plot_memristor( v, i, t, axes, iv_arrows, axes_scale='linear' ):
 
 
 def plot_memristor( v, i, t, title=None, figsize=(10, 4), iv_arrows=True, animated=False, filename=None, scaled=False,
-                    axes_scale='linear' ):
+                    axes_scale='linear', remove_noise=False ):
     i_oom = ("", "")
     t_oom = ("", "")
     if scaled:
@@ -161,33 +145,55 @@ def plot_memristor( v, i, t, title=None, figsize=(10, 4), iv_arrows=True, animat
         i = i * 1 / i_oom[ 0 ]
         t = t * 1 / t_oom[ 0 ]
     
-    if not axes_scale == 'linear':
-        i = np.abs( i )
-    
     fig, axes = plt.subplots( 1, 2, figsize=figsize )
-    
     ax11 = axes[ 0 ]
+    ax12 = ax11.twinx()
+    ax2 = axes[ 1 ]
+    
+    # if noise_threshold > 0.0:
+    #     i[ np.isclose( i, np.zeros_like( i ), rtol=noise_threshold ) ] = 0
+    if remove_noise:
+        if axes_scale == 'linear':
+            from scipy.signal import savgol_filter
+            i = savgol_filter( i, 21, 3 )
+        else:
+            from tsmoothie.smoother import ConvolutionSmoother
+            smoother = ConvolutionSmoother( window_len=20, window_type='blackman' )
+            smoother.smooth( i )
+            i = smoother.smooth_data[ 0 ]
+    
+    if axes_scale == 'log':
+        i = np.abs( i )
+        
+        ax11.set_yscale( 'log' )
+        ax2.set_yscale( 'log' )
+    elif axes_scale == 'symlog':
+        ax11.set_yscale( 'symlog', linthresh=1e-10, linscale=0.01 )
+        ax2.set_yscale( 'symlog', linthresh=1e-10, linscale=0.01 )
+    
+    # filter out noise
+    # apply log-modulus transform
+    # i = np.sign( i ) * np.log10( np.abs( i ) + 1 )
+    # i = np.where( i > 0, np.log10( i+1 ), np.where( i < 0, -np.log10( -i ), 1e-6 ) )
+    # i = i + np.abs( np.min( i ) )
+    
     ax11.set_ylabel( f"Current ({i_oom[ 1 ]}A)", color="b" )
     ax11.tick_params( 'y', colors='b' )
     ax11.set_xlim( np.min( t ), np.max( t ) )
-    if axes_scale == 'linear':
-        ax11.set_ylim( [ np.min( i ) - np.abs( 0.5 * np.min( i ) ),
-                         np.max( i ) + np.abs( 0.5 * np.max( i ) ) ] )
-    ax12 = ax11.twinx()
+    # ax11.set_ylim( [ np.min( i ) - np.abs( 0.5 * np.min( i ) ),
+    #                  np.max( i ) + np.abs( 0.5 * np.max( i ) ) ] )
     ax11.set_xlabel( f"Time ({t_oom[ 1 ]}s)" )
     ax12.set_ylabel( 'Voltage (V)', color='r' )
     ax12.tick_params( 'y', colors='r' )
     ax12.set_xlim( np.min( t ), np.max( t ) )
-    ax12.set_ylim( [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
-    ax2 = axes[ 1 ]
+    # ax12.set_ylim( [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
     ax2.set_xlim( [ np.min( v ) - np.abs( 0.5 * np.min( v ) ), np.max( v ) + np.abs( 0.5 * np.max( v ) ) ] )
-    if axes_scale == 'linear':
-        ax2.set_ylim( [ np.min( i ) - np.abs( 0.5 * np.min( i ) ),
-                        np.max( i ) + np.abs( 0.5 * np.max( i ) ) ] )
+    # ax2.set_ylim( [ np.min( i ) - np.abs( 0.5 * np.min( i ) ),
+    #                 np.max( i ) + np.abs( 0.5 * np.max( i ) ) ] )
     ax2.set_ylabel( f"Current ({i_oom[ 1 ]}A)" )
     ax2.set_xlabel( "Voltage (V)" )
     if title:
-        fig.suptitle( f"Memristor Voltage and Current vs. Time ({title})" )
+        fig.suptitle( r"Nb-doped SrTiO$_3$ memristor (" + title + ")" )
     else:
         fig.suptitle( f"Memristor Voltage and Current vs. Time" )
     # fig.tight_layout()
