@@ -1,0 +1,17 @@
+An: 10.0
+Ap: 90.0
+Vn: 0.5
+Vp: 0.5
+alphan: 1.0
+alphap: 1.0
+bmax_n: 3.23
+bmax_p: 4.96
+bmin_n: 2.6
+bmin_p: 6.91
+gmax_n: 0.00017
+gmax_p: 9.0e-05
+gmin_n: 4.4e-07
+gmin_p: 1.5e-05
+x0: 0.0
+xn: 0.242
+xp: 0.1
