@@ -1,4 +1,5 @@
 import pickle
+from scipy.integrate import solve_ivp
 
 from matplotlib.widgets import Slider, Button
 
@@ -16,7 +17,7 @@ I = experiment.functions[ "I" ]
 ## Initial plot
 x_solve_ivp = solve_ivp( dxdt, (time[ 0 ], time[ -1 ]), [ x0 ], method="LSODA", t_eval=time )
 
-t = x_solve_ivp.time_sim
+t = x_solve_ivp.t
 x = x_solve_ivp.y[ 0, : ]
 
 v = V( t )

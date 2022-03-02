@@ -85,6 +85,8 @@ for scale, noise in p:
                 df.columns = [ "V", "I" ]
                 df[ "t" ] = df.index
                 file_name = f"-{voltages[ 2 ]}"
+            elif 'PWL' in f:
+                pass
             else:
                 df = pd.read_csv( f_path, index_col=0 )
                 df.drop( columns=df.columns[ 4 ], inplace=True )
