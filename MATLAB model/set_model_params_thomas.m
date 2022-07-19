@@ -1,6 +1,6 @@
 clear;clc;
 % load thomas_data.csv
-data = importdata("Radius 10 um/-2V_3.csv");
+data = importdata("Radius 10 um/-2V_0.csv");
 
 %% Device Data
 
@@ -29,35 +29,60 @@ t_test = (1:length(v))*dt;
 % nexttile
 % plot(v_test, i_test)
 
-%%
+%% OLD
+% Vp = 0.5;
+% Vn = -.5;
+%
+% Ap=90;
+% An=10;
+%
+% gmin_p = 1.5e-5;
+% gmin_n = 4.4E-7;
+% bmax_p = 4.96;
+% bmin_p = 6.91;
+% bmax_n = 3.23;
+% bmin_n = 2.6;
+%
+% gmax_p = 9e-5;
+% gmax_n = 1.7e-4;
+%
+% xp = .1;
+% xn = .242;
+%
+% alphap = 1;
+% alphan = 1;
+%
+% eta = 1;
+%
+% xo=0;
 
-Vth_p = 0.5;
-Vth_n = -.5;
-
-gmin_p = 1.5e-5;
-gmin_n = 4.4E-7;
-bmax_p = 4.96;
-bmin_p = 6.91;
-bmax_n = 3.23;
-bmin_n = 2.6;
-
-gmax_p = 9e-5;
-gmax_n = 1.7e-4;
+%% NEW
+gmax_p=0.0004338454236;
+bmax_p=4.988561168;
+gmax_n=8.44e-6;
+bmax_n=6.272960721;
+gmin_p=0.03135053798;
+bmin_p=0.002125127287;
+gmin_n=1.45e-05;
+bmin_n=3.295533935;
+Ap=0.071;
+An=0.02662694665;
+Vp=0;
+Vn=0;
+xp=0.11;
+xn=0.1433673316;
+alphap=9.2;
+alphan=0.7013461469;
+xo=0;
+eta=1;
 
 % Adjust the amplitude parameters to the timescale
-Ap = 90/dt_ratio
-An = 10/dt_ratio
+% Ap = Ap/dt_ratio
+% An = An/dt_ratio
 
-xp = .1;
-xn = .242;
 
-eta = 1;
 
 vin = v_test;
-xo = 0;
-
-ap = 1;
-an = 1; 
 
 x = zeros(1,length(vin));
 iout = zeros(1,length(vin));
@@ -67,32 +92,32 @@ x(1) = xo;
 for k = 2:length(vin)
 
     if vin(k) >= 0
-        iout(k) = gmax_p*sinh(bmax_p*vin(k))*x(k-1) + gmin_p*sinh(bmin_p*vin(k))*(1-x(k-1));
+        iout(k) = gmax_p*sinh(bmax_p*vin(k))*x(k-1) + gmin_p*(1-exp(-bmin_p*vin(k)))*(1-x(k-1));
     else
-        iout(k) = gmax_n*sinh(bmax_n*vin(k))*x(k-1) + gmin_n*sinh(bmin_n*vin(k))*(1-x(k-1));
+        iout(k) = gmax_n*(1-exp(-bmax_n*vin(k)))*x(k-1) + gmin_n*sinh(bmin_n*vin(k))*(1-x(k-1));
     end
-    
+
     %Implement Threshold
-    if vin(k) < Vth_n
-        f1 = -An*(exp(-vin(k))-exp(-Vth_n));
-    elseif vin(k) > Vth_p
-        f1 = Ap*(exp(vin(k))-exp(Vth_p));
+    if vin(k) < Vn
+        f1 = -An*(exp(-vin(k))-exp(-Vn));
+    elseif vin(k) > Vp
+        f1 = Ap*(exp(vin(k))-exp(Vp));
     else
         f1 = 0;
     end
-    
+
     %Implement Non-Linear Boundaries
     if eta*vin(k) >= 0
         if x(k-1) >= xp
             wp = (xp - x(k-1)) / (1 - xp) + 1;
-            f2 = exp(-ap*(x(k-1)-xp))*wp;
+            f2 = exp(-alphap*(x(k-1)-xp))*wp;
         else
             f2 = 1;
         end
     else
         if x(k-1) <= xn
             wn = x(k-1) / xn;
-            f2 = exp(an*(x(k-1)-xn))*wn;   
+            f2 = exp(alphan*(x(k-1)-xn))*wn;
         else
             f2 = 1;
         end

@@ -9,7 +9,7 @@ function data = importfile(filename)
 %  dis-contiguous row intervals.
 %
 %  Example:
-%  V0 = importfile("/Users/thomastiotto/PycharmProjects/memristor_models/data/Radius 10 um/-2V_0.csv", [2, Inf]);
+%  V0 = importfile("/data/Radius 10 um/-2V_0.csv", [2, Inf]);
 %
 %  See also READTABLE.
 %
@@ -43,6 +43,6 @@ opts = setvaropts(opts, "Var1", "WhitespaceRule", "preserve");
 opts = setvaropts(opts, "Var1", "EmptyFieldRule", "auto");
 
 % Import the data
-data = readtable(strcat("../data/",filename), opts);
+data = readtable(strcat("../imported_data/data/",filename), opts);
 
 end
