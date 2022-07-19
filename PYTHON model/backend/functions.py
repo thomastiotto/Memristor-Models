@@ -20,6 +20,10 @@ def mim_iv( v, g, b ):
     return g * np.sinh( b * v )
 
 
+def schottky_iv( v, g, b ):
+    return g * ( 1 - np.exp( -b * v ) )
+
+
 def mim_mim_iv( v, gp, bp, gn, bn ):
     return np.piecewise( v, [ v >= 0, v < 0 ],
                          [ lambda v: mim_iv( v, gp, bp ), lambda v: mim_iv( v, gn, bn ) ] )
@@ -208,7 +212,7 @@ def plot_memristor( v, i, t, title=None, figsize=(10, 4), iv_arrows=True, animat
         lines = __animate_memristor( v, i, t, fig, [ ax11, ax12, ax2 ], filename, axes_scale=axes_scale )
     else:
         lines = __plot_memristor( v, i, t, [ ax11, ax12, ax2 ], iv_arrows, axes_scale=axes_scale )
-    
+
     return fig, lines, (ax11, ax12, ax2)
 
 

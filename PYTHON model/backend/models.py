@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.integrate import solve_ivp
-from functions import mim_iv
+from backend.functions import mim_iv
 
 
 class Yakopcic():

@@ -5,9 +5,9 @@ import multiprocessing as mp
 import argparse
 from block_timer.timer import Timer
 
-from functions import *
-from models import *
-from experiments import *
+from backend.functions import *
+from backend.models import *
+from backend.experiments import *
 
 ###############################################################################
 #                                  Setup
