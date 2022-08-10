@@ -5,7 +5,7 @@ that its behaviour (resistance) in response to depression/potentiation voltage p
 match that of the memristor described in: https://www.frontiersin.org/articles/10.3389/fnins.2020.627276/full#h3. 
 A short description of each file and its purpose is provided below.
 
-## Experiment setup (experiment_setup.py)
+## Experiment Setup (experiment_setup.py)
 Responsible for the setup of the experiment and provision of parameters to the memristor.
 Namely, the `Experiment` class is the generalized setup that, when called, takes a number of values,
 such as the memristor model and the time step among others, while the `YakopcicSET`
@@ -15,10 +15,8 @@ class provides those. For the current objective, just the `YakopcicSET` is enoug
 Contains all the functions used in the project that are not related to initialization or the 
 experiment setup. 
 
-The `input_volt/interactive_iv` functions essentially do the same thing:
-both create voltage pulses based on parameters such as 'on' and 'off' voltages among others.
-The difference is that the first function is hardcoded (for testing purposes, is now deprecated), whereas the 
-second function is the generalised solution that works for varying number of pulses.  
+The `interactive_iv` function creates voltage pulses based on parameters such as _on_ and _off_ voltages among others.
+When done, it concatenates all the pulses, as well as creates the resulting _time_ array.  
 
 
 The `generate_wave` function is responsible for actually constructing the array for the 
@@ -37,12 +35,17 @@ Contains the old and new (more interest is on the latter) Yakopcic memristor mod
 setting a multitude of parameters (e.g., _Vp_ and _Vn_ defining positive and negative voltage 
 thresholds beyond which voltages begin altering the state variable), as well as defining numerous
 functions, for example, the current _I_. For more information on the specifics of the functions 
-within, refer to the docstrings within the fire.
+within, refer to the docstrings within the file.
 
-## Running the project (run.py)
-The code is ran from here. The program takes the input.txt file as an input that contains N lines 
-of the voltage pulse waves. The file can be adjusted as desired to add/remove more waves for example.
-The formatting order is as follows:
+## Running the Project (old_experiment.py/new_experiment.py)
+The code can be run from those two files.  
+`new_experiment.py` runs the Yakopcic model that includes work by Dima (2022). This includes changing
+the current equation, as well as changing all the parameters.
+`old_experiment.py` runs the Yakopcic model that uses the initial model setup, as well as previous set
+of parameter values.
+
+## Input Formatting
+The formatting order in the input text file is as follows:
 * `t_rise`**(s)**: time for the voltage to go from 'off' to 'on' state.
 * `t_on`**(s)**: time the voltage remains in the 'on' state.
 * `t_fall`**(s)** time for the voltage to go from 'on' to 'off' state.
