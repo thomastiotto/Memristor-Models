@@ -6,8 +6,7 @@ import yakopcic_model
 class Experiment:
     def __init__(self, sim_args, model, memristor_args):
         self.name = None
-        self.frequency = sim_args["frequency"]
-        self.dt = 1 / self.frequency
+        self.dt = sim_args["dt"]
 
         self.simulation = {"x0": sim_args["x0"], "dt": self.dt}
         self.memristor_args = memristor_args
@@ -29,17 +28,17 @@ class Experiment:
 class YakopcicSET(Experiment):
     def __init__(self):
         super(YakopcicSET, self).__init__(
-            sim_args={"frequency": 10e3, "x0": 0.0},
+            sim_args={"dt": 0.001, "x0": 0.0},
             model=yakopcic_model.YakopcicNew,
             memristor_args={
-                "Ap": 0.071,
-                "An": 0.026,
-                "Vp": 0.,
-                "Vn": 0.,
-                "alphap": 9.2,
-                "alphan": 0.27,
-                "xp": 0.11,
-                "xn": 0.137,
+                "Ap": 90/844.3632,
+                "An": 10/844.3632,
+                "Vp": 0.5,
+                "Vn": 0.5,
+                "alphap": 1,
+                "alphan": 1,
+                "xp": 0.1,
+                "xn": 0.242,
                 "eta": 1
             },
         )
