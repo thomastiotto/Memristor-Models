@@ -1,0 +1,23 @@
+Circuit: * C:\Users\thele\PycharmProjects\Memristor-Models\SPICE model\exp_replicate.asc
+
+WARNING: Node NC_01 is floating and connected to current source G:U1:X.  It's .op solution is defined solely by a .ic statement.
+
+Per .tran options, skipping operating point for transient analysis.
+
+Date: Mon Jul 25 11:33:42 2022
+Total elapsed time: 18.248 seconds.
+
+tnom = 27
+temp = 27
+method = modified trap
+totiter = 7123262
+traniter = 7123262
+tranpoints = 2469236
+accept = 2226407
+rejected = 242829
+matrix size = 7
+fillins = 0
+solver = Normal
+Matrix Compiler1: 124 bytes object code size  0.1/0.0/[0.0]
+Matrix Compiler2: off  [0.1]/0.1/0.1
+
