@@ -12,7 +12,7 @@ parser.add_argument("-type", "--plot_type", default=1, help="1: Regular resistan
 args = parser.parse_args()
 # TODO why can't we reproduce Alina's behaviour exactly?
 plot_type = args.plot_type
-dt = 10e-3
+dt = 1e-3
 #dt = 0.0843  # Maybe Alina's
 
 gmax_p = 0.0004338454236
