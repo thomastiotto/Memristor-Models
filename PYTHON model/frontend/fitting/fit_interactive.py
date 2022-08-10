@@ -27,14 +27,20 @@ class Model():
     def __init__(self, time, voltage):
         self.V = Interpolated(time, voltage)
 
-        self.h1 = self.mimd
-        self.h2 = self.mimd
+        self.h1 = self.h1
+        self.h2 = self.h2
 
     def mimd(self, v, g_p, b_p, g_n, b_n):
         return np.where(v >= 0,
                         g_p * np.sinh(b_p * v),
                         g_n * np.sinh(b_n * v)
                         )
+
+    def h1(self, v, g_p, b_p, g_n, b_n):
+        return np.where(v >= 0, g_p * np.sinh(b_p * v), g_n * (1 - np.exp(-b_n * v)))
+
+    def h2(self, v, g_p, b_p, g_n, b_n):
+        return np.where(v >= 0, g_p * (1 - np.exp(-b_p * v)), g_n * np.sinh(b_n * v))
 
     def I(self, t, x, on_pars, off_pars):
         v = self.V(t)
@@ -471,7 +477,7 @@ class PlotWindow(tk.Toplevel):
 
         # TODO dt should also be changeable
         x = solver(self.master.memristor.dxdt, self.master.time,
-                   dt=1 / 10000,
+                   dt=1 / 1000,
                    iv=self.master.x0.get(),
                    args=self.master.get_sim_pars())
         t = self.master.time
@@ -542,7 +548,7 @@ class PlotWindow(tk.Toplevel):
         # x = x_solve_ivp.y[ 0, : ]
 
         x = solver(self.master.memristor.dxdt, self.master.time,
-                   dt=1 / 10000,
+                   dt=1 / 1000,
                    iv=self.master.x0.get(),
                    args=self.master.get_sim_pars())
         t = self.master.time
