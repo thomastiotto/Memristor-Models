@@ -45,6 +45,25 @@ and can be changed as necessary.
 `old_experiment.py` runs the Yakopcic model that uses the initial model setup, as well as previous set
 of parameter values.
 
+There are two arguments:
+1. Name of a text file input.
+2. Plot type: **1** for a regular resistance plot, **0** for an IV curve plot. 
+
+Example images of the two plot types can be seen below:
+
+<img alt="plot_type_1.png" height="300" src="img_1.png" title="Plot type 1" width="450"/>
+
+*Figure 1: Regular resistance plot (`plot_type = 1`). The top half depicts the resistance (in blue) 
+and the voltage (in red), with the 120s SET pulse trimmed. The bottom half shows the only the local
+peaks from the resistance plot, useful to identify the changes after each pulse.  
+**Note: the local peak functionality may capture undesirable values.***
+
+<img alt="img.png" height="300" src="img_2.png" width="450"/>
+
+*Figure 2: plot of an IV curve (`plot_type = 0`). The top half depicts the resistance (in blue) 
+and the voltage (in red) for the IV experiment. The bottom half shows the relationship between
+the current and voltage.
+
 ## Input Formatting
 The formatting order in the input text file is as follows:
 * `t_rise`**(s)**: time for the voltage to go from 'off' to 'on' state.
