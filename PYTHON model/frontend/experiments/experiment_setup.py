@@ -31,8 +31,8 @@ class YakopcicSET(Experiment):
             sim_args={"dt": 0.001, "x0": 0.0},
             model=yakopcic_model.YakopcicNew,
             memristor_args={
-                "Ap": 90/844.3632,
-                "An": 10/844.3632,
+                "Ap": 9,
+                "An": 1,
                 "Vp": 0.5,
                 "Vn": 0.5,
                 "alphap": 1,
