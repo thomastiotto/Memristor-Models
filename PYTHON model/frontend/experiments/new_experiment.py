@@ -75,7 +75,12 @@ for idx in peak_ids[0]:
 
 if plot_type == 1: # Plots regular resistance plot; Full plot + its local peaks.
     fig, (ax1, ax2) = plt.subplots(2, figsize=(7, 5))
-    ax1.plot(time[3 * len(time) // 4:], r[3 * len(time) // 4:])
+    if args.file == "input.txt":
+        ax1.plot(time[120000:], r[120000:]) # Supposes a 120s SET pulse!
+        ax1.twinx().plot(time[120000:], voltage[120000:], color='r')  # Voltage.
+    else:
+        ax1.plot(time, r) # Solution otherwise.
+        ax1.twinx().plot(time, voltage, color='r')  # Voltage.
     ax1.set_yscale("log")
     ax2.plot(peak, "o")
     ax2.set_yscale("log")
