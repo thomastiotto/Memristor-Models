@@ -9,7 +9,7 @@ A short description of each file and its purpose is provided below.
 Responsible for the setup of the experiment and provision of parameters to the memristor.
 Namely, the `Experiment` class is the generalized setup that, when called, takes a number of values,
 such as the memristor model and the time step among others, while the `YakopcicSET`
-class provides those. For the current objective, just the `YakopcicSET` is enough.
+class provides those. Here the parameters can be supplied to change the model in `old_experiment.py`
 
 ## Functions (functions.py)
 Contains all the functions used in the project that are not related to initialization or the 
@@ -40,7 +40,8 @@ within, refer to the docstrings within the file.
 ## Running the Project (old_experiment.py/new_experiment.py)
 The code can be run from those two files.  
 `new_experiment.py` runs the Yakopcic model that includes work by Dima (2022). This includes changing
-the current equation, as well as changing all the parameters.
+the current equation, as well as changing all the parameters. Those are directly assigned in the file,
+and can be changed as necessary.  
 `old_experiment.py` runs the Yakopcic model that uses the initial model setup, as well as previous set
 of parameter values.
 
