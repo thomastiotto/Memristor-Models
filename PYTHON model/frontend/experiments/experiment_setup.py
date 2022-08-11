@@ -25,9 +25,9 @@ class Experiment:
         # print(f"\tInitial value of state variable {self.simulation['x0']}")
 
 
-class YakopcicSET(Experiment):
+class OldYakopcic(Experiment):  # Parameter setup for the old model in old_experiment.py.
     def __init__(self):
-        super(YakopcicSET, self).__init__(
+        super(OldYakopcic, self).__init__(
             sim_args={"dt": 0.001, "x0": 0.0},
             model=yakopcic_model.YakopcicNew,
             memristor_args={
@@ -42,4 +42,32 @@ class YakopcicSET(Experiment):
                 "eta": 1
             },
         )
-        self.name = "SET"
+        self.name = "oldSET"
+
+
+class NewYakopcic(Experiment):  # Parameter setup for the new model in new_experiment.py.
+    def __init__(self):
+        super(NewYakopcic, self).__init__(
+            sim_args={"dt": 0.001, "x0": 0.0},
+            model=yakopcic_model.YakopcicNew,
+            memristor_args={
+                "gmax_p": 0.0004338454236,
+                "bmax_p": 4.988561168,
+                "gmax_n": 8.44e-6,
+                "bmax_n": 6.272960721,
+                "gmin_p": 0.03135053798,
+                "bmin_p": 0.002125127287,
+                "gmin_n": 1.45e-05,
+                "bmin_n": 3.295533935,
+                "Ap": 5.9214,
+                "An": 2.2206,
+                "Vp": 0,
+                "Vn": 0,
+                "xp": 0.11,
+                "xn": 0.1433673316,
+                "alphap": 9.2,
+                "alphan": 0.7013461469,
+                "eta": 1
+            },
+        )
+        self.name = "NewSET"
