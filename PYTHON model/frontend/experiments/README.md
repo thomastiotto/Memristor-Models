@@ -8,27 +8,31 @@ A short description of each file and its purpose is provided below.
 ## Experiment Setup (experiment_setup.py)
 Responsible for the setup of the experiment and provision of parameters to the memristor.
 Namely, the `Experiment` class is the generalized setup that, when called, takes a number of values,
-such as the memristor model and the time step among others, while the `YakopcicSET`
-class provides those. Here the parameters can be supplied to change the model in `old_experiment.py`
+such as the memristor model and the timestep among others. Currently, given there are two models tested,
+two experiment setups exist:  `OldYakopcic` and `NewYakopcic` for the old and new models respectively.
+
 
 ## Functions (functions.py)
 Contains all the functions used in the project that are not related to initialization or the 
 experiment setup. 
 
-The `interactive_iv` function creates voltage pulses based on parameters such as _on_ and _off_ voltages among others.
+`interactive_iv` function creates voltage pulses based on parameters such as _on_ and _off_ voltages among others.
 When done, it concatenates all the pulses, as well as creates the resulting _time_ array.  
 
 
-The `generate_wave` function is responsible for actually constructing the array for the 
+`generate_wave` function is responsible for actually constructing the array for the 
 voltage pulse(s), depending on the set number of cycles. This involves creating four segments:
 rising, on-time, falling, and off-time, which are concatenated (with the total array if not the
 first pulse) and returned after.  
 
 
-The `solver2` function is used to calculate the state variable with the differential equation 
+`solver2` function is used to calculate the state variable with the differential equation 
 provided by a memristor model (namely, Yakopcic). Given a starting point _x0_, the solver uses the 
 Euler step to iteratively calculate the state variable _x(t)_ using the voltage _v(t)_ and
 the previous state variable _x(t-1)_.
+
+`plot_images` takes data such as voltage and current among others and uses those to produce visual
+output of the results. This function can also generate debug plots, depending on the supplied input.
 
 ## Yakopcic Memristor Model (yakopcic_model.py)
 Contains the old and new (more interest is on the latter) Yakopcic memristor models. This involves
@@ -45,22 +49,24 @@ and can be changed as necessary.
 `old_experiment.py` runs the Yakopcic model that uses the initial model setup, as well as previous set
 of parameter values.
 
-There are two arguments:
-1. Name of a text file input.
-2. Plot type: **1** for a regular resistance plot, **0** for an IV curve plot. 
+There are three arguments:
+1. `*.txt`: name of a text file input.
+2. `--debug`: 'debug' mode, or whether it is necessary to generate plots for separate variable (e.g., 
+current).
+3. `--plot_type *`: plot type produced: **1** for a regular resistance plot, **0** for an IV curve plot. 
 
 Example images of the two plot types can be seen below:
 
 <img alt="plot_type_1.png" height="300" src="img_1.png" title="Plot type 1" width="450"/>
 
-*Figure 1: Regular resistance plot (`plot_type = 1`). The top half depicts the resistance (in blue) 
+*Figure 1: Regular resistance plot (`--plot_type 1`). The top half depicts the resistance (in blue) 
 and the voltage (in red), with the 120s SET pulse trimmed. The bottom half shows the only the local
 peaks from the resistance plot, useful to identify the changes after each pulse.  
 **Note: the local peak functionality may capture undesirable values.***
 
 <img alt="img.png" height="300" src="img_2.png" width="450"/>
 
-*Figure 2: plot of an IV curve (`plot_type = 0`). The top half depicts the resistance (in blue) 
+*Figure 2: plot of an IV curve (`--plot_type 0`). The top half depicts the resistance (in blue) 
 and the voltage (in red) for the IV experiment. The bottom half shows the relationship between
 the current and voltage.
 
