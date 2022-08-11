@@ -7,8 +7,8 @@ from nengo.learning_rules import LearningRuleType
 from nengo.params import Default, NumberParam, DictParam
 from nengo.synapses import Lowpass, SynapseParam
 
-from memristor_nengo.debug_plots import debugger_plots
-from memristor_nengo.yakopcic_functions import *
+from debug_plots import debugger_plots
+from yakopcic_functions import *
 
 
 def initialise_memristors2(rule, in_size, out_size):
@@ -360,9 +360,9 @@ def build_mpes(model, mpes, rule):
     gmin_p = np.random.normal(1.5e-05, 1.5e-05 * mpes.noise_percentage[3], (encoders.shape[0], acts.shape[0]))
     Vn = np.random.normal(.5, .5 * mpes.noise_percentage[3], (encoders.shape[0], acts.shape[0]))
     Vp = np.random.normal(.5, .5 * mpes.noise_percentage[3], (encoders.shape[0], acts.shape[0]))
-    An = np.random.normal(0.1065893286 * 8e-1, 0.1065893286 * 8e-1 * mpes.noise_percentage[3],
+    An = np.random.normal(1, 1 * mpes.noise_percentage[3],
                           (encoders.shape[0], acts.shape[0]))
-    Ap = np.random.normal(0.0118432587 * 4e1, 0.0118432587 * 4e1 * mpes.noise_percentage[3],
+    Ap = np.random.normal(9, 9 * mpes.noise_percentage[3],
                           (encoders.shape[0], acts.shape[0]))
     noise = mpes.noise_percentage[3]
 
