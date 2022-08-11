@@ -9,7 +9,7 @@ def mim_iv(v, g, b):
 
 
 def mim_mim_iv(v, gp, bp, gn, bn):
-    return np.where(v >= 0, mim_iv(v, gp, bp), mim_iv(v, gn, bn))
+    return np.where(v >= 0, gp * np.sinh(bp * v), gn * np.sinh(bn * v))
 
 
 def euler_step(x, t, f, dt, v, args):
@@ -177,15 +177,17 @@ class YakopcicNew:
         xp = kwargs["xp"] if "xp" in kwargs else self.xp
         xn = kwargs["xn"] if "xn" in kwargs else self.xn
         eta = kwargs["eta"] if "eta" in kwargs else self.eta
+        alphap = kwargs["alphap"] if "alphap" in kwargs else self.alphap
+        alphan = kwargs["alphan"] if "alphan" in kwargs else self.alphan
 
         if eta * v >= 0:
             if x >= xp:
-                return np.exp(-(x - xp)) * self.wp(x, **kwargs)
+                return np.exp(-alphap * (x - xp)) * self.wp(x, **kwargs)
             else:
                 return 1
         else:
-            if x <= 1 - xn:
-                return np.exp((x + xn - 1)) * self.wn(x, **kwargs)
+            if x <= xn:
+                return np.exp(alphan * (x - xn)) * self.wn(x, **kwargs)
             else:
                 return 1
 
@@ -311,7 +313,7 @@ class Yakopcic():
 
         self.input = input
         self.V = input
-        self.x0 = kwargs["x0"] if "x0" in kwargs else 0.1
+        self.x0 = kwargs["x0"] if "x0" in kwargs else 0.0
 
         self.passed_parameters = kwargs
         self.passed_parameters.pop("x0")
