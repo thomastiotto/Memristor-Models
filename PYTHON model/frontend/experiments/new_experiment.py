@@ -8,7 +8,7 @@ from experiment_setup import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--file", default='input.txt', help="File containing the voltage pulses to simulate.")
-parser.add_argument("-type", "--plot_type", default=0, help="1: Regular resistance plot. 0: IV-plot.")
+parser.add_argument("-type", "--plot_type", default=1, help="1: Regular resistance plot. 0: IV-plot.")
 parser.add_argument("-d", "--debug", default=True, help="Show debug plots.")
 args = parser.parse_args()
 plot_type = args.plot_type
