@@ -44,7 +44,7 @@ def f(v, x, xp, xn, alphap, alphan, eta):
                                 [np.exp(-alphap * (x - xp)) * wp(x, xp),
                                  1]),
                       np.select([x <= xn, x > xn],
-                                [np.exp(alphan * (x + xn)) * wn(x, xn),
+                                [np.exp(alphan * (x - xn)) * wn(x, xn),
                                  1])
                       ])
 
