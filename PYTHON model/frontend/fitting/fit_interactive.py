@@ -27,8 +27,8 @@ class Model():
     def __init__(self, time, voltage):
         self.V = Interpolated(time, voltage)
 
-        self.h1 = self.h1
-        self.h2 = self.h2
+        self.h1 = self.mimd
+        self.h2 = self.mimd
 
     def mimd(self, v, g_p, b_p, g_n, b_n):
         return np.where(v >= 0,
