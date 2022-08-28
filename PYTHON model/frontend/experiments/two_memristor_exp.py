@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 model = Memristor_Alina
-R0 = 1e7
+R0 = 1e8
 vp = 0.1
 
 random.seed(8)
