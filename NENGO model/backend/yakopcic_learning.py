@@ -110,7 +110,7 @@ class mPES(LearningRuleType):
     probeable = ("error", "activities", "delta", "pos_memristors", "neg_memristors")
 
     pre_synapse = SynapseParam("pre_synapse", default=Lowpass(tau=0.005), readonly=True)
-    r_max = NumberParam("r_max", readonly=True, default=2.3e8)
+    r_max = NumberParam("r_max", readonly=True, default=1e8)
     r_min = NumberParam("r_min", readonly=True, default=200)
     exponent = NumberParam("exponent", readonly=True, default=-0.146)
     gain = NumberParam("gain", readonly=True, default=1e3)

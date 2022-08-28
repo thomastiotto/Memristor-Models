@@ -2,6 +2,8 @@ import numpy as np
 from scipy.stats import truncnorm
 
 
+
+
 def mimd(v, g_p, b_p, g_n, b_n):
     return np.where(v >= 0, g_p * np.sinh(b_p * v), g_n * np.sinh(b_n * v))
 
@@ -18,16 +20,16 @@ def h2(v, g_p, b_p, g_n, b_n):
     return np.where(v >= 0, g_p * (1 - np.exp(-b_p * v)), g_n * np.sinh(b_n * v))
 
 
-#def current(v, x, gmax_p, bmax_p, gmax_n, bmax_n, gmin_p, bmin_p, gmin_n, bmin_n):  # First implementation
+# def current(v, x, gmax_p, bmax_p, gmax_n, bmax_n, gmin_p, bmin_p, gmin_n, bmin_n):  # First implementation
 #    return mimd(v, gmax_p, bmax_p, gmax_n, bmax_n) * x + mimd(v, gmin_p, bmin_p, gmin_n, bmin_n) * (1 - x)
 
 
-def current(v, x, gmax_p, bmax_p, gmax_n, bmax_n, gmin_p, bmin_p, gmin_n, bmin_n): # Implemented with Dima (2022)
+def current(v, x, gmax_p, bmax_p, gmax_n, bmax_n, gmin_p, bmin_p, gmin_n, bmin_n):  # Implemented with Dima (2022)
     return h1(v, gmax_p, bmax_p, gmax_n, bmax_n) * x + h2(v, gmin_p, bmin_p, gmin_n, bmin_n) * (1 - x)
 
 
 def g(v, Ap, An, Vp, Vn):
-    return np.select([v > Vp, v < -Vn], [Ap * (np.exp(v) - np.exp(Vp)), -An * (np.exp(-v) - np.exp(Vn))], default=0)
+    return np.select([v > Vp, v < Vn], [Ap * (np.exp(v) - np.exp(Vp)), -An * (np.exp(-v) - np.exp(Vn))], default=0)
 
 
 def wp(x, xp):
@@ -35,11 +37,11 @@ def wp(x, xp):
 
 
 def wn(x, xn):
-    return x / (1 - xn)
+    return x / xn
 
 
 def f(v, x, xp, xn, alphap, alphan, eta):
-    return np.select([eta * v >= 0, eta * v <= 0],
+    return np.select([eta * v >= 0, eta * v < 0],
                      [np.select([x >= xp, x < xp],
                                 [np.exp(-alphap * (x - xp)) * wp(x, xp),
                                  1]),
@@ -49,10 +51,7 @@ def f(v, x, xp, xn, alphap, alphan, eta):
                       ])
 
 
-def dxdt(v, x, Ap, An, Vp, Vn, xp, xn, alphap, alphan, eta=None):
-    eta = 1 if eta is None else eta
-    # print("g: ",  g(v, Ap, An, Vp, Vn))
-    # print("f: ", f(v, x, xp, xn, alphap, alphan, eta))
+def dxdt(v, x, Ap, An, Vp, Vn, xp, xn, alphap, alphan, eta):
     return eta * g(v, Ap, An, Vp, Vn) * f(v, x, xp, xn, alphap, alphan, eta)
 
 

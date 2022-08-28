@@ -7,9 +7,7 @@ A short description of each file and its purpose is provided below.
 
 ## Experiment Setup (experiment_setup.py)
 Responsible for the setup of the experiment and provision of parameters to the memristor.
-Namely, the `Experiment` class is the generalized setup that, when called, takes a number of values,
-such as the memristor model and the timestep among others. Currently, given there are two models tested,
-two experiment setups exist:  `OldYakopcic` and `NewYakopcic` for the old and new models respectively.
+Also contains the input strings for the voltage pulses to be simulated.
 
 
 ## Functions (functions.py)
@@ -43,35 +41,30 @@ within, refer to the docstrings within the file.
 
 ## Running the Project (old_experiment.py/new_experiment.py)
 The code can be run from those two files.  
-`new_experiment.py` runs the Yakopcic model that includes work by Dima (2022). This includes changing
-the current equation, as well as changing all the parameters. Those are directly assigned in the file,
-and can be changed as necessary.  
-`old_experiment.py` runs the Yakopcic model that uses the initial model setup, as well as previous set
-of parameter values.
+`iv_experiment.py` computes the IV-curve experiment, runs on the Yakopcic model that includes 
+work by Dima (2022).  
+`pulse_experiment.py` computes the pulse experiment (a long SET pulse, followed by a series of 
+RESET, then SET pulses). Runs on the Yakopcic model that includes work by Dima (2022).
 
-There are three arguments:
-1. `*.txt`: name of a text file input.
-2. `--debug`: 'debug' mode, or whether it is necessary to generate plots for separate variable (e.g., 
-current).
-3. `--plot_type *`: plot type produced: **1** for a regular resistance plot, **0** for an IV curve plot. 
-
-Example images of the two plot types can be seen below:
+Example images of the run files can be seen below:
 
 <img alt="plot_type_1.png" height="300" src="img_1.png" title="Plot type 1" width="450"/>
 
-*Figure 1: Regular resistance plot (`--plot_type 1`). The top half depicts the resistance (in blue) 
-and the voltage (in red), with the 120s SET pulse trimmed. The bottom half shows the only the local
+*Figure 1: Pulse plot (`pulse_experiment.py`). The top half depicts the resistance (in blue) 
+and the voltage (in red), with the 120s SET pulse trimmed.  
+The bottom half shows only the local
 peaks from the resistance plot, useful to identify the changes after each pulse.  
-**Note: the local peak functionality may capture undesirable values.***
+**Note: the local peak functionality may capture extra values to show up.***
 
 <img alt="img.png" height="300" src="img_2.png" width="450"/>
 
-*Figure 2: plot of an IV curve (`--plot_type 0`). The top half depicts the resistance (in blue) 
-and the voltage (in red) for the IV experiment. The bottom half shows the relationship between
+*Figure 2: IV-curve plot (`iv_experiment.py`). The top half depicts the resistance (in blue) 
+and the voltage (in red) for the IV experiment.   
+The bottom half shows the nonlinearity between
 the current and voltage.
 
 ## Input Formatting
-The formatting order in the input text file is as follows:
+The formatting order in the voltage input follows the order below:
 * `t_rise`**(s)**: time for the voltage to go from 'off' to 'on' state.
 * `t_on`**(s)**: time the voltage remains in the 'on' state.
 * `t_fall`**(s)** time for the voltage to go from 'on' to 'off' state.

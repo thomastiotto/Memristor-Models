@@ -5,8 +5,8 @@ from extras import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-a", "--averaging", default=100, type=int)
-parser.add_argument("-i", "--inputs", default=["white", "white"], nargs="*", choices=["sine", "white"])
-parser.add_argument("-f", "--function", default="x**2")
+parser.add_argument("-i", "--inputs", default=["white", "sine"], nargs="*", choices=["sine", "white"])
+parser.add_argument("-f", "--function", default="x")
 parser.add_argument("-N", "--neurons", type=int, default=100)
 parser.add_argument("-D", "--dimensions", type=int, default=3)
 parser.add_argument("-g", "--gain", type=float, default=10e4)
