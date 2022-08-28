@@ -7,10 +7,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 model = Memristor_Alina
-R0 = 1e8
+R0 = 1e7
 vp = 0.1
 
-
+random.seed(8)
 def compact_learning(v, x):
     x = x + dxdt(v, x, model['Ap'], model['An'], model['Vp'], model['Vn'], model['xp'],
                  model['xn'], model['alphap'], model['alphan'], 1) * model['dt']
@@ -25,7 +25,7 @@ def compact_learning(v, x):
     return x, v / i
 
 
-for vn in tqdm(np.arange(-4, -1, 0.1)):
+for vn in tqdm(np.linspace(-4, -1, 30)): # Simulates the 0.1V step.
     R_p = [R0]
     R_n = [R0]
     x_p = 0
@@ -45,8 +45,7 @@ for vn in tqdm(np.arange(-4, -1, 0.1)):
     R_p.reverse()
     R_n.reverse()
     Wcombined = [x - y for x, y in zip([1 / x for x in R_p], [1 / x for x in R_n])]
-    plt.plot(Wcombined, label=str(vn))
+    plt.plot(Wcombined)
     plt.ylabel("w")
     plt.xlabel("Pulse #")
-    #plt.legend()
 plt.show()
