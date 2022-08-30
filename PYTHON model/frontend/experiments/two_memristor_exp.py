@@ -8,7 +8,7 @@ import numpy as np
 
 model = Memristor_Alina
 R0 = 1e8
-vp = 0.1
+vp = 1
 
 random.seed(8)
 def compact_learning(v, x):
@@ -25,7 +25,7 @@ def compact_learning(v, x):
     return x, v / i
 
 
-for vn in tqdm(np.linspace(-4, -1, 30)): # Simulates the 0.1V step.
+for vn in tqdm(np.linspace(-2, -1, 11)): # Simulates the 0.1V step.
     R_p = [R0]
     R_n = [R0]
     x_p = 0
