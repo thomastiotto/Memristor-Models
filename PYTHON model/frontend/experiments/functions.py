@@ -52,7 +52,7 @@ def plot_images(plot_type, time, voltage, i, r, x, model=None):
         fig_debug.show()
 
     plt.show()
-
+    return fig_plot, fig_debug
 
 def startup2(lines):
     iptVs = {}

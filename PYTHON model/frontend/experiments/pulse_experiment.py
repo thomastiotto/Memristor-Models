@@ -22,7 +22,7 @@ i = current(voltage, x, model['gmax_p'], model['bmax_p'], model['gmax_n'], model
 r = np.divide(voltage, i, out=np.zeros(voltage.shape, dtype=float), where=i != 0)
 
 plot_type=1
-plot_images(plot_type, time, voltage, i, r, x, model)
+fig_plot, fig_debug = plot_images(plot_type, time, voltage, i, r, x, model)
 
 # TODO let's double check everything is ok with the pulses
 # TODO let's see if we can even better approximate the real results

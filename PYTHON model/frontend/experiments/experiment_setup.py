@@ -60,16 +60,16 @@ print('Thomas An', Memristor_Thomas["An"])
 
 dt_nengo = 1e-3  # Nengo timestep
 # Adjust amplitudes
-# Memristor_Alina["Ap"]=Memristor_Alina["Ap"]/dt_ratio
-# Memristor_Alina["An"]=Memristor_Alina["An"]/dt_ratio
+#Memristor_Alina["Ap"]=Memristor_Alina["Ap"] * 10
+#Memristor_Alina["An"]=Memristor_Alina["An"] * 10
 print('Alina Ap', Memristor_Alina["Ap"])
 print('Alina An', Memristor_Alina["An"])
 
 Memristor_Alina["dt"] = dt_nengo
 
 input_pulses=""".001 120 .001 .01 1 0 1
-.001 1 .001 .4 -2 -.1 10
-.001 1 .001 .4 .6 -.1 10"""
+.001 .001 .001 .4 -8 -.1 10   
+.001 .001 .001 .4 6 -.1 10""" # Duration: 0.1s; Reading: 0.4s (default); RESET magnitude: -8V.
 input_iv="""10 0.00 10 0.00 1 0 1
-15 0.00 15 0.00 -2 0 1"""
+15 0.00 15 0.00 -2 0 1""" # Duration: 0.1s; Reading: 0.4s (default); SET magnitude: +6V.
 
