@@ -58,5 +58,5 @@ i = current(voltage, x, model['gmax_p'], model['bmax_p'], model['gmax_n'], model
             model['gmin_n'], model['bmin_n'])
 r = np.divide(voltage, i, out=np.zeros(voltage.shape, dtype=float), where=i != 0)
 
-plot_type=0
-plot_images(plot_type, time, voltage, i, r, x, model)
+plot_type = 0
+plot_images(plot_type, time, voltage, i, r, x)
