@@ -8,11 +8,11 @@ from tqdm.auto import tqdm
 model = Memristor_Alina
 
 
-def model_func(x, pulse_length):
+def model_sim(x, pulse_length):
     # scipy expects a 1d array
     resetV, setV = x
 
-    input_pulses = set_pulse(resetV, setV, pulse_length)
+    input_pulses = set_pulse(resetV, setV, pulse_length, -1)
     iptVs, ipds, num_waves = startup2(input_pulses)
 
     time, voltage = interactive_iv(iptVs, model['dt'])
@@ -35,7 +35,7 @@ def model_func(x, pulse_length):
 
 
 def residuals(x, peaks_gt):
-    time, voltage, i, r, x, ipds, num_waves = model_func(x, 0.001)
+    time, voltage, i, r, x, ipds, num_waves = model_sim(x, 0.001)
     peaks_model = find_peaks(r, ipd=ipds[2], num_peaks=num_waves[1] + num_waves[2])
 
     print('Residual absolute error:', np.sum(np.abs(peaks_gt - peaks_model)))
@@ -46,33 +46,41 @@ def residuals(x, peaks_gt):
 print('------------------ VARIOUS SET V ------------------')
 Vset = [0.1, 0.5, 1]
 for vi, v in enumerate(Vset):
-    time, voltage, i, r, x, ipds, num_waves = model_func((-4, v), 1)
+    time, voltage, i, r, x, ipds, num_waves = model_sim((-4, v), 1)
     if vi == 0:
         fig_plot_orig, fig_debug_orig = plot_images(time, voltage, i, r, x, ipds[2], num_waves[1] + num_waves[2],
-                                                    f'+{v} V')
+                                                    f'+{v} V', model=model, debug=True)
     else:
         fig_plot_orig, fig_debug_orig = plot_images(time, voltage, i, r, x, ipds[2], num_waves[1] + num_waves[2],
                                                     f'+{v} V',
-                                                    fig_plot_orig)
+                                                    fig_plot_orig, model=model, debug=True)
 
 fig_plot_orig.show()
 
 # -- define ground truth
 print('------------------ ORIGINAL ------------------')
-time, voltage, i, r, x, ipds, num_waves = model_func((-4, 1), 1)
-peaks_gt = find_peaks(r, ipd=ipds[2], num_peaks=num_waves[1] + num_waves[2])
+time_gt, voltage_gt, i_gt, r_gt, x_gt, ipds_gt, num_waves_gt = model_sim((-4, 0.1), 1)
+peaks_gt = find_peaks(r_gt, ipd=ipds_gt[2], num_peaks=num_waves_gt[1] + num_waves_gt[2])
 # r_gt = find_peaks(r)
 
 # -- run optimisation
 print('------------------ OPTIMISATION ------------------')
-res_minimisation = optimize.least_squares(residuals, [0, 0], args=[peaks_gt], bounds=(-20, 20),
-                                          method='dogbox', verbose=1)
+bounds = ([-20, 1], [-4, 20])
+x0 = [bounds[1][0], bounds[0][1]]
+res_minimisation = optimize.least_squares(residuals, x0, args=[peaks_gt], bounds=bounds,
+                                          method='dogbox', verbose=2)
 print(f'DOGBOX result:\nVreset: {res_minimisation.x[0]}\nVset: {res_minimisation.x[1]}')
 
 # -- plot results
-time, voltage, i, r, x, ipds, num_waves = model_func(res_minimisation.x, 0.001)
-fig_plot_opt, fig_debug_opt = plot_images(time, voltage, i, r, x, ipds[2], num_waves[1] + num_waves[2],
-                                          f'RESET: {round(res_minimisation.x[0], 2)} V\nSET: {round(res_minimisation.x[1], 2)} V')
+time_opt, voltage_opt, i_opt, r_opt, x_opt, ipds_opt, num_waves_opt = model_sim(res_minimisation.x, 0.001)
+fig_plot_opt, fig_debug_opt = plot_images(time_opt, voltage_opt, i_opt, r_opt, x_opt, ipds_opt[2],
+                                          num_waves_opt[1] + num_waves_opt[2],
+                                          f'RESET: {round(res_minimisation.x[0], 2)} V\nSET: {round(res_minimisation.x[1], 2)} V',
+                                          model=model, debug=True)
+fig_plot_opt, fig_debug_opt = plot_images(time_gt, voltage_gt, i_gt, r_gt, x_gt, ipds_gt[2],
+                                          num_waves_gt[1] + num_waves_gt[2],
+                                          f'RESET: {round(res_minimisation.x[0], 2)} V\nSET: {round(res_minimisation.x[1], 2)} V',
+                                          fig_plot_opt, model=model, debug=True)
 fig_plot_opt.show()
 
 # TODO let's double check everything is ok with the pulses OK

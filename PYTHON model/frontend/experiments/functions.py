@@ -4,17 +4,18 @@ import scipy.signal
 import matplotlib.ticker as mticker
 
 
-def set_pulse(resetV, setV, pulse_length):
+def set_pulse(resetV, setV, pulse_length, readV):
     print('------------------')
-    print('Pulse length:', pulse_length, 's')
     print('RESET:', resetV, 'V')
     print('SET:', setV, 'V')
+    print('Pulse length:', pulse_length, 's')
+    print('READ:', readV, 'V')
 
     # FORMAT
     # "t_rise", "t_on":, "t_fall", "t_off", "V_on", "V_off", "n_cycles"
     return f""".001 120 .001 .01 1 0 1
-.001 {pulse_length} .001 .4 {resetV} -.1 10   
-.001 {pulse_length} .001 .4 {setV} -.1 10"""
+.001 {pulse_length} .001 .4 {resetV} {readV} 10   
+.001 {pulse_length} .001 .4 {setV} {readV} 10"""
 
 
 def find_peaks(r, dt=0.001, consider_from=120, ipd=None, num_peaks=20, debug=False):
@@ -46,7 +47,7 @@ def plot_images(time, voltage, i, r, x, ipd, num_peaks, label, fig=None, plot_ty
         # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(w, h), dpi=300)
         if fig is not None:
             fig_plot = fig
-            ax_plot = fig.axes
+            ax_plot = fig_plot.axes
         else:
             fig_plot, ax_plot = plt.subplots(2, 1, figsize=(12, 10))
 
@@ -78,7 +79,7 @@ def plot_images(time, voltage, i, r, x, ipd, num_peaks, label, fig=None, plot_ty
     else:
         return None, None
 
-    fig_plot = (fig_plot, None)
+    fig_out = (fig_plot, None)
 
     if debug and model:  # Debug plot, shows all the relevant parameters (V, I, x, g, f).
         fig_debug, ax_debug = plt.subplots(5, 1, figsize=(12, 10))
@@ -99,9 +100,11 @@ def plot_images(time, voltage, i, r, x, ipd, num_peaks, label, fig=None, plot_ty
 
         fig_debug.tight_layout()
 
-        fig_plot = (fig_plot, fig_debug)
+        fig_debug.show()
 
-    return fig_plot
+        fig_out = (fig_plot, fig_debug)
+
+    return fig_out
 
 
 def startup2(lines):
