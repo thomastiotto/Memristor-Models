@@ -2,8 +2,6 @@ import numpy as np
 from scipy.stats import truncnorm
 
 
-
-
 def mimd(v, g_p, b_p, g_n, b_n):
     return np.where(v >= 0, g_p * np.sinh(b_p * v), g_n * np.sinh(b_n * v))
 

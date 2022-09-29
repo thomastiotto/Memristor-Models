@@ -18,33 +18,43 @@ def set_pulse(resetV, setV, pulse_length, readV):
 .001 {pulse_length} .001 .4 {setV} {readV} 10"""
 
 
-def find_peaks(r, dt=0.001, consider_from=120, ipd=None, num_peaks=20, debug=False):
+def find_peaks(r, voltage, readV, dt=0.001, consider_from=120, debug=False):
     consider_from = int(consider_from / dt)
     r_ranged = r[consider_from:]
+    v_ranged = voltage[consider_from:]
 
-    peaks = [[0]]
-    count = 0
-    while len(peaks[0]) < num_peaks:
-        peaks = scipy.signal.find_peaks(r_ranged, distance=(ipd / dt) - (count * (ipd / dt) / 10))
+    # -- find peaks
+    data = np.where(v_ranged == readV)[0]
+    diffs = np.diff(data) != 1
+    indexes = np.nonzero(diffs)[0] + 1
+    groups = np.split(data, indexes)
+    peaks_idx = []
+    for g in groups[1:]:
+        interval_centr = int(g[0] + (g[-1] - g[0]) / 2)
+        peaks_idx.append(interval_centr)
+    peaks = r_ranged[peaks_idx]
 
-        if debug:
-            plt.show()
-            plt.title(f'Peaks found: {len(peaks[0])}, IPD: {(ipd / dt) - (count * (ipd / dt) / 10)}')
-            plt.plot(r_ranged)
-            plt.plot(peaks[0], r_ranged[peaks[0]], 'o')
-            plt.show()
+    if debug:
+        fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+        ax.plot(v_ranged, color='r')
+        ax.plot((peaks_idx,), readV, 'x', color='r')
+        ax2 = ax.twinx()
+        ax2.plot(r_ranged, color='b')
+        ax2.plot(peaks_idx, r_ranged[peaks_idx], 'x', color='b')
+        fig.suptitle(f'Peaks found: {len(peaks_idx)} at {readV} V')
+        fig.show()
 
-        count += 1
-
-    return r_ranged[peaks[0]]
+    return peaks
 
 
-def plot_images(time, voltage, i, r, x, ipd, num_peaks, label, fig=None, plot_type='pulse', debug=None, model=None):
-    peaks = find_peaks(r, ipd=ipd, num_peaks=num_peaks)
+def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='pulse', show_peaks=False, model=None):
+    peaks = find_peaks(r, voltage, readV, debug=show_peaks)
 
     if plot_type == 'pulse':  # Plots regular resistance plot; Full plot + its local peaks.
         # w, h = plt.figaspect(1 / 3.5)
         # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(w, h), dpi=300)
+        assert readV is not None
+
         if fig is not None:
             fig_plot = fig
             ax_plot = fig_plot.axes
@@ -68,6 +78,8 @@ def plot_images(time, voltage, i, r, x, ipd, num_peaks, label, fig=None, plot_ty
         ax_plot[1].legend(loc='best')
 
         fig_plot.tight_layout()
+
+        return fig_plot
     elif plot_type == 'iv':  # Plots the IV curve.
         fig_plot, ax_plot = plt.subplots(2, 1, figsize=(7, 5))
         ax_plot[0].plot(time, i)
@@ -76,43 +88,40 @@ def plot_images(time, voltage, i, r, x, ipd, num_peaks, label, fig=None, plot_ty
         # ax_plot[1].set_ylim(-0.006, 0.006)
 
         fig_plot.tight_layout()
-    else:
-        return None, None
 
-    fig_out = (fig_plot, None)
+        return fig_plot
+    elif plot_type == 'debug':
+        assert model is not None
 
-    if debug and model:  # Debug plot, shows all the relevant parameters (V, I, x, g, f).
-        fig_debug, ax_debug = plt.subplots(5, 1, figsize=(12, 10))
+        fig_debug, ax_debug = plt.subplots(6, 1, figsize=(12, 10))
 
         ax_debug[0].plot(time, voltage)
         ax_debug[0].set_ylabel("Voltage")
-        ax_debug[1].plot(time, i)
+        ax_debug[1].plot(time, np.abs(i))
         ax_debug[1].set_ylabel("Current")
-        ax_debug[2].plot(time, x)
-        ax_debug[2].set_ylabel("State Variable")
-        ax_debug[3].plot(time, g(voltage, model['Ap'], model['An'], model['Vp'], model['An']))
-        ax_debug[3].set_ylabel("g")
-        ax_debug[4].plot(time, f(voltage, x, model['xp'], model['xn'], model['alphap'], model['alphan'], model['eta']))
-        ax_debug[4].set_ylabel("f")
+        ax_debug[2].plot(time, r)
+        ax_debug[2].set_ylabel("Resistance")
+        ax_debug[3].plot(time, x)
+        ax_debug[3].set_ylabel("State Variable")
+        ax_debug[4].plot(time, g(voltage, model['Ap'], model['An'], model['Vp'], model['An']))
+        ax_debug[5].set_ylabel("g")
+        ax_debug[5].plot(time, f(voltage, x, model['xp'], model['xn'], model['alphap'], model['alphan'], model['eta']))
+        ax_debug[5].set_ylabel("f")
 
         for ax in ax_debug.ravel():
             ax.set_xlabel("Time")
 
         fig_debug.tight_layout()
 
-        fig_debug.show()
-
-        fig_out = (fig_plot, fig_debug)
-
-    return fig_out
+        return fig_debug
+    else:
+        return None
 
 
 def startup2(lines):
     iptVs = {}
     lines = lines.split('\n')
 
-    ipds = []
-    num_waves = []
     wave_number = 1
     for line in lines:
         t_rise, t_on, t_fall, t_off, V_on, V_off, n_cycles = map(float, line.split())
@@ -121,10 +130,10 @@ def startup2(lines):
         iptVs["{}".format(wave_number)] = iptV
         wave_number += 1
 
-        num_waves.append(n_cycles)
-        ipds.append(t_rise + t_on + t_fall + t_off)
+    return iptVs
 
-    return iptVs, ipds, num_waves
+
+# TODO return sample_at to guide sampling instants when finding peaks as the automated method is unreliable
 
 
 def interactive_iv(iptVs, dt):
