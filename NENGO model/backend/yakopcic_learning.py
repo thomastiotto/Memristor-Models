@@ -285,7 +285,7 @@ class SimmPES(Operator):
                 spiked_map = find_spikes(pre_filtered, weights.shape, invert=True)
                 pes_delta[spiked_map] = 0
 
-                V = np.sign(pes_delta) * 6.70527
+                V = np.sign(pes_delta) * 3.9391770020717187
                 # print("V: ", V, "\n")
 
                 # Calculate the state variables at a current timestep
@@ -296,9 +296,9 @@ class SimmPES(Operator):
                 self.x = np.select([self.x < 0, self.x > 1], [0, 1], default=self.x)
 
                 # Calculate the current and the resistance for the devices
-                i = current(np.abs(V), self.x, self.gmax_p, self.bmax_p,
+                i = current(np.zeros(V.shape,dtype=float)*-1, self.x, self.gmax_p, self.bmax_p,
                             self.gmax_n, self.bmax_n, self.gmin_p, self.bmin_p, self.gmin_n, self.bmin_n)
-                r = np.divide(np.abs(V), i, out=np.zeros(V.shape, dtype=float), where=i != 0)
+                r = np.divide(np.zeros(V.shape,dtype=float)*-1, i, out=np.zeros(V.shape, dtype=float), where=i != 0)
                 # Clip the value of resistances beyond the [r_min, r_max] range
                 r = np.select([r < self.r_min, r > self.r_max], [r_min, r_max], default=r)
 
@@ -356,18 +356,18 @@ def build_mpes(model, mpes, rule):
     encoders = model.sig[post]["encoders"]
 
     An = np.random.normal(0.02662694665, 0.001699912801, (encoders.shape[0], acts.shape[0]))
-    Ap = np.random.normal(0.071, 0, (encoders.shape[0], acts.shape[0]))
+    Ap = np.random.normal(0.49699999999999994, 0, (encoders.shape[0], acts.shape[0]))
     Vn = np.random.normal(0, 0, (encoders.shape[0], acts.shape[0]))
     Vp = np.random.normal(0, 0, (encoders.shape[0], acts.shape[0]))
     alphan = np.random.normal(0.7013461469, 0.3752922588, (encoders.shape[0], acts.shape[0]))
     alphap = np.random.normal(9.2, 0, (encoders.shape[0], acts.shape[0]))
-    bmax_n = np.random.normal(6.272960721, 0.3250900701, (encoders.shape[0], acts.shape[0]))
+    bmax_n = np.random.normal(0.04662714454744514, 0.3250900701, (encoders.shape[0], acts.shape[0]))
     bmax_p = np.random.normal(4.988561168, 0.1395977535, (encoders.shape[0], acts.shape[0]))
-    bmin_n = np.random.normal(3.295533935, 0.1351036836, (encoders.shape[0], acts.shape[0]))
+    bmin_n = np.random.normal(0.044341659769156175, 0.1351036836, (encoders.shape[0], acts.shape[0]))
     bmin_p = np.random.normal(0.002125127287, 0.001156594332, (encoders.shape[0], acts.shape[0]))
-    gmax_n = np.random.normal(8.44e-06, 0.0000009751307503, (encoders.shape[0], acts.shape[0]))
+    gmax_n = np.random.normal(5.117466299437892e-07, 0.0000009751307503, (encoders.shape[0], acts.shape[0]))
     gmax_p = np.random.normal(0.0004338454236, 0.00006433347881, (encoders.shape[0], acts.shape[0]))
-    gmin_n = np.random.normal(1.45e-05, 0.000001269628401, (encoders.shape[0], acts.shape[0]))
+    gmin_n = np.random.normal(1.6806214980624974e-07, 0.000001269628401, (encoders.shape[0], acts.shape[0]))
     gmin_p = np.random.normal(0.03135053798, 0.01128684089, (encoders.shape[0], acts.shape[0]))
     x0 = np.random.normal(0, 0, (encoders.shape[0], acts.shape[0]))
     xn = np.random.normal(0.1433673316, 0.007340350194, (encoders.shape[0], acts.shape[0]))

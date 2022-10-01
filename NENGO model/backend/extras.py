@@ -433,7 +433,7 @@ class Plotter():
                 axes[ i, j ].plot( pos, c="r" )
                 axes[ i, j ].plot( neg, c="b" )
                 axes[ i, j ].set_title( f"{j}->{i}" )
-                axes[ i, j ].set_yticklabels( [ ] )
+                #axes[ i, j ].set_yticklabels( [ ] )
                 # axes[ i, j ].set_xticklabels( [ ] )
                 plt.subplots_adjust( hspace=0.7 )
         fig.get_axes()[ 0 ].annotate( f"{tit} over time", (0.5, 0.94),

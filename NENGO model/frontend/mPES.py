@@ -22,13 +22,13 @@ parser.add_argument("-i", "--inputs", default=["sine", "sine"], nargs="*", choic
                     help="The input signals [learning, testing].  Default is sine")
 parser.add_argument("-t", "--timestep", default=0.001, type=int)
 parser.add_argument("-S", "--simulation_time", default=30, type=int)
-parser.add_argument("-N", "--neurons", nargs="*", default=[4], action="store", type=int,
+parser.add_argument("-N", "--neurons", nargs="*", default=[10], action="store", type=int,
                     help="The number of neurons used in the Ensembles [pre, post, error].  Default is 10")
 parser.add_argument("-D", "--dimensions", default=3, type=int,
                     help="The number of dimensions of the input signal")
 parser.add_argument("-n", "--noise", nargs="*", default=0.0, type=float,
                     help="The noise on the simulated memristors [R_0, R_1, c, R_init]  Default is 0.15")
-parser.add_argument("-g", "--gain", default=1e4, type=float)  # default chosen by parameter search experiments
+parser.add_argument("-g", "--gain", default=1e5, type=float)  # default chosen by parameter search experiments
 parser.add_argument("-l", "--learning_rule", default="mPES", choices=["mPES", "PES"])
 parser.add_argument("-P", "--parameters", default=Default, type=float,
                     help="The parameters of simualted memristors.  For now only the exponent c")
