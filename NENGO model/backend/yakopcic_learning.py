@@ -285,7 +285,7 @@ class SimmPES(Operator):
                 spiked_map = find_spikes(pre_filtered, weights.shape, invert=True)
                 pes_delta[spiked_map] = 0
 
-                V = np.sign(pes_delta) * 6e-1
+                V = np.sign(pes_delta) * 6.70527
                 # print("V: ", V, "\n")
 
                 # Calculate the state variables at a current timestep

@@ -18,10 +18,10 @@ def debugger_plots(currents, xs, rs, pulse):
             axs2[j, l].set_title(f"{l}->{j}")
             axs3[j, l].plot(rs[:, j, l])
             axs3[j, l].set_title(f"{l}->{j}")
-            # axs1[j, l].set_yticklabels([])
-            # axs2[j, l].set_yticklabels([])
-            # axs3[j, l].set_yticklabels([])
-            # axes[ i, j ].set_xticklabels( [ ] )
+            #axs1[j, l].set_yticklabels([])
+            #axs2[j, l].set_yticklabels([])
+            #axs3[j, l].set_yticklabels([])
+            #axes[ i, j ].set_xticklabels( [ ] )
             plt.subplots_adjust(hspace=0.7)
     fig1.get_axes()[0].annotate("Currents over time", (0.5, 0.94),
                                 xycoords='figure fraction', ha='center',
