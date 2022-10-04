@@ -2,9 +2,52 @@ from yakopcic_model import *
 from yakopcic_functions import *
 import scipy.signal
 import matplotlib.ticker as mticker
+from tqdm.auto import tqdm
 
 
-def set_pulse(resetV, setV, pulse_length, readV, read_length):
+def read_pulse_length(data, readV):
+    times = []
+    for i in range(len(data)):
+        if data[i, 1] == readV:
+            times.append(data[i + 1, 0] - data[i, 0])
+    read_length = np.mean(times)
+    print('Average readV pulse length:', np.round(read_length, 2), 'seconds')
+
+    return read_length
+
+
+def compute_time_voltage_vectors(resetV, numreset, setV, numset, pulse_length, readV, read_length, dt):
+    input_pulses = set_pulse(resetV, numreset, setV, numset, pulse_length, readV, read_length)
+    iptVs = startup2(input_pulses)
+
+    time, voltage = interactive_iv(iptVs, dt)
+
+    return time, voltage
+
+
+def model_sim_with_params(pulse_length, resetV, numreset, setV, numset, readV, read_length, **params):
+    time, voltage = compute_time_voltage_vectors(resetV, numreset, setV, numset, pulse_length, readV, read_length,
+                                                 params['dt'])
+    x = np.zeros(voltage.shape, dtype=float)
+
+    for j in tqdm(range(1, len(x))):
+        x[j] = x[j - 1] + dxdt(voltage[j], x[j - 1], params['Ap'], params['An'], params['Vp'], params['Vn'],
+                               params['xp'],
+                               params['xn'], params['alphap'], params['alphan'], 1) * params['dt']
+        if x[j] < 0:
+            x[j] = 0
+        if x[j] > 1:
+            x[j] = 1
+
+    i = current(voltage, x,
+                params['gmax_p'], params['bmax_p'], params['gmax_n'], params['bmax_n'],
+                params['gmin_p'], params['bmin_p'], params['gmin_n'], params['bmin_n'])
+    r = np.divide(voltage, i, out=np.zeros(voltage.shape, dtype=float), where=i != 0)
+
+    return time, voltage, i, r, x
+
+
+def set_pulse(resetV, num_reset, setV, num_set, pulse_length, readV, read_length):
     print('------------------')
     print('RESET:', resetV, 'V')
     print('SET:', setV, 'V')
@@ -15,8 +58,8 @@ def set_pulse(resetV, setV, pulse_length, readV, read_length):
     # FORMAT
     # "t_rise", "t_on":, "t_fall", "t_off", "V_on", "V_off", "n_cycles"
     return f""".001 120 .001 .01 1 0 1
-.001 {pulse_length} .001 {read_length} {resetV} {readV} 10   
-.001 {pulse_length} .001 {read_length} {setV} {readV} 10"""
+.001 {pulse_length} .001 {read_length} {resetV} {readV} {num_reset}   
+.001 {pulse_length} .001 {read_length} {setV} {readV} {num_set}"""
 
 
 def find_peaks(r, voltage, readV, dt=0.001, consider_from=120, debug=False):
