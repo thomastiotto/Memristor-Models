@@ -1,5 +1,6 @@
 from scipy import optimize
 import json
+from order_of_magnitude import order_of_magnitude
 
 from functions import *
 from yakopcic_model import *
@@ -82,28 +83,22 @@ for vi, v in enumerate(Vset):
 
 fig_plot_default.show()
 
-fig_plot_opt_debug = plot_images(time, voltage, i, r, x, f'-2 V / +0.1 V', readV,
-                                 plot_type='debug', model=model, show_peaks=True)
-fig_plot_opt_debug.show()
-
 # -- define ground truth
 print('------------------ ORIGINAL ------------------')
-time_gt, voltage_gt, i_gt, r_gt, x_gt = model_sim_with_params(1, -2, 1, readV, read_length, **model)
+time_gt, voltage_gt, i_gt, r_gt, x_gt = model_sim_with_params(1, -2, 0.1, readV, read_length, **model)
 peaks_gt = find_peaks(r_gt, voltage_gt, readV)
 fig_plot_opt_debug = plot_images(time_gt, voltage_gt, i_gt, r_gt, x_gt, f'-2 V / +0.1 V', readV,
                                  plot_type='debug', model=model, show_peaks=True)
 fig_plot_opt_debug.show()
+print('Average error:', order_of_magnitude.convert(np.round(np.mean(p100mv - peaks_gt), 2), scale="mega")[0], 'MOhm')
 
 # -- run optimisation
 print('------------------ OPTIMISATION ------------------')
 bounds = ([-20, 0.1], [-2, 20])
 x0 = [bounds[1][0], bounds[0][1]]
-res_minimisation = optimize.least_squares(residuals, x0, args=[p100mv, 0.001, readV, 0.001, model], bounds=bounds,
+res_minimisation = optimize.least_squares(residuals, x0, args=[peaks_gt, 0.001, readV, 0.001, model], bounds=bounds,
                                           method='dogbox', verbose=2)
 print(f'Optimisation result:\nVreset: {res_minimisation.x[0]}\nVset: {res_minimisation.x[1]}')
-
-# TODO find x value
-print("Value of x after long initial SET pulse", )
 
 # -- plot results
 fig_plot_opt, ax_plot = plt.subplots(1, 1, figsize=(6, 5))
@@ -116,6 +111,13 @@ fig_plot_opt = plot_images(time_gt, voltage_gt, i_gt, r_gt, x_gt, f'Model (1 s)'
 fig_plot_opt = plot_images(time, voltage, i, r, x, f'Model (1 ms)', readV,
                            fig_plot_opt)
 fig_plot_opt.show()
+consider_from = int(120 / model['dt'])
 fig_plot_opt_debug = plot_images(time, voltage, i, r, x, f'-2 V / +0.1 V', readV,
                                  plot_type='debug', model=model, show_peaks=True)
 fig_plot_opt_debug.show()
+
+peaks_opt = find_peaks(r_gt, voltage_gt, readV)
+print('Average error:', order_of_magnitude.convert(np.round(np.mean(p100mv - peaks_opt), 2), scale="mega")[0], 'MOhm')
+
+# TODO find x value
+print("Value of x after long initial SET pulse", )

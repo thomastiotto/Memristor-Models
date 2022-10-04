@@ -48,7 +48,15 @@ def find_peaks(r, voltage, readV, dt=0.001, consider_from=120, debug=False):
     return peaks
 
 
-def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='pulse', show_peaks=False, model=None):
+def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='pulse', show_peaks=False, model=None,
+                consider_from=None):
+    if consider_from is not None:
+        time = time[consider_from:]
+        voltage = voltage[consider_from:]
+        i = i[consider_from:]
+        r = r[consider_from:]
+        x = x[consider_from:]
+
     peaks = find_peaks(r, voltage, readV, debug=show_peaks)
 
     if plot_type == 'pulse':  # Plots regular resistance plot; Full plot + its local peaks.
