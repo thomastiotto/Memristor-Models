@@ -4,18 +4,19 @@ import scipy.signal
 import matplotlib.ticker as mticker
 
 
-def set_pulse(resetV, setV, pulse_length, readV):
+def set_pulse(resetV, setV, pulse_length, readV, read_length):
     print('------------------')
     print('RESET:', resetV, 'V')
     print('SET:', setV, 'V')
     print('Pulse length:', pulse_length, 's')
     print('READ:', readV, 'V')
+    print('READ length:', read_length, 's')
 
     # FORMAT
     # "t_rise", "t_on":, "t_fall", "t_off", "V_on", "V_off", "n_cycles"
     return f""".001 120 .001 .01 1 0 1
-.001 {pulse_length} .001 .4 {resetV} {readV} 10   
-.001 {pulse_length} .001 .4 {setV} {readV} 10"""
+.001 {pulse_length} .001 {read_length} {resetV} {readV} 10   
+.001 {pulse_length} .001 {read_length} {setV} {readV} 10"""
 
 
 def find_peaks(r, voltage, readV, dt=0.001, consider_from=120, debug=False):
@@ -59,37 +60,20 @@ def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='
             fig_plot = fig
             ax_plot = fig_plot.axes
         else:
-            fig_plot, ax_plot = plt.subplots(2, 1, figsize=(12, 10))
+            fig_plot, ax_plot = plt.subplots(1, 1, figsize=(6, 5))
 
-        ax_plot[0].plot(time, r, label=label)  # Solution otherwise.
-        ax_plot[0].twinx().plot(time, voltage, color='r', label='Voltage')  # Voltage.
+        ax_plot[0].plot(peaks, "o", fillstyle='none', label=label)
+        ax_plot[0].xaxis.set_major_locator(mticker.MultipleLocator(1))
         ax_plot[0].set_yscale("log")
-        ax_plot[0].set_title("Experiment pulses")
-        ax_plot[0].set_xlabel("Time (s)")
+        ax_plot[0].set_xlabel("Pulse number")
         ax_plot[0].set_ylabel("Resistance (Ohm)")
+        ax_plot[0].set_title("Resistance after 120 s SET")
         ax_plot[0].legend(loc='best')
 
-        ax_plot[1].plot(peaks, "o", fillstyle='none', label=label)
-        ax_plot[1].xaxis.set_major_locator(mticker.MultipleLocator(1))
-        ax_plot[1].set_yscale("log")
-        ax_plot[1].set_xlabel("Pulse number")
-        ax_plot[1].set_ylabel("Resistance (Ohm)")
-        ax_plot[1].set_title("Resistance after 120 s SET")
-        ax_plot[1].legend(loc='best')
-
         fig_plot.tight_layout()
 
         return fig_plot
-    elif plot_type == 'iv':  # Plots the IV curve.
-        fig_plot, ax_plot = plt.subplots(2, 1, figsize=(7, 5))
-        ax_plot[0].plot(time, i)
-        ax_plot[0].twinx().plot(time, voltage, color='r')
-        ax_plot[1].plot(voltage, i)
-        # ax_plot[1].set_ylim(-0.006, 0.006)
 
-        fig_plot.tight_layout()
-
-        return fig_plot
     elif plot_type == 'debug':
         assert model is not None
 
