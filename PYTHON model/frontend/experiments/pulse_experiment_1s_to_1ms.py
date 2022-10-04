@@ -6,6 +6,27 @@ from functions import *
 
 # -- model found with pulse_experiment_match_magnitude.py and pulse_experiment_finetuning.py
 model = json.load(open('../../../fitted/fitting_pulses/regress_negative_xp_alphap-adjusted_ap_an'))
+model = {
+    "An": 0.013313473325,
+    "Ap": 0.49699999999999994,
+    "Vn": 0,
+    "Vp": 0,
+    "alphan": 0.7013461469,
+    "alphap": 58.389867489576986,
+    "bmax_n": 0.06683952060471841,
+    "bmax_p": 4.988561168,
+    "bmin_p": 0.002125127287,
+    "dt": 0.001,
+    "eta": 1,
+    "gmax_n": 3.214000608914307e-07,
+    "gmax_p": 0.0004338454236,
+    "gmin_n": 8.045180116926906e-08,
+    "bmin_n": 0.08304147962984593,
+    "gmin_p": 0.03135053798,
+    "x0": 0.0,
+    "xn": 0.1433673316,
+    "xp": 0.4810738043615987
+}
 
 readV = -1
 debug = False
