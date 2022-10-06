@@ -2,20 +2,64 @@ from yakopcic_model import *
 from yakopcic_functions import *
 import scipy.signal
 import matplotlib.ticker as mticker
+from tqdm.auto import tqdm
 
 
-def set_pulse(resetV, setV, pulse_length, readV):
+def read_pulse_length(data, readV):
+    times = []
+    for i in range(len(data)):
+        if data[i, 1] == readV:
+            times.append(data[i + 1, 0] - data[i, 0])
+    read_length = np.mean(times)
+    print('Average readV pulse length:', np.round(read_length, 2), 'seconds')
+
+    return read_length
+
+
+def compute_time_voltage_vectors(resetV, numreset, setV, numset, pulse_length, readV, read_length, dt):
+    input_pulses = set_pulse(resetV, numreset, setV, numset, pulse_length, readV, read_length)
+    iptVs = startup2(input_pulses)
+
+    time, voltage = interactive_iv(iptVs, dt)
+
+    return time, voltage
+
+
+def model_sim_with_params(pulse_length, resetV, numreset, setV, numset, readV, read_length, **params):
+    time, voltage = compute_time_voltage_vectors(resetV, numreset, setV, numset, pulse_length, readV, read_length,
+                                                 params['dt'])
+    x = np.zeros(voltage.shape, dtype=float)
+
+    for j in tqdm(range(1, len(x))):
+        x[j] = x[j - 1] + dxdt(voltage[j], x[j - 1], params['Ap'], params['An'], params['Vp'], params['Vn'],
+                               params['xp'],
+                               params['xn'], params['alphap'], params['alphan'], 1) * params['dt']
+        if x[j] < 0:
+            x[j] = 0
+        if x[j] > 1:
+            x[j] = 1
+
+    i = current(voltage, x,
+                params['gmax_p'], params['bmax_p'], params['gmax_n'], params['bmax_n'],
+                params['gmin_p'], params['bmin_p'], params['gmin_n'], params['bmin_n'])
+    r = np.divide(voltage, i, out=np.zeros(voltage.shape, dtype=float), where=i != 0)
+
+    return time, voltage, i, r, x
+
+
+def set_pulse(resetV, num_reset, setV, num_set, pulse_length, readV, read_length):
     print('------------------')
     print('RESET:', resetV, 'V')
     print('SET:', setV, 'V')
     print('Pulse length:', pulse_length, 's')
     print('READ:', readV, 'V')
+    print('READ length:', read_length, 's')
 
     # FORMAT
     # "t_rise", "t_on":, "t_fall", "t_off", "V_on", "V_off", "n_cycles"
     return f""".001 120 .001 .01 1 0 1
-.001 {pulse_length} .001 .4 {resetV} {readV} 10   
-.001 {pulse_length} .001 .4 {setV} {readV} 10"""
+.001 {pulse_length} .001 {read_length} {resetV} {readV} {num_reset}   
+.001 {pulse_length} .001 {read_length} {setV} {readV} {num_set}"""
 
 
 def find_peaks(r, voltage, readV, dt=0.001, consider_from=120, debug=False):
@@ -47,7 +91,15 @@ def find_peaks(r, voltage, readV, dt=0.001, consider_from=120, debug=False):
     return peaks
 
 
-def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='pulse', show_peaks=False, model=None):
+def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='pulse', show_peaks=False, model=None,
+                consider_from=None):
+    if consider_from is not None:
+        time = time[consider_from:]
+        voltage = voltage[consider_from:]
+        i = i[consider_from:]
+        r = r[consider_from:]
+        x = x[consider_from:]
+
     peaks = find_peaks(r, voltage, readV, debug=show_peaks)
 
     if plot_type == 'pulse':  # Plots regular resistance plot; Full plot + its local peaks.
@@ -59,37 +111,20 @@ def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='
             fig_plot = fig
             ax_plot = fig_plot.axes
         else:
-            fig_plot, ax_plot = plt.subplots(2, 1, figsize=(12, 10))
+            fig_plot, ax_plot = plt.subplots(1, 1, figsize=(6, 5))
 
-        ax_plot[0].plot(time, r, label=label)  # Solution otherwise.
-        ax_plot[0].twinx().plot(time, voltage, color='r', label='Voltage')  # Voltage.
+        ax_plot[0].plot(peaks, "o", fillstyle='none', label=label)
+        ax_plot[0].xaxis.set_major_locator(mticker.MultipleLocator(1))
         ax_plot[0].set_yscale("log")
-        ax_plot[0].set_title("Experiment pulses")
-        ax_plot[0].set_xlabel("Time (s)")
+        ax_plot[0].set_xlabel("Pulse number")
         ax_plot[0].set_ylabel("Resistance (Ohm)")
+        ax_plot[0].set_title("Resistance after 120 s SET")
         ax_plot[0].legend(loc='best')
 
-        ax_plot[1].plot(peaks, "o", fillstyle='none', label=label)
-        ax_plot[1].xaxis.set_major_locator(mticker.MultipleLocator(1))
-        ax_plot[1].set_yscale("log")
-        ax_plot[1].set_xlabel("Pulse number")
-        ax_plot[1].set_ylabel("Resistance (Ohm)")
-        ax_plot[1].set_title("Resistance after 120 s SET")
-        ax_plot[1].legend(loc='best')
-
         fig_plot.tight_layout()
 
         return fig_plot
-    elif plot_type == 'iv':  # Plots the IV curve.
-        fig_plot, ax_plot = plt.subplots(2, 1, figsize=(7, 5))
-        ax_plot[0].plot(time, i)
-        ax_plot[0].twinx().plot(time, voltage, color='r')
-        ax_plot[1].plot(voltage, i)
-        # ax_plot[1].set_ylim(-0.006, 0.006)
 
-        fig_plot.tight_layout()
-
-        return fig_plot
     elif plot_type == 'debug':
         assert model is not None
 
