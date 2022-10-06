@@ -229,10 +229,10 @@ for i in range( iterations ):
     with nengo.Simulator( learned_model_mpes ) as sim_mpes:
         print( "Learning network (mPES)" )
         sim_mpes.run( sim_time )
-    with nengo_dl.Simulator( control_model_pes, device=device ) as sim_pes:
+    with nengo.Simulator( control_model_pes ) as sim_pes:
         print( "Control network (PES)" )
         sim_pes.run( sim_time )
-    with nengo_dl.Simulator( control_model_nef, device=device ) as sim_nef:
+    with nengo.Simulator( control_model_nef ) as sim_nef:
         print( "Control network (NEF)" )
         sim_nef.run( sim_time )
     
