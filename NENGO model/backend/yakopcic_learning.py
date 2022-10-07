@@ -88,8 +88,8 @@ def find_spikes(input_activities, shape, output_activities=None, invert=False):
 def update_memristors2(update_steps, pos_memristors, neg_memristors, r):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        pos_memristors[update_steps > 0] -= r[update_steps > 0]
-        neg_memristors[update_steps < 0] -= r[update_steps < 0]
+        pos_memristors[update_steps > 0] = r[update_steps > 0]
+        neg_memristors[update_steps < 0] = r[update_steps < 0]
 
 
 def update_weights(V, weights, pos_memristors, neg_memristors, r_max, r_min, gain):
@@ -311,9 +311,9 @@ class SimmPES(Operator):
                 self.x = np.select([self.x < 0, self.x > 1], [0, 1], default=self.x)
 
                 # Calculate the current and the resistance for the devices
-                i = current(np.zeros(V.shape, dtype=float) * -1, self.x, self.gmax_p, self.bmax_p,
+                i = current(np.zeros(V.shape,dtype=float)*-1, self.x, self.gmax_p, self.bmax_p,
                             self.gmax_n, self.bmax_n, self.gmin_p, self.bmin_p, self.gmin_n, self.bmin_n)
-                r = np.divide(np.zeros(V.shape, dtype=float) * -1, i, out=np.zeros(V.shape, dtype=float), where=i != 0)
+                r = np.divide(np.zeros(V.shape,dtype=float)*-1, i, out=np.zeros(V.shape, dtype=float), where=i != 0)
                 # Clip the value of resistances beyond the [r_min, r_max] range
                 r = np.select([r < self.r_min, r > self.r_max], [r_min, r_max], default=r)
 
@@ -333,6 +333,7 @@ class SimmPES(Operator):
 
                 elif self.pulse == 22000 and self.debug:
                     debugger_plots(self.currents, self.xs, self.rs, self.pulse)
+                    self.debug = False
 
                 else:
                     self.pulse += 1
@@ -384,7 +385,7 @@ def build_mpes(model, mpes, rule):
     gmax_p = np.random.normal(0.0004338454236, 0.00006433347881, (encoders.shape[0], acts.shape[0]))
     gmin_n = np.random.normal(1.6806214980624974e-07, 0.000001269628401, (encoders.shape[0], acts.shape[0]))
     gmin_p = np.random.normal(0.03135053798, 0.01128684089, (encoders.shape[0], acts.shape[0]))
-    x0 = np.random.normal(0, 0, (encoders.shape[0], acts.shape[0]))
+    x0 = np.random.normal(0.5, 0.5 * 0.1, (encoders.shape[0], acts.shape[0]))
     xn = np.random.normal(0.1433673316, 0.007340350194, (encoders.shape[0], acts.shape[0]))
     xp = np.random.normal(0.11, 0, (encoders.shape[0], acts.shape[0]))
 
