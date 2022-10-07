@@ -292,7 +292,7 @@ def update(event):
     time = experiment.simulation["time"]
 
     # Read updated voltage from sliders
-    experiment.input_function.vp = slider_vp.val
+    experiment.input_function.setV = slider_vp.val
     experiment.input_function.vn = slider_vn.val
     experiment.input_function.frequency = slider_frequency.val
 

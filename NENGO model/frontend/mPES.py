@@ -308,3 +308,27 @@ if show_plots:
 
     for fig in plots.values():
         fig.show()
+
+# -- evaluate number of memristor pulses over simulation
+for c in sim.model.operators:
+    if c.__class__.__name__ == 'SimmPES':
+        break
+pos_pulse_counter = c.pos_pulse_counter
+neg_pulse_counter = c.neg_pulse_counter
+print('Average SET pulses', np.mean(pos_pulse_counter))
+print('Average RESET pulses', np.mean(neg_pulse_counter))
+
+# -- evaluate the average length of consecutive reset or set pulses
+from itertools import groupby, product
+
+pulse_archive = np.array(c.pulse_archive)
+lengths_set = []
+lengths_reset = []
+for i, j in product(range(pulse_archive.shape[1]), range(pulse_archive.shape[2])):
+    for k, g in groupby(pulse_archive[:, i, j]):
+        if k == 1:
+            lengths_set.append(len(list(g)))
+        elif k == -1:
+            lengths_reset.append(len(list(g)))
+print('Average length of consecutive SET pulses', np.mean(lengths_set))
+print('Average length of consecutive RESET pulses', np.mean(lengths_reset))

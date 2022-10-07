@@ -220,6 +220,10 @@ class SimmPES(Operator):
         self.debug = False
         self.initial_state = initial_state
 
+        self.pos_pulse_counter = np.zeros_like(x0)
+        self.neg_pulse_counter = np.zeros_like(x0)
+        self.pulse_archive = []
+
         self.sets = []
         self.incs = []
         self.reads = [pre_filtered, error]
@@ -286,6 +290,17 @@ class SimmPES(Operator):
                 pes_delta[spiked_map] = 0
 
                 V = np.sign(pes_delta) * 3.9391770020717187
+
+                # -- count pulses given to each memristor
+                pos_temp = np.sign(pes_delta)
+                pos_temp[pos_temp < 0] = 0
+                neg_temp = np.sign(pes_delta)
+                neg_temp[neg_temp > 0] = 0
+                neg_temp = np.abs(neg_temp)
+                self.pos_pulse_counter += pos_temp
+                self.neg_pulse_counter += neg_temp
+
+                self.pulse_archive.append(np.sign(pes_delta))
                 # print("V: ", V, "\n")
 
                 # Calculate the state variables at a current timestep
@@ -296,9 +311,9 @@ class SimmPES(Operator):
                 self.x = np.select([self.x < 0, self.x > 1], [0, 1], default=self.x)
 
                 # Calculate the current and the resistance for the devices
-                i = current(np.zeros(V.shape,dtype=float)*-1, self.x, self.gmax_p, self.bmax_p,
+                i = current(np.zeros(V.shape, dtype=float) * -1, self.x, self.gmax_p, self.bmax_p,
                             self.gmax_n, self.bmax_n, self.gmin_p, self.bmin_p, self.gmin_n, self.bmin_n)
-                r = np.divide(np.zeros(V.shape,dtype=float)*-1, i, out=np.zeros(V.shape, dtype=float), where=i != 0)
+                r = np.divide(np.zeros(V.shape, dtype=float) * -1, i, out=np.zeros(V.shape, dtype=float), where=i != 0)
                 # Clip the value of resistances beyond the [r_min, r_max] range
                 r = np.select([r < self.r_min, r > self.r_max], [r_min, r_max], default=r)
 
