@@ -1,51 +1,60 @@
 import random
 
-from experiment_setup import *
-from yakopcic_functions import *
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-import numpy as np
+import json
+from functions import *
 
-model = Memristor_Alina
+model = json.load(open('../../../fitted/fitting_pulses/regress_negative_xp_alphap-adjusted_ap_an'))
+iterations = 200
+
 R0 = 1e8
-vp = 1
+x0 = 0.6251069761800688
+setV = 3.86621037038006
+resetV = -8.135891404816215
+readV = -1
 
-random.seed(8)
-def compact_learning(v, x):
-    x = x + dxdt(v, x, model['Ap'], model['An'], model['Vp'], model['Vn'], model['xp'],
+
+# random.seed(8)
+
+
+def one_step_yakopcic(voltage, x, readV, **params):
+    x = x + dxdt(voltage, x, model['Ap'], model['An'], model['Vp'], model['Vn'], model['xp'],
                  model['xn'], model['alphap'], model['alphan'], 1) * model['dt']
     if x < 0:
         x = 0
     if x > 1:
         x = 1
 
-    i = current(v, x, model['gmax_p'], model['bmax_p'], model['gmax_n'], model['bmax_n'], model['gmin_p'],
-                model['bmin_p'],
-                model['gmin_n'], model['bmin_n'])
-    return x, v / i
+    i = current(readV, x,
+                params['gmax_p'], params['bmax_p'], params['gmax_n'], params['bmax_n'],
+                params['gmin_p'], params['bmin_p'], params['gmin_n'], params['bmin_n'])
+    r = voltage / i
+
+    return x, r
 
 
-for vn in tqdm(np.linspace(-2, -1, 11)): # Simulates the 0.1V step.
-    R_p = [R0]
-    R_n = [R0]
-    x_p = 0
-    x_n = 0
-    for j in range(5000):
-
+for train_length in [1, 10, 100]:
+    x_p = x0
+    x_n = x0
+    R_p = []
+    R_n = []
+    for j in tqdm(range(int(iterations / train_length))):
         if random.random() < .5:
-            x_p, r_p = compact_learning(vp, x_p)
-            R_p.insert(0, r_p)
-            x_n, r_n = compact_learning(vn, x_n)
-            R_n.insert(0, r_n)
+            for _ in range(train_length):
+                x_p, r_p = one_step_yakopcic(setV, x_p, readV, **model)
+                x_n, r_n = one_step_yakopcic(resetV, x_n, readV, **model)
+                R_p.append(r_p)
+                R_n.append(r_n)
         else:
-            x_p, r_p = compact_learning(vn, x_p)
-            R_p.insert(0, r_p)
-            x_n, r_n = compact_learning(vp, x_n)
-            R_n.insert(0, r_n)
-    R_p.reverse()
-    R_n.reverse()
+            for _ in range(train_length):
+                x_p, r_p = one_step_yakopcic(resetV, x_p, readV, **model)
+                x_n, r_n = one_step_yakopcic(setV, x_n, readV, **model)
+                R_p.append(r_p)
+                R_n.append(r_n)
     Wcombined = [x - y for x, y in zip([1 / x for x in R_p], [1 / x for x in R_n])]
-    plt.plot(Wcombined)
-    plt.ylabel("w")
-    plt.xlabel("Pulse #")
+    plt.plot(Wcombined, alpha=.5, label=f'{train_length} train')
+
+plt.ylabel("w")
+plt.xlabel("Pulse #")
+plt.title('Differential synaptic weight')
+plt.legend()
 plt.show()

@@ -7,7 +7,9 @@ from functions import *
 from order_of_magnitude import order_of_magnitude
 from scipy.optimize import curve_fit
 
-p100mv_old = np.loadtxt('/Users/thomas/Desktop/+0.1V.csv', delimiter=',', usecols=1)
+# p100mv_old = np.loadtxt('/Users/thomas/Desktop/+0.1V.csv', delimiter=',', usecols=1)
+p100mv_old = np.loadtxt('../../../raw_data/pulses/m4V_10x_positive_pulse_p100mV-1V_m1V_measure_resistance.txt',
+                        usecols=10, skiprows=2)[10:]
 p100mv = np.loadtxt(
     "../../../raw_data/pulses/hold_p1V_10x_negative pulse_m4V_10x_positive_pulse_p100mV_m1V_measure.txt",
     delimiter="\t", skiprows=1, usecols=[1])[10:]
@@ -33,7 +35,7 @@ model = {
     "xn": 0.1433673316,
     "xp": 0.4810738043615987
 }
-iterations = 1000
+iterations = 10
 
 
 def func(x, a, b, c):
@@ -81,7 +83,7 @@ ax.plot(x, func(x, *popt_new), label='Fit to new data')
 ax.plot(x, func(x, *popt_old), label='Fit to old data')
 ax.plot(r_pl, label='Power-law')
 ax.plot(r_yk, label='Yakopcic')
-ax.plot(p100mv_old, label='Old data TBC')
+ax.plot(p100mv_old, label='Old data')
 ax.plot(p100mv, label='New data')
 
 plt.title('Memristor resistance')

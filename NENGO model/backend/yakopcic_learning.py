@@ -217,8 +217,12 @@ class SimmPES(Operator):
         self.currents = []
         self.xs = []
         self.rs = []
-        self.debug = True
+        self.debug = False
         self.initial_state = initial_state
+
+        self.pos_pulse_counter = np.zeros_like(x0)
+        self.neg_pulse_counter = np.zeros_like(x0)
+        self.pulse_archive = []
 
         self.sets = []
         self.incs = []
@@ -286,7 +290,18 @@ class SimmPES(Operator):
                 pes_delta[spiked_map] = 0
 
                 V = np.sign(pes_delta) * 3.9391770020717187
-                #print("V: ", V, "\n")
+
+                # -- count pulses given to each memristor
+                pos_temp = np.sign(pes_delta)
+                pos_temp[pos_temp < 0] = 0
+                neg_temp = np.sign(pes_delta)
+                neg_temp[neg_temp > 0] = 0
+                neg_temp = np.abs(neg_temp)
+                self.pos_pulse_counter += pos_temp
+                self.neg_pulse_counter += neg_temp
+
+                self.pulse_archive.append(np.sign(pes_delta))
+                # print("V: ", V, "\n")
 
                 # Calculate the state variables at a current timestep
                 np.seterr(all="raise")
@@ -294,7 +309,7 @@ class SimmPES(Operator):
                                        self.xp, self.xn, self.alphap, self.alphan, 1) * dt
                 # Clip the value of state variables beyond the [0,1] range
                 self.x = np.select([self.x < 0, self.x > 1], [0, 1], default=self.x)
-                #print("X: ", self.x, "\n")
+
                 # Calculate the current and the resistance for the devices
                 V_read = -1 * np.divide(V, V, out=np.zeros(V.shape, dtype=float), where= V!=0)
                 i = current(V_read, self.x, self.gmax_p, self.bmax_p,
@@ -374,6 +389,10 @@ def build_mpes(model, mpes, rule):
     gmin_n = np.random.normal(1.6806214980624974e-07, 0.000001269628401, (encoders.shape[0], acts.shape[0]))
     gmin_p = np.random.normal(0.03135053798, 0.01128684089, (encoders.shape[0], acts.shape[0]))
     x0 = np.random.normal(0.6251069761800688, 0.6251069761800688 * 0.15, (encoders.shape[0], acts.shape[0]))
+    # TODO Simulation encounters an error when x0 is set above 0.5
+    x0_1 = get_truncated_normal(0.6251069761800688, 0.6251069761800688 * 0.05, 0, 1, encoders.shape[0], acts.shape[0])
+    x0_2 = get_truncated_normal(0.5, 0.5 * 0.15, 0, 1, encoders.shape[0], acts.shape[0])
+    x0 = np.random.normal(0.5, 0.15, (encoders.shape[0], acts.shape[0]))
     xn = np.random.normal(0.1433673316, 0.007340350194, (encoders.shape[0], acts.shape[0]))
     xp = np.random.normal(0.11, 0, (encoders.shape[0], acts.shape[0]))
 
