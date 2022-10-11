@@ -26,8 +26,8 @@ parser.add_argument("-N", "--neurons", nargs="*", default=[10], action="store", 
                     help="The number of neurons used in the Ensembles [pre, post, error].  Default is 10")
 parser.add_argument("-D", "--dimensions", default=3, type=int,
                     help="The number of dimensions of the input signal")
-parser.add_argument("-n", "--noise", nargs="*", default=0.0, type=float,
-                    help="The noise on the simulated memristors [R_0, R_1, c, R_init]  Default is 0.15")
+parser.add_argument("-n", "--noise", nargs="*", default=0.15, type=float,
+                    help="The noise on the simulated memristors.  Default is 0.15")
 parser.add_argument("-g", "--gain", default=1e5, type=float)  # default chosen by parameter search experiments
 parser.add_argument("-l", "--learning_rule", default="mPES", choices=["mPES", "PES"])
 parser.add_argument("-P", "--parameters", default=Default, type=float,
@@ -47,7 +47,6 @@ parser.add_argument("-lt", "--learn_time", default=3 / 4, type=float)
 parser.add_argument('--probe', default=1, choices=[0, 1, 2], type=int,
                     help="0: probing disabled, 1: only probes to calculate statistics, 2: all probes active")
 
-# TODO read parameters from conf file https://docs.python.org/3/library/configparser.html
 args = parser.parse_args()
 seed = args.seed
 tf.random.set_seed(seed)
@@ -164,8 +163,7 @@ with model:
         conn.learning_rule_type = mPES(
             noisy=noise_percent,
             gain=gain,
-            seed=seed,
-            exponent=exponent)
+            seed=seed, )
     if learning_rule == "PES":
         conn.learning_rule_type = PES()
     printlv2("Simulating with", conn.learning_rule_type)
@@ -228,14 +226,39 @@ if probe > 0:
     printlv1(mse.tolist())
     # Correlation coefficients after learning
     correlation_coefficients = correlations(function_to_learn(y_true), y_pred)
-    printlv2("Pearson correlation after learning [f(pre) vs. post]:")
-    printlv1(correlation_coefficients[0])
     printlv2("Spearman correlation after learning [f(pre) vs. post]:")
     printlv1(correlation_coefficients[1])
-    printlv2("Kendall correlation after learning [f(pre) vs. post]:")
-    printlv1(correlation_coefficients[2])
     printlv2("MSE-to-rho after learning [f(pre) vs. post]:")
     printlv1(mse_to_rho_ratio(mse, correlation_coefficients[1]))
+
+    if isinstance(conn.learning_rule_type, mPES):
+        # -- evaluate number of memristor pulses over simulation
+        for c in sim.model.operators:
+            if c.__class__.__name__ == 'SimmPES':
+                break
+        pos_pulse_counter = c.pos_pulse_counter
+        neg_pulse_counter = c.neg_pulse_counter
+        printlv2('Average number of SET pulses')
+        printlv1(np.mean(pos_pulse_counter))
+        printlv2('Average number of RESET pulses')
+        printlv1(np.mean(neg_pulse_counter))
+
+        # -- evaluate the average length of consecutive reset or set pulses
+        from itertools import groupby, product
+
+        pulse_archive = np.array(c.pulse_archive)
+        lengths_set = []
+        lengths_reset = []
+        for i, j in product(range(pulse_archive.shape[1]), range(pulse_archive.shape[2])):
+            for k, g in groupby(pulse_archive[:, i, j]):
+                if k == 1:
+                    lengths_set.append(len(list(g)))
+                elif k == -1:
+                    lengths_reset.append(len(list(g)))
+        printlv2('Average length of consecutive SET pulses')
+        printlv1(np.mean(lengths_set))
+        printlv2('Average length of consecutive RESET pulses')
+        printlv1(np.mean(lengths_reset))
 
 if probe > 1:
     # Average
@@ -308,27 +331,3 @@ if show_plots:
 
     for fig in plots.values():
         fig.show()
-
-# -- evaluate number of memristor pulses over simulation
-for c in sim.model.operators:
-    if c.__class__.__name__ == 'SimmPES':
-        break
-pos_pulse_counter = c.pos_pulse_counter
-neg_pulse_counter = c.neg_pulse_counter
-print('Average SET pulses', np.mean(pos_pulse_counter))
-print('Average RESET pulses', np.mean(neg_pulse_counter))
-
-# -- evaluate the average length of consecutive reset or set pulses
-from itertools import groupby, product
-
-pulse_archive = np.array(c.pulse_archive)
-lengths_set = []
-lengths_reset = []
-for i, j in product(range(pulse_archive.shape[1]), range(pulse_archive.shape[2])):
-    for k, g in groupby(pulse_archive[:, i, j]):
-        if k == 1:
-            lengths_set.append(len(list(g)))
-        elif k == -1:
-            lengths_reset.append(len(list(g)))
-print('Average length of consecutive SET pulses', np.mean(lengths_set))
-print('Average length of consecutive RESET pulses', np.mean(lengths_reset))

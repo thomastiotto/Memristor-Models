@@ -36,10 +36,12 @@ print("Evaluation for", learning_rule)
 print("Averaging runs", num_averaging)
 
 res_mse = []
-res_pearson = []
 res_spearman = []
-res_kendall = []
 res_mse_to_rho = []
+res_number_set_pulses = []
+res_number_reset_pulses = []
+res_set_pulse_train_length = []
+res_reset_pulse_train_length = []
 counter = 0
 for avg in range(num_averaging):
     counter += 1
@@ -57,32 +59,44 @@ for avg in range(num_averaging):
         mse = np.mean([float(i) for i in result.stdout.split("\n")[0][1:-1].split(",")])
         print("MSE", mse)
         res_mse.append(mse)
-        pearson = np.mean([float(i) for i in result.stdout.split("\n")[1][1:-1].split(",")])
-        print("Pearson", pearson)
-        res_pearson.append(pearson)
-        spearman = np.mean([float(i) for i in result.stdout.split("\n")[2][1:-1].split(",")])
+        spearman = np.mean([float(i) for i in result.stdout.split("\n")[1][1:-1].split(",")])
         print("Spearman", spearman)
         res_spearman.append(spearman)
-        kendall = np.mean([float(i) for i in result.stdout.split("\n")[3][1:-1].split(",")])
-        print("Kendall", kendall)
-        res_kendall.append(kendall)
-        mse_to_rho = np.mean([float(i) for i in result.stdout.split("\n")[4][1:-1].split(",")])
+        mse_to_rho = np.mean([float(i) for i in result.stdout.split("\n")[2][1:-1].split(",")])
         print("MSE-to-rho", mse_to_rho)
         res_mse_to_rho.append(mse_to_rho)
+
+        number_set_pulses = np.mean([float(i) for i in result.stdout.split("\n")[3].split(",")])
+        print("Number of SET pulses", number_set_pulses)
+        res_number_set_pulses.append(number_set_pulses)
+        number_reset_pulses = np.mean([float(i) for i in result.stdout.split("\n")[4].split(",")])
+        print("Number of RESET pulses", number_reset_pulses)
+        res_number_reset_pulses.append(number_reset_pulses)
+        set_pulse_train_length = np.mean([float(i) for i in result.stdout.split("\n")[5].split(",")])
+        print("SET pulse train length", set_pulse_train_length)
+        res_set_pulse_train_length.append(set_pulse_train_length)
+        reset_pulse_train_length = np.mean([float(i) for i in result.stdout.split("\n")[6].split(",")])
+        print("RESET pulse train length", reset_pulse_train_length)
+        res_reset_pulse_train_length.append(reset_pulse_train_length)
+
     except:
         print("Ret", result.returncode)
         print("Out", result.stdout)
         print("Err", result.stderr)
 mse_means = np.mean(res_mse)
-pearson_means = np.mean(res_pearson)
 spearman_means = np.mean(res_spearman)
-kendall_means = np.mean(res_kendall)
 mse_to_rho_means = np.mean(res_mse_to_rho)
 print("Average MSE:", mse_means)
-print("Average Pearson:", pearson_means)
 print("Average Spearman:", spearman_means)
-print("Average Kendall:", kendall_means)
 print("Average MSE-to-rho:", mse_to_rho_means)
+number_set_pulses_means = np.mean(res_number_set_pulses)
+print("Average number of SET pulses:", number_set_pulses_means)
+number_reset_pulses_means = np.mean(res_number_reset_pulses)
+print("Average number of RESET pulses:", number_reset_pulses_means)
+set_pulse_train_length_means = np.mean(res_set_pulse_train_length)
+print("Average SET pulse train length:", set_pulse_train_length_means)
+reset_pulse_train_length_means = np.mean(res_reset_pulse_train_length)
+print("Average RESET pulse train length:", reset_pulse_train_length_means)
 
 res_list = range(num_averaging)
 
@@ -94,16 +108,14 @@ fig.savefig(dir_images + "mse" + ".pdf")
 
 fig = plt.figure()
 ax = fig.add_subplot(111)
-ax.plot(res_list, res_pearson, label="Pearson")
 ax.plot(res_list, res_spearman, label="Spearman")
-ax.plot(res_list, res_kendall, label="Kendall")
 ax.legend()
 fig.savefig(dir_images + "correlations" + ".pdf")
 
 print(f"Saved plots in {dir_images}")
 
 np.savetxt(dir_data + "results.csv",
-           np.stack((res_mse, res_pearson, res_spearman, res_kendall, res_mse_to_rho), axis=1),
+           np.stack((res_mse, res_spearman, res_mse_to_rho), axis=1),
            delimiter=",", header="MSE,Pearson,Spearman,Kendall,MSE-to-rho", comments="")
 with open(dir_data + "parameters.txt", "w") as f:
     f.write(f"Learning rule: {learning_rule}\n")

@@ -11,60 +11,80 @@ from debug_plots import debugger_plots
 from yakopcic_functions import *
 
 
-def initialise_memristors2(rule, in_size, out_size, An, Ap, Vn, Vp, alphan, alphap, bmax_n, bmax_p, bmin_n, bmin_p,
-                           gmax_n, gmax_p, gmin_n, gmin_p, x0, xn, xp):
-    exponent = 0
-    r_min = np.full((out_size, in_size), rule.r_min)
-    r_max = np.full((out_size, in_size), rule.r_max)
-    R = np.full((out_size, in_size), rule.r_min)
-    V = np.full((out_size, in_size), -4)
-    x = x0
-    r = np.full((out_size, in_size), rule.r_min)
+def initialise_yakopcic_memristors(x0, bmax_n, bmax_p, bmin_n, bmin_p, gmax_n, gmax_p, gmin_n, gmin_p,
+                                   rule, in_size, out_size):
+    V_read = -1
+    i = current(V_read, x0, gmax_p, bmax_p,
+                gmax_n, bmax_n, gmin_p, bmin_p, gmin_n, bmin_n)
+    r = np.divide(V_read, i)
 
-    for N in range(0, 10):
-        x = x + dxdt(np.abs(V), x, Ap, An, Vp, Vn,
-                     xp, xn, alphap, alphan, 1) * 0.001
-        # Clip the value of state variables beyond the [0,1] range
-        x = np.select([x < 0, x > 1], [0, 1], default=x)
-
-        # Calculate the current and the resistance for the devices
-        i = current(np.abs(V), x, gmax_p, bmax_p,
-                    gmax_n, bmax_n, gmin_p, bmin_p, gmin_n, bmin_n)
-        r = np.divide(np.abs(V), i, out=np.zeros(V.shape, dtype=float), where=i != 0)
-        # Clip the value of resistances beyond the [r_min, r_max] range
-        r = np.select([r < rule.r_min, r > rule.r_max], [rule.r_min, rule.r_max], default=r)
-    R = r
-
+    # TODO we actually have two sets of memristors each with its separate parameters
     pos_memristors = Signal(shape=(out_size, in_size), name=f"{rule}:pos_memristors",
-                            initial_value=R)
+                            initial_value=r)
     neg_memristors = Signal(shape=(out_size, in_size), name=f"{rule}:neg_memristors",
-                            initial_value=R)
-    print(r)
+                            initial_value=r)
 
-    return pos_memristors, neg_memristors, r_min, r_max, exponent
+    return pos_memristors, neg_memristors
 
 
-def initialise_memristors(rule, in_size, out_size):
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        np.random.seed(rule.seed)
-        r_min_noisy = get_truncated_normal(rule.r_min, rule.r_min * rule.noise_percentage[0],
-                                           0, np.inf, out_size, in_size)
-        np.random.seed(rule.seed)
-        r_max_noisy = get_truncated_normal(rule.r_max, rule.r_max * rule.noise_percentage[1],
-                                           np.max(r_min_noisy), np.inf, out_size, in_size)
-        exponent_noisy = 0
+def initialise_yakopcic_model(noise_percentage, encoders, acts):
+    # -- parameters ofund with pulse_experiment_1s_to_1ms.py
+    yakopcic_model = json.load(open('../../fitted/fitting_pulses/regress_negative_xp_alphap-adjusted_ap_an'))
 
-    np.random.seed(rule.seed)
-    pos_mem_initial = np.full((out_size, in_size), 1e8)
-    neg_mem_initial = np.full((out_size, in_size), 1e8)
+    An = get_truncated_normal(yakopcic_model['An'], yakopcic_model['An'] * noise_percentage,
+                              0, np.inf,
+                              encoders.shape[0], acts.shape[0])
+    Ap = get_truncated_normal(yakopcic_model['Ap'], yakopcic_model['Ap'] * noise_percentage,
+                              0, np.inf,
+                              encoders.shape[0], acts.shape[0])
+    Vn = get_truncated_normal(yakopcic_model['Vn'], yakopcic_model['Vn'] * noise_percentage,
+                              0, np.inf,
+                              encoders.shape[0], acts.shape[0])
+    Vp = get_truncated_normal(yakopcic_model['Vp'], yakopcic_model['Vp'] * noise_percentage,
+                              0, np.inf,
+                              encoders.shape[0], acts.shape[0])
+    alphan = get_truncated_normal(yakopcic_model['alphan'], yakopcic_model['alphan'] * noise_percentage,
+                                  0, np.inf,
+                                  encoders.shape[0], acts.shape[0])
+    alphap = get_truncated_normal(yakopcic_model['alphap'], yakopcic_model['alphap'] * noise_percentage,
+                                  0, np.inf,
+                                  encoders.shape[0], acts.shape[0])
+    bmax_n = get_truncated_normal(yakopcic_model['bmax_n'], yakopcic_model['bmax_n'] * noise_percentage,
+                                  0, np.inf,
+                                  encoders.shape[0], acts.shape[0])
+    bmax_p = get_truncated_normal(yakopcic_model['bmax_p'], yakopcic_model['bmax_p'] * noise_percentage,
+                                  0, np.inf,
+                                  encoders.shape[0], acts.shape[0])
+    bmin_n = get_truncated_normal(yakopcic_model['bmin_n'], yakopcic_model['bmin_n'] * noise_percentage,
+                                  0, np.inf,
+                                  encoders.shape[0], acts.shape[0])
+    bmin_p = get_truncated_normal(yakopcic_model['bmin_p'], yakopcic_model['bmin_p'] * noise_percentage,
+                                  0, np.inf,
+                                  encoders.shape[0], acts.shape[0])
+    gmax_n = get_truncated_normal(yakopcic_model['gmax_n'], yakopcic_model['gmax_n'] * noise_percentage,
+                                  0, np.inf,
+                                  encoders.shape[0], acts.shape[0])
+    gmax_p = get_truncated_normal(yakopcic_model['gmax_p'], yakopcic_model['gmax_p'] * noise_percentage,
+                                  0, np.inf,
+                                  encoders.shape[0], acts.shape[0])
+    gmin_n = get_truncated_normal(yakopcic_model['gmin_n'], yakopcic_model['gmin_n'] * noise_percentage,
+                                  0, np.inf,
+                                  encoders.shape[0], acts.shape[0])
+    gmin_p = get_truncated_normal(yakopcic_model['gmin_p'], yakopcic_model['gmin_p'] * noise_percentage,
+                                  0, np.inf,
+                                  encoders.shape[0], acts.shape[0])
+    xn = get_truncated_normal(yakopcic_model['xn'], yakopcic_model['xn'] * noise_percentage,
+                              0, np.inf,
+                              encoders.shape[0], acts.shape[0])
+    xp = get_truncated_normal(yakopcic_model['xp'], yakopcic_model['xp'] * noise_percentage,
+                              0, np.inf,
+                              encoders.shape[0], acts.shape[0])
+    # -- obtained from pulse_experiment_1s_to_1ms.py
+    x0 = get_truncated_normal(0.6251069761800688, 0.6251069761800688 * noise_percentage,
+                              0, 1,
+                              encoders.shape[0], acts.shape[0])
 
-    pos_memristors = Signal(shape=(out_size, in_size), name=f"{rule}:pos_memristors",
-                            initial_value=pos_mem_initial)
-    neg_memristors = Signal(shape=(out_size, in_size), name=f"{rule}:neg_memristors",
-                            initial_value=neg_mem_initial)
-
-    return pos_memristors, neg_memristors, r_min_noisy, r_max_noisy, exponent_noisy
+    return An, Ap, Vn, Vp, alphan, alphap, bmax_n, bmax_p, bmin_n, bmin_p, gmax_n, gmax_p, gmin_n, gmin_p, xn, xp, x0
 
 
 def find_spikes(input_activities, shape, output_activities=None, invert=False):
@@ -85,24 +105,16 @@ def find_spikes(input_activities, shape, output_activities=None, invert=False):
     return out if not invert else np.logical_not(out)
 
 
-def update_memristors2(update_steps, pos_memristors, neg_memristors, r):
+def update_memristors(V, pos_memristors, neg_memristors, r):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        pos_memristors[update_steps > 0] = r[update_steps > 0]
-        neg_memristors[update_steps < 0] = r[update_steps < 0]
+        pos_memristors[V > 0] = r[V > 0]
+        neg_memristors[V < 0] = r[V < 0]
 
 
-def update_weights(V, weights, pos_memristors, neg_memristors, r_max, r_min, gain):
-    weights[V > 0] = gain * \
-                     (resistance2conductance(pos_memristors[V > 0], r_min[V > 0],
-                                             r_max[V > 0])
-                      - resistance2conductance(neg_memristors[V > 0], r_min[V > 0],
-                                               r_max[V > 0]))
-    weights[V < 0] = gain * \
-                     (resistance2conductance(pos_memristors[V < 0], r_min[V < 0],
-                                             r_max[V < 0])
-                      - resistance2conductance(neg_memristors[V < 0], r_min[V < 0],
-                                               r_max[V < 0]))
+def update_weights(V, weights, pos_memristors, neg_memristors, gain):
+    weights[V > 0] = gain * 1 / pos_memristors[V > 0] - 1 / neg_memristors[V > 0]
+    weights[V < 0] = gain * 1 / pos_memristors[V < 0] - 1 / neg_memristors[V < 0]
 
 
 class mPES(LearningRuleType):
@@ -110,18 +122,12 @@ class mPES(LearningRuleType):
     probeable = ("error", "activities", "delta", "pos_memristors", "neg_memristors")
 
     pre_synapse = SynapseParam("pre_synapse", default=Lowpass(tau=0.005), readonly=True)
-    r_max = NumberParam("r_max", readonly=True, default=1e8)
-    r_min = NumberParam("r_min", readonly=True, default=200)
-    exponent = NumberParam("exponent", readonly=True, default=-0.146)
     gain = NumberParam("gain", readonly=True, default=1e3)
-    voltage = NumberParam("voltage", readonly=True, default=1e-1)
+    voltage = NumberParam("voltage", readonly=True, default=0.1)
     initial_state = DictParam("initial_state", optional=True)
 
     def __init__(self,
                  pre_synapse=Default,
-                 r_max=Default,
-                 r_min=Default,
-                 exponent=Default,
                  noisy=False,
                  gain=Default,
                  voltage=Default,
@@ -130,14 +136,9 @@ class mPES(LearningRuleType):
         super().__init__(size_in="post_state")
 
         self.pre_synapse = pre_synapse
-        self.r_max = r_max
-        self.r_min = r_min
-        self.exponent = exponent
         if not noisy:
-            self.noise_percentage = np.zeros(4)
+            self.noise_percentage = 0
         elif isinstance(noisy, float) or isinstance(noisy, int):
-            self.noise_percentage = np.full(4, noisy)
-        elif isinstance(noisy, list) and len(noisy) == 4:
             self.noise_percentage = noisy
         else:
             raise ValueError(f"Noisy parameter must be int or list of length 4, not {type(noisy)}")
@@ -149,10 +150,7 @@ class mPES(LearningRuleType):
     @property
     def _argdefaults(self):
         return (
-            ("pre_synapse", mPES.pre_synapse.default),
-            ("r_max", mPES.r_max.default),
-            ("r_min", mPES.r_min.default),
-            ("exponent", mPES.exponent.default),
+            ("pre_synapse", mPES.pre_synapse.default)
         )
 
 
@@ -164,11 +162,7 @@ class SimmPES(Operator):
             pos_memristors,
             neg_memristors,
             weights,
-            noise_percentage,
             gain,
-            r_min,
-            r_max,
-            exponent,
             bmax_n,
             bmax_p,
             bmin_n,
@@ -193,9 +187,7 @@ class SimmPES(Operator):
 
         self.gain = gain
         self.error_threshold = 1e-5
-        self.r_min = r_min
-        self.r_max = r_max
-        self.exponent = exponent
+
         self.An = An
         self.Ap = Ap
         self.Vn = Vn
@@ -213,11 +205,10 @@ class SimmPES(Operator):
         self.xn = xn
         self.xp = xp
         self.x = x0
-        self.pulse = 0
+
         self.currents = []
         self.xs = []
         self.rs = []
-        self.debug = False
         self.initial_state = initial_state
 
         self.pos_pulse_counter = np.zeros_like(x0)
@@ -262,24 +253,15 @@ class SimmPES(Operator):
 
         gain = self.gain
         error_threshold = self.error_threshold
-        r_min = self.r_min
-        r_max = self.r_max
-        exponent = self.exponent
-        # print("shape of memristor: ", pos_memristors.shape)
 
         # overwrite initial transform with memristor-based weights
         if "weights" in self.initial_state:
             weights[:] = self.initial_state["weights"]
         else:
-            weights[:] = gain * \
-                         (resistance2conductance(pos_memristors, r_min, r_max)
-                          - resistance2conductance(neg_memristors, r_min, r_max))
-
-        self.min_error = self.max_error = 0
-        pulse_levels = 100
+            weights[:] = gain * 1 / pos_memristors - 1 / neg_memristors
 
         def step_simmpes():
-            # set update to zero if error is small or adjustments go on for ever
+            # set update to zero if error is small or adjustments go on forever
             # if error is small return zero delta
             if np.any(np.absolute(local_error) > error_threshold):
                 # calculate the magnitude of the update based on PES learning rule
@@ -289,7 +271,7 @@ class SimmPES(Operator):
                 spiked_map = find_spikes(pre_filtered, weights.shape, invert=True)
                 pes_delta[spiked_map] = 0
 
-                V = np.sign(pes_delta) * 3.9391770020717187
+                V = np.sign(pes_delta) * 3.86621037038006
 
                 # -- count pulses given to each memristor
                 pos_temp = np.sign(pes_delta)
@@ -311,37 +293,16 @@ class SimmPES(Operator):
                 self.x = np.select([self.x < 0, self.x > 1], [0, 1], default=self.x)
 
                 # Calculate the current and the resistance for the devices
-                V_read = -1 * np.divide(V, V, out=np.zeros(V.shape, dtype=float), where= V!=0)
+                V_read = -1
                 i = current(V_read, self.x, self.gmax_p, self.bmax_p,
                             self.gmax_n, self.bmax_n, self.gmin_p, self.bmin_p, self.gmin_n, self.bmin_n)
-                #print("I: ", i, "\n")
-                r = np.abs(np.divide(V_read, i, out=np.zeros(V.shape, dtype=float), where=i != 0))
-                #print("R pre-clip: ", r, "\n")
-                # Clip the value of resistances beyond the [r_min, r_max] range
-                r = np.select([r < self.r_min, r > self.r_max], [r_min, r_max], default=r)
+                r = np.divide(V_read, i, out=np.zeros(V.shape, dtype=float), where=i != 0)
 
                 # update the two memristor pairs
-                update_memristors2(V, pos_memristors, neg_memristors, r)
+                update_memristors(V, pos_memristors, neg_memristors, r)
 
                 # update network weights
-                update_weights(V, weights, pos_memristors, neg_memristors, r_max, r_min, gain)
-
-                # Debugging plots, show currents and state variables over simtime.
-                if self.pulse < 22000 and self.debug:
-                    self.currents.append(i)
-                    self.xs.append(self.x)
-                    self.rs.append(r)
-                    self.pulse += 1
-                    print("Pulse no: ", self.pulse)
-
-                elif self.pulse == 22000 and self.debug:
-                    debugger_plots(self.currents, self.xs, self.rs, self.pulse)
-                    self.debug = False
-
-                else:
-                    self.pulse += 1
-                    if self.debug:
-                        print(self.pulse)
+                update_weights(V, weights, pos_memristors, neg_memristors, gain)
 
         return step_simmpes
 
@@ -357,6 +318,7 @@ from nengo.builder.operator import Reset, DotInc, Copy
 
 from nengo_dl.builder import Builder, OpBuilder, NengoBuilder
 from nengo.builder import Builder as NengoCoreBuilder
+import json
 
 
 @NengoBuilder.register(mPES)
@@ -374,35 +336,13 @@ def build_mpes(model, mpes, rule):
     post = get_post_ens(conn)
     encoders = model.sig[post]["encoders"]
 
-    An = np.random.normal(0.02662694665, 0.001699912801, (encoders.shape[0], acts.shape[0]))
-    Ap = np.random.normal(0.49699999999999994, 0, (encoders.shape[0], acts.shape[0]))
-    Vn = np.random.normal(0, 0, (encoders.shape[0], acts.shape[0]))
-    Vp = np.random.normal(0, 0, (encoders.shape[0], acts.shape[0]))
-    alphan = np.random.normal(0.7013461469, 0.3752922588, (encoders.shape[0], acts.shape[0]))
-    alphap = np.random.normal(9.2, 0, (encoders.shape[0], acts.shape[0]))
-    bmax_n = np.random.normal(0.04662714454744514, 0.3250900701, (encoders.shape[0], acts.shape[0]))
-    bmax_p = np.random.normal(4.988561168, 0.1395977535, (encoders.shape[0], acts.shape[0]))
-    bmin_n = np.random.normal(0.044341659769156175, 0.1351036836, (encoders.shape[0], acts.shape[0]))
-    bmin_p = np.random.normal(0.002125127287, 0.001156594332, (encoders.shape[0], acts.shape[0]))
-    gmax_n = np.random.normal(5.117466299437892e-07, 0.0000009751307503, (encoders.shape[0], acts.shape[0]))
-    gmax_p = np.random.normal(0.0004338454236, 0.00006433347881, (encoders.shape[0], acts.shape[0]))
-    gmin_n = np.random.normal(1.6806214980624974e-07, 0.000001269628401, (encoders.shape[0], acts.shape[0]))
-    gmin_p = np.random.normal(0.03135053798, 0.01128684089, (encoders.shape[0], acts.shape[0]))
-    x0 = np.random.normal(0.6251069761800688, 0.6251069761800688 * 0.15, (encoders.shape[0], acts.shape[0]))
-    # TODO Simulation encounters an error when x0 is set above 0.5
-    x0_1 = get_truncated_normal(0.6251069761800688, 0.6251069761800688 * 0.05, 0, 1, encoders.shape[0], acts.shape[0])
-    x0_2 = get_truncated_normal(0.5, 0.5 * 0.15, 0, 1, encoders.shape[0], acts.shape[0])
-    #x0 = np.random.normal(0.5, 0.15, (encoders.shape[0], acts.shape[0]))
-    xn = np.random.normal(0.1433673316, 0.007340350194, (encoders.shape[0], acts.shape[0]))
-    xp = np.random.normal(0.11, 0, (encoders.shape[0], acts.shape[0]))
+    An, Ap, Vn, Vp, alphan, alphap, bmax_n, bmax_p, bmin_n, bmin_p, gmax_n, gmax_p, gmin_n, gmin_p, xn, xp, x0 = initialise_yakopcic_model(
+        mpes.noise_percentage, encoders, acts)
 
-    pos_memristors, neg_memristors, r_min_noisy, r_max_noisy, exponent_noisy = initialise_memristors(mpes,
-                                                                                                     acts.shape[0],
-                                                                                                     encoders.shape[
-                                                                                                         0])
-    # pos_memristors, neg_memristors, r_min_noisy, r_max_noisy, exponent_noisy = initialise_memristors2(mpes,
-    #                        acts.shape[0], encoders.shape[0], An, Ap, Vn, Vp, alphan, alphap,
-    #                        bmax_n, bmax_p, bmin_n, bmin_p, gmax_n, gmax_p, gmin_n, gmin_p, x0, xn, xp)
+    pos_memristors, neg_memristors = initialise_yakopcic_memristors(x0, bmax_n, bmax_p, bmin_n, bmin_p, gmax_n, gmax_p,
+                                                                    gmin_n, gmin_p,
+                                                                    mpes, acts.shape[0], encoders.shape[0])
+
     model.sig[conn]["pos_memristors"] = pos_memristors
     model.sig[conn]["neg_memristors"] = neg_memristors
 
@@ -427,11 +367,7 @@ def build_mpes(model, mpes, rule):
                 model.sig[conn]["pos_memristors"],
                 model.sig[conn]["neg_memristors"],
                 model.sig[conn]["weights"],
-                mpes.noise_percentage,
                 mpes.gain,
-                r_min_noisy,
-                r_max_noisy,
-                exponent_noisy,
                 bmax_n,
                 bmax_p,
                 bmin_n,
