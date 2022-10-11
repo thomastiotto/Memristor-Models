@@ -442,6 +442,10 @@ class Plotter():
                                    xycoords='figure fraction', ha='center',
                                    fontsize=20
                                    )
+        if self.n_rows > 4:
+            for ax in axes.flatten():
+                ax.set_xticklabels([])
+                ax.set_yticklabels([])
         # for ax in axes.flatten():
         #     ax.set_yscale("log")
         #     ax.set_yticklabels([])

@@ -26,7 +26,7 @@ parser.add_argument("-N", "--neurons", nargs="*", default=[10], action="store", 
                     help="The number of neurons used in the Ensembles [pre, post, error].  Default is 10")
 parser.add_argument("-D", "--dimensions", default=3, type=int,
                     help="The number of dimensions of the input signal")
-parser.add_argument("-n", "--noise", nargs="*", default=0.15, type=float,
+parser.add_argument("-n", "--noise", default=0.15, type=float,
                     help="The noise on the simulated memristors.  Default is 0.15")
 parser.add_argument("-g", "--gain", default=1e5, type=float)  # default chosen by parameter search experiments
 parser.add_argument("-l", "--learning_rule", default="mPES", choices=["mPES", "PES"])
@@ -324,10 +324,12 @@ if save_data:
     save_memristors_to_csv(dir_data, sim.data[pos_memr_probe], sim.data[neg_memr_probe])
     print(f"Saved data in {dir_data}")
 
-#     TODO save output txt with metrics
-
 if show_plots:
     assert generate_plots and probe > 1
 
     for fig in plots.values():
         fig.show()
+
+    # -- weights trajectory
+    plt.plot(np.mean(sim.data[weight_probe], axis=(1, 2)))
+    plt.show()
