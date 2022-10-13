@@ -5,6 +5,7 @@ from nengo.learning_rules import PES
 from nengo.params import Default
 from nengo.processes import WhiteSignal
 from sklearn.metrics import mean_squared_error
+from tqdm import tqdm
 
 from extras import *
 from yakopcic_learning import mPES
@@ -196,10 +197,10 @@ with model:
         weight_probe = nengo.Probe(conn, "weights", synapse=None, sample_every=sample_every)
         post_spikes_probe = nengo.Probe(post.neurons, sample_every=sample_every)
         if isinstance(conn.learning_rule_type, mPES):
-            pos_memr_probe = nengo.Probe(conn.learning_rule, "pos_memristors", synapse=None,
-                                         sample_every=sample_every)
-            neg_memr_probe = nengo.Probe(conn.learning_rule, "neg_memristors", synapse=None,
-                                         sample_every=sample_every)
+            x_pos_probe = nengo.Probe(conn.learning_rule, "x_pos", synapse=None,
+                                      sample_every=sample_every)
+            x_neg_probe = nengo.Probe(conn.learning_rule, "x_neg", synapse=None,
+                                      sample_every=sample_every)
 
 # Create the Simulator and run it
 printlv2(f"Backend is {backend}, running on ", end="")
@@ -215,6 +216,10 @@ with cm as sim:
         printlv2(f"\nRunning discretised step {i + 1} of {simulation_discretisation}")
         sim.run(sim_time / simulation_discretisation)
 printlv2(f"\nTotal time for simulation: {time.strftime('%H:%M:%S', time.gmtime(time.time() - start_time))} s")
+
+if isinstance(conn.learning_rule_type, mPES):
+    # -- evaluate number of memristor pulses over simulation
+    mpes_op = get_operator_from_sim(sim, 'SimmPES')
 
 if probe > 0:
     # essential statistics
@@ -233,11 +238,8 @@ if probe > 0:
 
     if isinstance(conn.learning_rule_type, mPES):
         # -- evaluate number of memristor pulses over simulation
-        for c in sim.model.operators:
-            if c.__class__.__name__ == 'SimmPES':
-                break
-        pos_pulse_counter = c.pos_pulse_counter
-        neg_pulse_counter = c.neg_pulse_counter
+        pos_pulse_counter = mpes_op.pos_pulse_counter
+        neg_pulse_counter = mpes_op.neg_pulse_counter
         printlv2('Average number of SET pulses')
         printlv1(np.mean(pos_pulse_counter))
         printlv2('Average number of RESET pulses')
@@ -246,10 +248,12 @@ if probe > 0:
         # -- evaluate the average length of consecutive reset or set pulses
         from itertools import groupby, product
 
-        pulse_archive = np.array(c.pulse_archive)
+        pulse_archive = np.array(mpes_op.pulse_archive)
         lengths_set = []
         lengths_reset = []
-        for i, j in product(range(pulse_archive.shape[1]), range(pulse_archive.shape[2])):
+        for i, j in tqdm(product(range(pulse_archive.shape[1]), range(pulse_archive.shape[2])),
+                         total=pulse_archive.shape[1] * pulse_archive.shape[2],
+                         desc='Calculating average number of consecutive pulses'):
             for k, g in groupby(pulse_archive[:, i, j]):
                 if k == 1:
                     lengths_set.append(len(list(g)))
@@ -301,10 +305,11 @@ if generate_plots and probe > 1:
     plots["testing"] = plotter.plot_testing(function_to_learn(sim.data[pre_probe]), sim.data[post_probe],
                                             smooth=False)
     if n_neurons <= 10 and learning_rule == "mPES":
-        plots["weights_mpes"] = plotter.plot_weights_over_time(sim.data[pos_memr_probe],
-                                                               sim.data[neg_memr_probe])
-        plots["memristors"] = plotter.plot_values_over_time(sim.data[pos_memr_probe], sim.data[neg_memr_probe],
-                                                            value="resistance")
+        # plots["weights_mpes"] = plotter.plot_weights_over_time(sim.data[x_pos_probe],
+        #
+        #                                                        sim.data[x_neg_probe])
+        res_pos, res_neg = mpes_op.compute_resistance(sim.data[x_pos_probe], sim.data[x_neg_probe])
+        plots["memristors"] = plotter.plot_values_over_time(res_pos, res_neg, value="resistance")
 
 if save_plots:
     assert generate_plots and probe > 1
@@ -321,7 +326,7 @@ if save_data:
 
     save_results_to_csv(dir_data, sim.data[input_node_probe], sim.data[pre_probe], sim.data[post_probe],
                         sim.data[post_probe] - function_to_learn(sim.data[pre_probe]))
-    save_memristors_to_csv(dir_data, sim.data[pos_memr_probe], sim.data[neg_memr_probe])
+    save_memristors_to_csv(dir_data, sim.data[x_pos_probe], sim.data[x_neg_probe])
     print(f"Saved data in {dir_data}")
 
 if show_plots:
@@ -332,4 +337,5 @@ if show_plots:
 
     # -- weights trajectory
     plt.plot(np.mean(sim.data[weight_probe], axis=(1, 2)))
+    plt.title("Average weight over time")
     plt.show()

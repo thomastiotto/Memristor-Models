@@ -60,13 +60,3 @@ def get_truncated_normal(mean, sd, low, upp, out_size, in_size):
             .reshape((out_size, in_size))
     except ZeroDivisionError:
         return np.full((out_size, in_size), mean)
-
-
-def resistance2conductance(R, r_min, r_max):
-    g_min = 1.0 / r_max
-    g_max = 1.0 / r_min
-    g_curr = 1.0 / R
-
-    g_norm = (g_curr - g_min) / (g_max - g_min)
-
-    return g_norm

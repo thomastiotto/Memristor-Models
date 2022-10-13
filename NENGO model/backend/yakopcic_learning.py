@@ -107,18 +107,16 @@ def find_spikes(input_activities, shape, output_activities=None, invert=False):
 
 class mPES(LearningRuleType):
     modifies = "weights"
-    probeable = ("error", "activities", "delta", "pos_memristors", "neg_memristors")
+    probeable = ("error", "activities", "delta", "x_pos", "x_neg")
 
     pre_synapse = SynapseParam("pre_synapse", default=Lowpass(tau=0.005), readonly=True)
-    gain = NumberParam("gain", readonly=True, default=1e3)
-    voltage = NumberParam("voltage", readonly=True, default=0.1)
+    gain = NumberParam("gain", readonly=True, default=5e6)
     initial_state = DictParam("initial_state", optional=True)
 
     def __init__(self,
                  pre_synapse=Default,
                  noisy=False,
                  gain=Default,
-                 voltage=Default,
                  initial_state=None,
                  seed=None):
         super().__init__(size_in="post_state")
@@ -129,9 +127,8 @@ class mPES(LearningRuleType):
         elif isinstance(noisy, float) or isinstance(noisy, int):
             self.noise_percentage = noisy
         else:
-            raise ValueError(f"Noisy parameter must be float or list of length 4, not {type(noisy)}")
+            raise ValueError(f"Noisy parameter must be float or an int, not {type(noisy)}")
         self.gain = gain
-        self.voltage = voltage
         self.seed = seed
         self.initial_state = {} if initial_state is None else initial_state
 
@@ -147,8 +144,6 @@ class SimmPES(Operator):
             self,
             pre_filtered,
             error,
-            pos_memristors,
-            neg_memristors,
             weights,
             gain,
             bmax_n_pos,
@@ -165,7 +160,7 @@ class SimmPES(Operator):
             alphap_pos,
             An_pos,
             Ap_pos,
-            x0_pos,
+            x_pos,
             xn_pos,
             xp_pos,
             bmax_n_neg,
@@ -182,7 +177,7 @@ class SimmPES(Operator):
             alphap_neg,
             An_neg,
             Ap_neg,
-            x0_neg,
+            x_neg,
             xn_neg,
             xp_neg,
             initial_state,
@@ -192,6 +187,7 @@ class SimmPES(Operator):
 
         self.gain = gain
         self.error_threshold = 1e-5
+        self.readV = -1
 
         self.An_pos = An_pos
         self.Ap_pos = Ap_pos
@@ -209,7 +205,6 @@ class SimmPES(Operator):
         self.gmin_p_pos = gmin_p_pos
         self.xn_pos = xn_pos
         self.xp_pos = xp_pos
-        self.x_pos = x0_pos
         self.An_neg = An_neg
         self.Ap_neg = Ap_neg
         self.Vn_neg = Vn_neg
@@ -226,21 +221,20 @@ class SimmPES(Operator):
         self.gmin_p_neg = gmin_p_neg
         self.xn_neg = xn_neg
         self.xp_neg = xp_neg
-        self.x_neg = x0_neg
 
         self.currents = []
         self.xs = []
         self.rs = []
         self.initial_state = initial_state
 
-        self.pos_pulse_counter = np.zeros_like(x0_pos)
-        self.neg_pulse_counter = np.zeros_like(x0_neg)
+        self.pos_pulse_counter = np.zeros_like(An_pos)
+        self.neg_pulse_counter = np.zeros_like(An_neg)
         self.pulse_archive = []
 
         self.sets = []
         self.incs = []
         self.reads = [pre_filtered, error]
-        self.updates = [weights, pos_memristors, neg_memristors]
+        self.updates = [weights, x_pos, x_neg]
 
     @property
     def pre_filtered(self):
@@ -255,32 +249,60 @@ class SimmPES(Operator):
         return self.updates[0]
 
     @property
-    def pos_memristors(self):
+    def x_pos(self):
         return self.updates[1]
 
     @property
-    def neg_memristors(self):
+    def x_neg(self):
         return self.updates[2]
 
     def _descstr(self):
         return "pre=%s, error=%s -> %s" % (self.pre_filtered, self.error, self.weights)
 
+    def compute_current(self, x_pos, x_neg):
+        i_pos = current(self.readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,
+                        self.gmax_n_pos, self.bmax_n_pos, self.gmin_p_pos, self.bmin_p_pos, self.gmin_n_pos,
+                        self.bmin_n_pos)
+        i_neg = current(self.readV, x_neg, self.gmax_p_neg, self.bmax_p_neg,
+                        self.gmax_n_neg, self.bmax_n_neg, self.gmin_p_neg, self.bmin_p_neg, self.gmin_n_neg,
+                        self.bmin_n_neg)
+
+        return i_pos, i_neg
+
+    def compute_resistance(self, x_pos, x_neg):
+        i_pos = current(self.readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,
+                        self.gmax_n_pos, self.bmax_n_pos, self.gmin_p_pos, self.bmin_p_pos, self.gmin_n_pos,
+                        self.bmin_n_pos)
+        i_neg = current(self.readV, x_neg, self.gmax_p_neg, self.bmax_p_neg,
+                        self.gmax_n_neg, self.bmax_n_neg, self.gmin_p_neg, self.bmin_p_neg, self.gmin_n_neg,
+                        self.bmin_n_neg)
+
+        return self.readV / i_pos, self.readV / i_neg
+
     def make_step(self, signals, dt, rng):
         pre_filtered = signals[self.pre_filtered]
         local_error = signals[self.error]
 
-        pos_memristors = signals[self.pos_memristors]
-        neg_memristors = signals[self.neg_memristors]
+        x_pos = signals[self.x_pos]
+        x_neg = signals[self.x_neg]
         weights = signals[self.weights]
 
         gain = self.gain
         error_threshold = self.error_threshold
+        readV = self.readV
 
         # overwrite initial transform with memristor-based weights
         if "weights" in self.initial_state:
             weights[:] = self.initial_state["weights"]
         else:
-            weights[:] = gain * (1 / pos_memristors - 1 / neg_memristors)
+            i_pos = current(readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,
+                            self.gmax_n_pos, self.bmax_n_pos, self.gmin_p_pos, self.bmin_p_pos, self.gmin_n_pos,
+                            self.bmin_n_pos)
+            i_neg = current(readV, x_neg, self.gmax_p_neg, self.bmax_p_neg,
+                            self.gmax_n_neg, self.bmax_n_neg, self.gmin_p_neg, self.bmin_p_neg, self.gmin_n_neg,
+                            self.bmin_n_neg)
+
+            weights[:] = gain * (i_pos / readV - i_neg / readV)
 
         def step_simmpes():
             # set update to zero if error is small or adjustments go on forever
@@ -318,34 +340,24 @@ class SimmPES(Operator):
 
                     return x
 
-                self.x_pos = yakopcic_one_step(np.where(V > 0, V, 0), self.x_pos, self.Ap_pos, self.An_pos, self.Vp_pos,
-                                               self.Vn_pos,
-                                               self.alphap_pos, self.alphan_pos, self.xp_pos, self.xn_pos)
-                self.x_neg = yakopcic_one_step(np.where(V < 0, np.abs(V), 0), self.x_neg, self.Ap_neg, self.An_neg,
-                                               self.Vp_neg,
-                                               self.Vn_neg,
-                                               self.alphap_neg, self.alphan_neg, self.xp_neg, self.xn_neg)
+                x_pos[:] = yakopcic_one_step(np.where(V > 0, V, 0), x_pos, self.Ap_pos, self.An_pos, self.Vp_pos,
+                                             self.Vn_pos,
+                                             self.alphap_pos, self.alphan_pos, self.xp_pos, self.xn_pos)
+                x_neg[:] = yakopcic_one_step(np.where(V < 0, np.abs(V), 0), x_neg, self.Ap_neg, self.An_neg,
+                                             self.Vp_neg,
+                                             self.Vn_neg,
+                                             self.alphap_neg, self.alphan_neg, self.xp_neg, self.xn_neg)
 
-                # Calculate the current and the resistance for the devices
-                V_read = -1
-                i_pos = current(V_read, self.x_pos, self.gmax_p_pos, self.bmax_p_pos,
+                # Calculate the current through the devices
+                i_pos = current(readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,
                                 self.gmax_n_pos, self.bmax_n_pos, self.gmin_p_pos, self.bmin_p_pos, self.gmin_n_pos,
                                 self.bmin_n_pos)
-                i_neg = current(V_read, self.x_neg, self.gmax_p_neg, self.bmax_p_neg,
-                                self.gmax_n_neg, self.bmax_n_neg, self.gmin_p_neg, self.bmin_n_neg, self.gmin_n_neg,
+                i_neg = current(readV, x_neg, self.gmax_p_neg, self.bmax_p_neg,
+                                self.gmax_n_neg, self.bmax_n_neg, self.gmin_p_neg, self.bmin_p_neg, self.gmin_n_neg,
                                 self.bmin_n_neg)
 
-                r_pos = np.divide(V_read, i_pos, out=np.zeros(V.shape, dtype=float), where=i_pos != 0)
-                r_neg = np.divide(V_read, i_neg, out=np.zeros(V.shape, dtype=float), where=i_neg != 0)
-
-                # update the two memristor pairs
-                pos_memristors[:] = r_pos
-                neg_memristors[:] = r_neg
-
-                # update network weights
-                # TODO it looks like neg_memristors in having no impact on the weights (but learning works so maybe it's just my impression!)
-                weights[:] = gain * (1 / pos_memristors - 1 / neg_memristors)
-                pass
+                # update network weights G = I/V, R = V/I
+                weights[:] = gain * (i_pos / readV - i_neg / readV)
 
         return step_simmpes
 
@@ -379,6 +391,7 @@ def build_mpes(model, mpes, rule):
     post = get_post_ens(conn)
     encoders = model.sig[post]["encoders"]
 
+    # -- Instantiate two sets of Yakopcic memristors
     An_pos, Ap_pos, \
     Vn_pos, Vp_pos, \
     alphan_pos, alphap_pos, \
@@ -399,22 +412,6 @@ def build_mpes(model, mpes, rule):
     xn_neg, xp_neg, \
     x0_neg = initialise_yakopcic_model(mpes.noise_percentage, encoders, acts, mpes.seed)
 
-    pos_memristors = initialise_yakopcic_memristors(x0_pos, bmax_n_pos, bmax_p_pos,
-                                                    bmin_n_pos, bmin_p_pos,
-                                                    gmax_n_pos, gmax_p_pos,
-                                                    gmin_n_pos, gmin_p_pos,
-                                                    acts.shape[0], encoders.shape[0],
-                                                    f"{rule}:pos_memristors")
-    neg_memristors = initialise_yakopcic_memristors(x0_neg, bmax_n_neg, bmax_p_neg,
-                                                    bmin_n_neg, bmin_p_neg,
-                                                    gmax_n_neg, gmax_p_neg,
-                                                    gmin_n_neg, gmin_p_neg,
-                                                    acts.shape[0], encoders.shape[0],
-                                                    f"{rule}:neg_memristors")
-
-    model.sig[conn]["pos_memristors"] = pos_memristors
-    model.sig[conn]["neg_memristors"] = neg_memristors
-
     if conn.post_obj is not conn.post:
         # in order to avoid slicing encoders along an axis > 0, we pad
         # `error` out to the full base dimensionality and then do the
@@ -430,53 +427,21 @@ def build_mpes(model, mpes, rule):
     model.add_op(Reset(local_error))
     model.add_op(DotInc(encoders, padded_error, local_error, tag="PES:encode"))
 
+    x_pos = Signal(shape=(encoders.shape[0], acts.shape[0]), name=f"{rule}:x_pos",
+                   initial_value=x0_pos)
+    x_neg = Signal(shape=(encoders.shape[0], acts.shape[0]), name=f"{rule}:x_neg",
+                   initial_value=x0_neg)
+
     model.operators.append(
-        SimmPES(acts,
-                local_error,
-                model.sig[conn]["pos_memristors"],
-                model.sig[conn]["neg_memristors"],
-                model.sig[conn]["weights"],
-                mpes.gain,
-                bmax_n_pos,
-                bmax_p_pos,
-                bmin_n_pos,
-                bmin_p_pos,
-                gmax_n_pos,
-                gmax_p_pos,
-                gmin_n_pos,
-                gmin_p_pos,
-                Vn_pos,
-                Vp_pos,
-                alphan_pos,
-                alphap_pos,
-                An_pos,
-                Ap_pos,
-                x0_pos,
-                xn_pos,
-                xp_pos,
-                bmax_n_neg,
-                bmax_p_neg,
-                bmin_n_neg,
-                bmin_p_neg,
-                gmax_n_neg,
-                gmax_p_neg,
-                gmin_n_neg,
-                gmin_p_neg,
-                Vn_neg,
-                Vp_neg,
-                alphan_neg,
-                alphap_neg,
-                An_neg,
-                Ap_neg,
-                x0_neg,
-                xn_neg,
-                xp_neg,
-                mpes.initial_state,
-                )
+        SimmPES(acts, local_error, model.sig[conn]["weights"], mpes.gain, bmax_n_pos, bmax_p_pos, bmin_n_pos,
+                bmin_p_pos, gmax_n_pos, gmax_p_pos, gmin_n_pos, gmin_p_pos, Vn_pos, Vp_pos, alphan_pos, alphap_pos,
+                An_pos, Ap_pos, x_pos, xn_pos, xp_pos, bmax_n_neg, bmax_p_neg, bmin_n_neg, bmin_p_neg, gmax_n_neg,
+                gmax_p_neg, gmin_n_neg, gmin_p_neg, Vn_neg, Vp_neg, alphan_neg, alphap_neg, An_neg, Ap_neg, x_neg,
+                xn_neg, xp_neg, mpes.initial_state)
     )
 
     # expose these for probes
     model.sig[rule]["error"] = error
     model.sig[rule]["activities"] = acts
-    model.sig[rule]["pos_memristors"] = pos_memristors
-    model.sig[rule]["neg_memristors"] = neg_memristors
+    model.sig[rule]['x_pos'] = x_pos
+    model.sig[rule]['x_neg'] = x_neg

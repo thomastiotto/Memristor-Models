@@ -52,25 +52,11 @@ def find_spikes(input_activities, shape, output_activities=None, invert=False):
     return out if not invert else np.logical_not(out)
 
 
-
 def update_memristors2(update_steps, pos_memristors, neg_memristors, r):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         pos_memristors[update_steps > 0] -= r[update_steps > 0]
         neg_memristors[update_steps < 0] -= r[update_steps < 0]
-
-
-def update_weights(V, weights, pos_memristors, neg_memristors, r_max, r_min, gain):
-    weights[V > 0] = gain * \
-                     (resistance2conductance(pos_memristors[V > 0], r_min[V > 0],
-                                             r_max[V > 0])
-                      - resistance2conductance(neg_memristors[V > 0], r_min[V > 0],
-                                               r_max[V > 0]))
-    weights[V < 0] = gain * \
-                     (resistance2conductance(pos_memristors[V < 0], r_min[V < 0],
-                                             r_max[V < 0])
-                      - resistance2conductance(neg_memristors[V < 0], r_min[V < 0],
-                                               r_max[V < 0]))
 
 
 class mPES(LearningRuleType):
@@ -161,20 +147,20 @@ class SimmPES(Operator):
         self.r_min = r_min
         self.r_max = r_max
         self.exponent = exponent
-        self.An = An #0.1065893286 * 8e-1
-        self.Ap = Ap #0.0118432587 * 4e1
-        self.Vn = .5 #Vn
-        self.Vp = .5 #Vp
+        self.An = An  # 0.1065893286 * 8e-1
+        self.Ap = Ap  # 0.0118432587 * 4e1
+        self.Vn = .5  # Vn
+        self.Vp = .5  # Vp
         self.alphan = 1.0
         self.alphap = 1.0
-        self.bmax_n = 3.23 #bmax_n
-        self.bmax_p = 4.96 #bmax_p
-        self.bmin_n = 2.6 #bmin_n
-        self.bmin_p = 6.91 #bmin_p
-        self.gmax_n = 0.00017 #gmax_n
-        self.gmax_p = 9.0e-05 #gmax_p
-        self.gmin_n = 4.4e-07 #gmin_n
-        self.gmin_p = 1.5e-05 #gmin_p
+        self.bmax_n = 3.23  # bmax_n
+        self.bmax_p = 4.96  # bmax_p
+        self.bmin_n = 2.6  # bmin_n
+        self.bmin_p = 6.91  # bmin_p
+        self.gmax_n = 0.00017  # gmax_n
+        self.gmax_p = 9.0e-05  # gmax_p
+        self.gmin_n = 4.4e-07  # gmin_n
+        self.gmin_p = 1.5e-05  # gmin_p
         self.xn = 0.242
         self.xp = .1
         self.x = 0
@@ -256,8 +242,8 @@ class SimmPES(Operator):
                 pes_delta[spiked_map] = 0
 
                 V = np.sign(pes_delta) * 6e-1
-                #self.Vn = np.random.normal(self.Vn, self.Vn * self.noise_percentage, self.Vn.shape)
-                #self.Vp = np.random.normal(self.Vp, self.Vp * self.noise_percentage, self.Vp.shape)
+                # self.Vn = np.random.normal(self.Vn, self.Vn * self.noise_percentage, self.Vn.shape)
+                # self.Vp = np.random.normal(self.Vp, self.Vp * self.noise_percentage, self.Vp.shape)
                 # print("V: ", V, "\n")
 
                 # Calculate the state variables at a current timestep
@@ -328,9 +314,9 @@ def build_mpes(model, mpes, rule):
     encoders = model.sig[post]["encoders"]
 
     pos_memristors, neg_memristors, r_min_noisy, r_max_noisy, exponent_noisy = initialise_memristors2(mpes,
-                                                                                                     acts.shape[0],
-                                                                                                     encoders.shape[
-                                                                                                         0])
+                                                                                                      acts.shape[0],
+                                                                                                      encoders.shape[
+                                                                                                          0])
 
     model.sig[conn]["pos_memristors"] = pos_memristors
     model.sig[conn]["neg_memristors"] = neg_memristors

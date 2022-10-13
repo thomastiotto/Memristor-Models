@@ -600,3 +600,11 @@ def nested_dict(n, type):
         return defaultdict(type)
     else:
         return defaultdict(lambda: nested_dict(n - 1, type))
+
+
+def get_operator_from_sim(sim, name):
+    for op in sim.model.operators:
+        if op.__class__.__name__ == name:
+            break
+
+    return op
