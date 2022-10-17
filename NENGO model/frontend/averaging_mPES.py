@@ -29,7 +29,7 @@ device = args.device
 
 dir_name, dir_images, dir_data = make_timestamped_dir(
     root=directory + "averaging/" + str(learning_rule) + "/" + "_" + str(inputs) + "_"
-         + str(neurons) + "_" + str(dimensions) + "_" + str(gain) + "/")
+         + str(neurons) + "_" + str(dimensions) + "_" + str(gain))
 print("Reserved folder", dir_name)
 
 print("Evaluation for", learning_rule)
@@ -112,11 +112,27 @@ ax.plot(res_list, res_spearman, label="Spearman")
 ax.legend()
 fig.savefig(dir_images + "correlations" + ".pdf")
 
+fig = plt.figure()
+ax = fig.add_subplot(111)
+ax.plot(res_list, res_number_set_pulses, label="Number of SET pulses")
+ax.plot(res_list, res_number_reset_pulses, label="Number of RESET pulses")
+ax.legend()
+fig.savefig(dir_images + "number-pulses" + ".pdf")
+
+fig = plt.figure()
+ax = fig.add_subplot(111)
+ax.plot(res_list, res_set_pulse_train_length, label="SET pulse train length")
+ax.plot(res_list, res_reset_pulse_train_length, label="RESET pulse train length")
+ax.legend()
+fig.savefig(dir_images + "pulse-train-length" + ".pdf")
+
 print(f"Saved plots in {dir_images}")
 
 np.savetxt(dir_data + "results.csv",
-           np.stack((res_mse, res_spearman, res_mse_to_rho), axis=1),
-           delimiter=",", header="MSE,Pearson,Spearman,Kendall,MSE-to-rho", comments="")
+           np.stack((res_mse, res_spearman, res_mse_to_rho, res_number_set_pulses, res_number_reset_pulses,
+                     res_set_pulse_train_length, res_reset_pulse_train_length), axis=1),
+           delimiter=",",
+           header="MSE,Pearson,Spearman,Kendall,MSE-to-rho,SET pulses,RESET pulses,SET train,RESET train", comments="")
 with open(dir_data + "parameters.txt", "w") as f:
     f.write(f"Learning rule: {learning_rule}\n")
     f.write(f"Function: {function}\n")

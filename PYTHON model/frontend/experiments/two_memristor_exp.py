@@ -106,7 +106,6 @@ def one_step_yakopcic(voltage, x, readV, **params):
 model = json.load(open('../../../fitted/fitting_pulses/regress_negative_xp_alphap-adjusted_ap_an'))
 iterations = 5000
 
-R0 = 1e8
 x0 = 0.6251069761800688
 setV = 3.86621037038006
 resetV = -8.135891404816215
@@ -119,28 +118,36 @@ fig_trains, ax_trains = plt.subplots(1, 1, figsize=(10, 10))
 gaussian_plot = GaussianPlot()
 
 # (SET,RESET)/(neg. error,pos. error) pulse lengths obtained from simulating mPES.py
-for train_length in [(1, 1), (round(4.7370441230259654), round(4.691043103305757)),
-                     (round(10.516604869146395), round(10.514494153790514)), (100, 100)]:
+for train_length in [
+    # (1, 1),
+    # (round(4.7370441230259654), round(4.691043103305757)),
+    (10.516604869146395, 10.514494153790514),
+    # (100, 100)
+]:
     print(train_length, ':')
 
-    x_p = x0
-    x_n = x0
+    x_p = np.random.normal(x0, x0 + 0.15)
+    x_n = np.random.normal(x0, x0 + 0.15)
     R_p = []
     R_n = []
     for j in tqdm(range(int(iterations / (train_length[0] + train_length[1]) * 2))):
+        pos_train_length = int(np.random.normal(train_length[0], train_length[0] * 0.15))
+        neg_train_length = int(np.random.normal(train_length[1], train_length[1] * 0.15))
+
         # Negative local error -> SET pulse excitatory, RESET pulse inhibitory -> Weight goes up
-        if random.random() < .5:
-            for _ in range(train_length[0]):
+        if random.random() > 0.5:
+            # pick random length
+            for _ in range(pos_train_length):
                 x_p, r_p = one_step_yakopcic(setV, x_p, readV, **model)
-                x_n, r_n = one_step_yakopcic(resetV, x_n, readV, **model)
+                # x_n, r_n = one_step_yakopcic(resetV, x_n, readV, **model)
                 R_p.append(r_p)
-                R_n.append(r_n)
+                # R_n.append(r_n)
         # Positive local error -> SET pulse inhibitory, RESET pulse excitatory -> Weight goes down
         else:
-            for _ in range(train_length[1]):
-                x_p, r_p = one_step_yakopcic(resetV, x_p, readV, **model)
+            for _ in range(neg_train_length):
+                # x_p, r_p = one_step_yakopcic(resetV, x_p, readV, **model)
                 x_n, r_n = one_step_yakopcic(setV, x_n, readV, **model)
-                R_p.append(r_p)
+                # R_p.append(r_p)
                 R_n.append(r_n)
     Wcombined = [x - y for x, y in zip([1 / x for x in R_p], [1 / x for x in R_n])]
 

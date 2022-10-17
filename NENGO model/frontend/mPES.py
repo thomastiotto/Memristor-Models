@@ -110,6 +110,8 @@ if args.plot >= 2:
 if args.plot >= 3:
     save_data = True
 
+debug = False
+
 # TODO give better names to folders or make hierarchy
 if save_plots or save_data:
     dir_name, dir_images, dir_data = make_timestamped_dir(root=plots_directory + learning_rule + "/")
@@ -236,7 +238,7 @@ if probe > 0:
     printlv2("MSE-to-rho after learning [f(pre) vs. post]:")
     printlv1(mse_to_rho_ratio(mse, correlation_coefficients[1]))
 
-    if isinstance(conn.learning_rule_type, mPES):
+    if isinstance(conn.learning_rule_type, mPES) and debug:
         # -- evaluate number of memristor pulses over simulation
         pos_pulse_counter = mpes_op.pos_pulse_counter
         neg_pulse_counter = mpes_op.neg_pulse_counter
@@ -335,7 +337,14 @@ if show_plots:
     for fig in plots.values():
         fig.show()
 
-    # -- weights trajectory
-    plt.plot(np.mean(sim.data[weight_probe], axis=(1, 2)))
-    plt.title("Average weight over time")
-    plt.show()
+    # DEBUG: zoom in on one synapse
+    if learning_rule == "mPES" and debug:
+        # -- weights trajectory
+        plt.plot(np.mean(sim.data[weight_probe], axis=(1, 2)))
+        plt.title("Average weight over time")
+        plt.show()
+        
+        plt.figure(figsize=(20, 20))
+        plt.plot(res_pos[4000:7500, 0, 0], c='r')
+        plt.plot(res_neg[4000:7500, 0, 0], c='b')
+        plt.show()
