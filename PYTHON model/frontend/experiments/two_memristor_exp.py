@@ -98,17 +98,17 @@ def one_step_yakopcic(voltage, x, readV, **params):
     i = current(readV, x,
                 params['gmax_p'], params['bmax_p'], params['gmax_n'], params['bmax_n'],
                 params['gmin_p'], params['bmin_p'], params['gmin_n'], params['bmin_n'])
-    r = voltage / i
+    r = readV / i
 
     return x, r
 
 
 model = json.load(open('../../../fitted/fitting_pulses/regress_negative_xp_alphap-adjusted_ap_an'))
-iterations = 5000
+iterations = 500
 
 x0 = 0.6251069761800688
 setV = 3.86621037038006
-resetV = -8.135891404816215
+resetV = -8.135891404816215 / 10
 readV = -1
 
 # random.seed(8)
@@ -126,8 +126,8 @@ for train_length in [
 ]:
     print(train_length, ':')
 
-    x_p = np.random.normal(x0, x0 + 0.15)
-    x_n = np.random.normal(x0, x0 + 0.15)
+    x_p = get_truncated_normal(mean=x0, sd=x0 * 0.15, low=0, upp=1, out_size=1, in_size=1)[0, 0]
+    x_n = get_truncated_normal(mean=x0, sd=x0 * 0.15, low=0, upp=1, out_size=1, in_size=1)[0, 0]
     R_p = []
     R_n = []
     for j in tqdm(range(int(iterations / (train_length[0] + train_length[1]) * 2))):
@@ -139,15 +139,15 @@ for train_length in [
             # pick random length
             for _ in range(pos_train_length):
                 x_p, r_p = one_step_yakopcic(setV, x_p, readV, **model)
-                # x_n, r_n = one_step_yakopcic(resetV, x_n, readV, **model)
+                x_n, r_n = one_step_yakopcic(resetV, x_n, readV, **model)
                 R_p.append(r_p)
-                # R_n.append(r_n)
+                R_n.append(r_n)
         # Positive local error -> SET pulse inhibitory, RESET pulse excitatory -> Weight goes down
         else:
             for _ in range(neg_train_length):
-                # x_p, r_p = one_step_yakopcic(resetV, x_p, readV, **model)
+                x_p, r_p = one_step_yakopcic(resetV, x_p, readV, **model)
                 x_n, r_n = one_step_yakopcic(setV, x_n, readV, **model)
-                # R_p.append(r_p)
+                R_p.append(r_p)
                 R_n.append(r_n)
     Wcombined = [x - y for x, y in zip([1 / x for x in R_p], [1 / x for x in R_n])]
 
