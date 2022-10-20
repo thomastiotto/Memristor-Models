@@ -29,13 +29,11 @@ iterations = 10
 
 x0 = 0.6251069761800688
 setV = 3.86621037038006
-# setV = 0
 resetV = -8.135891404816215
 resetV = -0.2
-# resetV = 0
-readV = -1
+readV = -0.1
 
-# random.seed(8)
+# random.seed(0)
 
 
 x_p = x_n = x0
@@ -60,6 +58,8 @@ print('Average resistance change with RESET pulses:', reset_efficacy, '%')
 print('RESET pulses are more effective than SET pulses by', ((set_efficacy - reset_efficacy) / set_efficacy) * 100, '%')
 
 fig, ax = plt.subplots()
-ax.plot(R_p)
-ax.twinx().plot(R_n)
+ax.plot(R_p, label='SET')
+ax.plot(R_n, label='RESET')
+ax.legend()
+fig.suptitle(f'SET {setV} V, RESET {resetV} V')
 fig.show()

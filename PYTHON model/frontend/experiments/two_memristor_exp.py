@@ -110,7 +110,7 @@ x0 = 0.6251069761800688
 setV = 3.86621037038006
 # setV = 0
 resetV = -8.135891404816215
-resetV = 0
+resetV = -0.2
 readV = -1
 
 # random.seed(8)
@@ -121,11 +121,12 @@ gaussian_plot = GaussianPlot()
 
 # (SET,RESET)/(neg. error,pos. error) pulse lengths obtained from simulating mPES.py
 for train_length in [
-    (1, 1),
+    # (1, 1),
     # (round(4.7370441230259654), round(4.691043103305757)),
-    # (10.516604869146395, 10.514494153790514),
+    (10.516604869146395, 10.514494153790514),
     # (100, 100)
 ]:
+    train_length = (int(train_length[0]), int(train_length[1]))
     print(train_length, ':')
 
     x_p = get_truncated_normal(mean=x0, sd=x0 * 0.15, low=0, upp=1, out_size=1, in_size=1)[0, 0]
@@ -166,7 +167,7 @@ for train_length in [
     sigma = np.std(Wcombined)
     print('Mean of combined weight: ', mu)
     print('Std of combined weight: ', sigma)
-    gaussian_plot.plot(mu, sigma)
+    gaussian_plot.plot(mu, sigma, legend_label=f'{train_length[0]}:{train_length[1]}')
     ax_trains.plot(Wcombined, alpha=.5, label=f'{train_length} train')
     x = np.linspace(mu - 3 * sigma, mu + 3 * sigma, 100)
 
