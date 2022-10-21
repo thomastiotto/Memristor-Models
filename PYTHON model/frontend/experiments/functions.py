@@ -48,12 +48,12 @@ def model_sim_with_params(pulse_length, resetV, numreset, setV, numset, readV, r
 
 
 def set_pulse(resetV, num_reset, setV, num_set, pulse_length, readV, read_length):
-    print('------------------')
-    print('RESET:', resetV, 'V')
-    print('SET:', setV, 'V')
-    print('Pulse length:', pulse_length, 's')
-    print('READ:', readV, 'V')
-    print('READ length:', read_length, 's')
+    # print('------------------')
+    # print('RESET:', resetV, 'V')
+    # print('SET:', setV, 'V')
+    # print('Pulse length:', pulse_length, 's')
+    # print('READ:', readV, 'V')
+    # print('READ length:', read_length, 's')
 
     # FORMAT
     # "t_rise", "t_on":, "t_fall", "t_off", "V_on", "V_off", "n_cycles"
@@ -173,7 +173,7 @@ def startup2(lines):
 
 def interactive_iv(iptVs, dt):
     t = 0
-    print("dt: ", dt)
+    # print("dt: ", dt)
     for iptV in iptVs.values():
         for j in range(0, int(iptV['n_cycles'])):
             if j == 0 and iptVs["1"] == iptV:
