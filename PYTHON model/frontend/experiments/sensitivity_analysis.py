@@ -90,23 +90,26 @@ def find_sensitivity(sign, params, idx, case, model, name):
     dif = 50
     debug = False
 
-    print("Calculating ground truth:")
+    print("Calculating ground truth ({}): {} = {}".format(case, name, model["{}".format(name)]))
     time, current_v, current_i, current_r, current_x = \
         model_sim_with_params(0.001, resetV, 10, setV, 10, readV, read_length, **model)
     peaks_gt = find_peaks(current_r, current_v, readV, debug=False)
     plt.plot(range(len(peaks_gt)), peaks_gt)
 
     new_model = model
-    while count_iter < 500:  # Run until the error is about 10% or 500 iterations pass.
+    gt_param = model["{}".format(name)]
+    while count_iter < 100:  # Run until the error is about 10% or 100 iterations pass.
 
-        new_model["{}".format(name)] = model["{}".format(name)] + sign * (dif * params[idx] / 100)
+        new_model["{}".format(name)] = gt_param + sign * (dif * params[idx] / 100)
         if case == "I":
-            print("Calculating new model (I), {} dif = {}:".format(name, sign * (dif * params[idx] / 100)))
+            print("Calculating new model (I), {} = {}:".format(
+                name, gt_param + sign * (dif * params[idx] / 100)))
             time, voltage, i, r, x = model_sim_with_params(0.001, resetV, 10, setV, 10, readV, read_length=0.001,
                                                            **new_model)
             peaks_new = find_peaks(r, voltage, readV=readV, debug=False)
         else:
-            print("Calculating new model (dxdt), {} dif = {}:".format(name, sign * (dif * params[idx] / 100)))
+            print("Calculating new model (dxdt), {} = {}:".format(
+                name, gt_param + sign * (dif * params[idx] / 100)))
             time, voltage, i, r, x = model_sim_with_params(0.001, resetV, 10, setV, 10, readV, read_length=0.001,
                                                            **new_model)
             peaks_new = find_peaks(r, voltage, readV=readV, debug=False)
@@ -119,16 +122,24 @@ def find_sensitivity(sign, params, idx, case, model, name):
         plt.plot(range(len(peaks_new)), peaks_new)
 
         if 9.90 <= change <= 10.10 or dif <= 0:
-            plt.show()
             break
         print("change:", change)
         print("dif:", dif)
 
+        if np.isnan(change):
+            print("NAN for {} dif = {}".format(name, sign * (dif * params[idx] / 100)))
+            dif = 404.404  # Error code | Overflow, etc.
+            break
+
         if change > 10:
-            dif = round(dif - 0.2, 1)
+            dif = round(dif - 0.5, 1)
         elif change < 10:
-            dif = round(dif + 5, 1) if change < 0.1 else round(dif + 0.2, 1)
+            dif = round(dif + 10, 1) if change < 0.01 else round(dif + 0.5, 1)
+
         count_iter += 1
+    shift_dir = "increasing" if sign == 1 else "decreasing"
+    plt.title(f"{name} sensitivity | {shift_dir}")
+    plt.show()
     return dif
 
 
@@ -216,4 +227,5 @@ if __name__ == "__main__":
     df_latex(df_params, df_results)
 
 # TODO:
+# Decide on the number of iterations, and the percentage change (how much should dif shift by?).
 # Disable/Enable print states in model_sim_with_params() and related functions with an argument rather than manually.
