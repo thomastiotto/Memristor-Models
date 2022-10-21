@@ -306,6 +306,8 @@ if generate_plots and probe > 1:
                                                    smooth=True)
     plots["testing"] = plotter.plot_testing(function_to_learn(sim.data[pre_probe]), sim.data[post_probe],
                                             smooth=False)
+    if debug:
+        res_pos, res_neg = mpes_op.compute_resistance(sim.data[x_pos_probe], sim.data[x_neg_probe])
     if n_neurons <= 10 and learning_rule == "mPES":
         # plots["weights_mpes"] = plotter.plot_weights_over_time(sim.data[x_pos_probe],
         #
@@ -343,7 +345,7 @@ if show_plots:
         plt.plot(np.mean(sim.data[weight_probe], axis=(1, 2)))
         plt.title("Average weight over time")
         plt.show()
-        
+
         plt.figure(figsize=(20, 20))
         plt.plot(res_pos[4000:7500, 0, 0], c='r')
         plt.plot(res_neg[4000:7500, 0, 0], c='b')

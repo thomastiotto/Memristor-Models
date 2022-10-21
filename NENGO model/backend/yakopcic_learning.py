@@ -291,9 +291,10 @@ class SimmPES(Operator):
         error_threshold = self.error_threshold
 
         # ---- voltages found by pulse_experiment_1s_to_1ms.py
-        readV = -1
+        readV = -.1
         setV = 3.86621037038006
-        resetV = -8.135891404816215
+        # resetV = -8.135891404816215
+        resetV = -0.2
         print('readV', readV)
         print("setV: ", setV)
         print("resetV: ", resetV)
@@ -321,10 +322,6 @@ class SimmPES(Operator):
                 # some memristors are adjusted erroneously if we don't filter
                 spiked_map = find_spikes(pre_filtered, weights.shape, invert=True)
                 pes_delta[spiked_map] = 0
-
-                # V = np.sign(pes_delta) * 3.86621037038006
-
-                # V = np.select([pes_delta > 0, pes_delta < 0], [setV, resetV])
 
                 # -- count pulses given to each memristor for post-hoc statistics
                 pos_temp = np.sign(pes_delta)
@@ -384,8 +381,10 @@ class SimmPES(Operator):
                     self.alphap_neg[mask_depress], self.alphan_neg[mask_depress],
                     self.xp_neg[mask_depress], self.xn_neg[mask_depress])
 
+                # -- start DEBUG
                 diff_pos = np.sign(x_pos - x_pos_old)
                 diff_neg = np.sign(x_neg - x_neg_old)
+                # -- end DEBUG
 
                 # -- calculate the current through the devices
                 i_pos = current(readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,
