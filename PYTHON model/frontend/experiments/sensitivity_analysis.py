@@ -98,7 +98,10 @@ def find_sensitivity(sign, params, idx, case, model, name):
 
     new_model = model
     gt_param = model["{}".format(name)]
+
     while count_iter < 100:  # Run until the error is about 10% or 100 iterations pass.
+        if (name == "Vp" or name == "Vn") and (model["{}".format(name)] == 0):  # Skip unnecessary calculations.
+            break
 
         new_model["{}".format(name)] = gt_param + sign * (dif * params[idx] / 100)
         if case == "I":
