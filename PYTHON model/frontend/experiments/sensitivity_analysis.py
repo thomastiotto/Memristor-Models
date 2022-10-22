@@ -96,10 +96,10 @@ def find_sensitivity(sign, params, idx, case, model, name):
     peaks_gt = find_peaks(current_r, current_v, readV, debug=False)
     plt.plot(range(len(peaks_gt)), peaks_gt)
 
-    new_model = model
+    new_model = model.copy()
     gt_param = model["{}".format(name)]
 
-    while count_iter < 100:  # Run until the error is about 10% or 100 iterations pass.
+    while count_iter < 500:  # Run until the error is about 10% or 500 iterations pass.
         if (name == "Vp" or name == "Vn") and (model["{}".format(name)] == 0):  # Skip unnecessary calculations.
             break
 
@@ -135,9 +135,9 @@ def find_sensitivity(sign, params, idx, case, model, name):
             break
 
         if change > 10:
-            dif = round(dif - 0.5, 1)
+            dif = round(dif - 0.1, 1)
         elif change < 10:
-            dif = round(dif + 10, 1) if change < 0.01 else round(dif + 0.5, 1)
+            dif = round(dif + 10, 1) if change < 0.01 else round(dif + 0.1, 1)
 
         count_iter += 1
     shift_dir = "increasing" if sign == 1 else "decreasing"
