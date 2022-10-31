@@ -31,10 +31,10 @@ def initialise_yakopcic_model(noise_percentage, encoders, acts, seed):
     # -- parameters fund with pulse_experiment_1s_to_1ms.py
     yakopcic_model = json.load(open('../../fitted/fitting_pulses/regress_negative_xp_alphap-adjusted_ap_an'))
 
-    An = get_truncated_normal(yakopcic_model['An'], yakopcic_model['An'] * noise_percentage,
+    An = get_truncated_normal(yakopcic_model['An'], yakopcic_model['An'] * noise_percentage * 0.585,
                               0, np.inf,
                               encoders.shape[0], acts.shape[0])
-    Ap = get_truncated_normal(yakopcic_model['Ap'], yakopcic_model['Ap'] * noise_percentage,
+    Ap = get_truncated_normal(yakopcic_model['Ap'], yakopcic_model['Ap'] * noise_percentage * 0.869,
                               0, np.inf,
                               encoders.shape[0], acts.shape[0])
     Vn = get_truncated_normal(yakopcic_model['Vn'], yakopcic_model['Vn'] * noise_percentage,
@@ -43,40 +43,40 @@ def initialise_yakopcic_model(noise_percentage, encoders, acts, seed):
     Vp = get_truncated_normal(yakopcic_model['Vp'], yakopcic_model['Vp'] * noise_percentage,
                               0, np.inf,
                               encoders.shape[0], acts.shape[0])
-    alphan = get_truncated_normal(yakopcic_model['alphan'], yakopcic_model['alphan'] * noise_percentage,
+    alphan = get_truncated_normal(yakopcic_model['alphan'], yakopcic_model['alphan'] * noise_percentage * 1.4,
                                   0, np.inf,
                                   encoders.shape[0], acts.shape[0])
-    alphap = get_truncated_normal(yakopcic_model['alphap'], yakopcic_model['alphap'] * noise_percentage,
+    alphap = get_truncated_normal(yakopcic_model['alphap'], yakopcic_model['alphap'] * noise_percentage * 1.003,
                                   0, np.inf,
                                   encoders.shape[0], acts.shape[0])
-    bmax_n = get_truncated_normal(yakopcic_model['bmax_n'], yakopcic_model['bmax_n'] * noise_percentage,
+    bmax_n = get_truncated_normal(yakopcic_model['bmax_n'], yakopcic_model['bmax_n'] * noise_percentage * 0.239,
                                   0, np.inf,
                                   encoders.shape[0], acts.shape[0])
     bmax_p = get_truncated_normal(yakopcic_model['bmax_p'], yakopcic_model['bmax_p'] * noise_percentage,
                                   0, np.inf,
                                   encoders.shape[0], acts.shape[0])
-    bmin_n = get_truncated_normal(yakopcic_model['bmin_n'], yakopcic_model['bmin_n'] * noise_percentage,
+    bmin_n = get_truncated_normal(yakopcic_model['bmin_n'], yakopcic_model['bmin_n'] * noise_percentage * 0.185,
                                   0, np.inf,
                                   encoders.shape[0], acts.shape[0])
     bmin_p = get_truncated_normal(yakopcic_model['bmin_p'], yakopcic_model['bmin_p'] * noise_percentage,
                                   0, np.inf,
                                   encoders.shape[0], acts.shape[0])
-    gmax_n = get_truncated_normal(yakopcic_model['gmax_n'], yakopcic_model['gmax_n'] * noise_percentage,
+    gmax_n = get_truncated_normal(yakopcic_model['gmax_n'], yakopcic_model['gmax_n'] * noise_percentage * 0.248,
                                   0, np.inf,
                                   encoders.shape[0], acts.shape[0])
     gmax_p = get_truncated_normal(yakopcic_model['gmax_p'], yakopcic_model['gmax_p'] * noise_percentage,
                                   0, np.inf,
                                   encoders.shape[0], acts.shape[0])
-    gmin_n = get_truncated_normal(yakopcic_model['gmin_n'], yakopcic_model['gmin_n'] * noise_percentage,
+    gmin_n = get_truncated_normal(yakopcic_model['gmin_n'], yakopcic_model['gmin_n'] * noise_percentage * 0.185,
                                   0, np.inf,
                                   encoders.shape[0], acts.shape[0])
     gmin_p = get_truncated_normal(yakopcic_model['gmin_p'], yakopcic_model['gmin_p'] * noise_percentage,
                                   0, np.inf,
                                   encoders.shape[0], acts.shape[0])
-    xn = get_truncated_normal(yakopcic_model['xn'], yakopcic_model['xn'] * noise_percentage,
+    xn = get_truncated_normal(yakopcic_model['xn'], yakopcic_model['xn'] * noise_percentage * 1.4,
                               0, np.inf,
                               encoders.shape[0], acts.shape[0])
-    xp = get_truncated_normal(yakopcic_model['xp'], yakopcic_model['xp'] * noise_percentage,
+    xp = get_truncated_normal(yakopcic_model['xp'], yakopcic_model['xp'] * noise_percentage * 0.405,
                               0, np.inf,
                               encoders.shape[0], acts.shape[0])
     # -- obtained from pulse_experiment_1s_to_1ms.py
