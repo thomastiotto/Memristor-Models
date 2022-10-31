@@ -1,5 +1,6 @@
 import warnings
 from copy import copy
+from random import random
 
 import numpy as np
 
@@ -118,7 +119,8 @@ class mPES(LearningRuleType):
                  noisy=False,
                  gain=Default,
                  initial_state=None,
-                 seed=None):
+                 seed=None,
+                 strategy='symmetric-probabilistic'):
         super().__init__(size_in="post_state")
 
         self.pre_synapse = pre_synapse
@@ -131,6 +133,9 @@ class mPES(LearningRuleType):
         self.gain = gain
         self.seed = seed
         self.initial_state = {} if initial_state is None else initial_state
+
+        assert strategy in ['assymmetric', 'symmetric', 'symmetric-probabilistic']
+        self.strategy = strategy
 
     @property
     def _argdefaults(self):
@@ -181,6 +186,7 @@ class SimmPES(Operator):
             xn_neg,
             xp_neg,
             initial_state,
+            strategy,
             tag=None
     ):
         super(SimmPES, self).__init__(tag=tag)
@@ -226,6 +232,8 @@ class SimmPES(Operator):
         self.xs = []
         self.rs = []
         self.initial_state = initial_state
+
+        self.strategy = strategy
 
         self.pos_pulse_counter = np.zeros_like(An_pos)
         self.neg_pulse_counter = np.zeros_like(An_neg)
@@ -295,9 +303,9 @@ class SimmPES(Operator):
         setV = 3.86621037038006
         # resetV = -8.135891404816215
         resetV = -0.2
-        print('readV', readV)
-        print("setV: ", setV)
-        print("resetV: ", resetV)
+        # print('readV', readV)
+        # print("setV: ", setV)
+        # print("resetV: ", resetV)
 
         # overwrite initial transform with memristor-based weights
         if "weights" in self.initial_state:
@@ -344,47 +352,91 @@ class SimmPES(Operator):
 
                     return x
 
-                x_pos_old = copy(x_pos)
-                x_neg_old = copy(x_neg)
                 # -- update memristor states
                 update_direction = np.sign(pes_delta)
-                # ---- POTENTIATE case
                 mask_potentiate = update_direction > 0
-                x_pos[mask_potentiate] = yakopcic_one_step(
-                    setV * np.ones_like(x_pos[mask_potentiate]),
-                    x_pos[mask_potentiate],
-                    self.Ap_pos[mask_potentiate], self.An_pos[mask_potentiate],
-                    self.Vp_pos[mask_potentiate], self.Vn_pos[mask_potentiate],
-                    self.alphap_pos[mask_potentiate], self.alphan_pos[mask_potentiate],
-                    self.xp_pos[mask_potentiate], self.xn_pos[mask_potentiate])
-                x_neg[mask_potentiate] = yakopcic_one_step(
-                    resetV * np.ones_like(x_neg[mask_potentiate]),
-                    x_neg[mask_potentiate],
-                    self.Ap_neg[mask_potentiate], self.An_neg[mask_potentiate],
-                    self.Vp_neg[mask_potentiate], self.Vn_neg[mask_potentiate],
-                    self.alphap_neg[mask_potentiate], self.alphan_neg[mask_potentiate],
-                    self.xp_neg[mask_potentiate], self.xn_neg[mask_potentiate])
-                # ---- DEPRESS case
                 mask_depress = update_direction < 0
-                x_pos[mask_depress] = yakopcic_one_step(
-                    resetV * np.ones_like(x_pos[mask_depress]),
-                    x_pos[mask_depress],
-                    self.Ap_pos[mask_depress], self.An_pos[mask_depress],
-                    self.Vp_pos[mask_depress], self.Vn_pos[mask_depress],
-                    self.alphap_pos[mask_depress], self.alphan_pos[mask_depress],
-                    self.xp_pos[mask_depress], self.xn_pos[mask_depress])
-                x_neg[mask_depress] = yakopcic_one_step(
-                    setV * np.ones_like(x_neg[mask_depress]),
-                    x_neg[mask_depress],
-                    self.Ap_neg[mask_depress], self.An_neg[mask_depress],
-                    self.Vp_neg[mask_depress], self.Vn_neg[mask_depress],
-                    self.alphap_neg[mask_depress], self.alphan_neg[mask_depress],
-                    self.xp_neg[mask_depress], self.xn_neg[mask_depress])
 
-                # -- start DEBUG
-                diff_pos = np.sign(x_pos - x_pos_old)
-                diff_neg = np.sign(x_neg - x_neg_old)
-                # -- end DEBUG
+                if self.strategy == 'symmetric' or self.strategy == 'assymmetric':
+                    x_pos[mask_potentiate] = yakopcic_one_step(
+                        setV * np.ones_like(x_pos[mask_potentiate]),
+                        x_pos[mask_potentiate],
+                        self.Ap_pos[mask_potentiate], self.An_pos[mask_potentiate],
+                        self.Vp_pos[mask_potentiate], self.Vn_pos[mask_potentiate],
+                        self.alphap_pos[mask_potentiate], self.alphan_pos[mask_potentiate],
+                        self.xp_pos[mask_potentiate], self.xn_pos[mask_potentiate])
+                    x_neg[mask_depress] = yakopcic_one_step(
+                        setV * np.ones_like(x_neg[mask_depress]),
+                        x_neg[mask_depress],
+                        self.Ap_neg[mask_depress], self.An_neg[mask_depress],
+                        self.Vp_neg[mask_depress], self.Vn_neg[mask_depress],
+                        self.alphap_neg[mask_depress], self.alphan_neg[mask_depress],
+                        self.xp_neg[mask_depress], self.xn_neg[mask_depress])
+                    if self.strategy == 'symmetric':
+                        x_neg[mask_potentiate] = yakopcic_one_step(
+                            resetV * np.ones_like(x_neg[mask_potentiate]),
+                            x_neg[mask_potentiate],
+                            self.Ap_neg[mask_potentiate], self.An_neg[mask_potentiate],
+                            self.Vp_neg[mask_potentiate], self.Vn_neg[mask_potentiate],
+                            self.alphap_neg[mask_potentiate], self.alphan_neg[mask_potentiate],
+                            self.xp_neg[mask_potentiate], self.xn_neg[mask_potentiate])
+                        x_pos[mask_depress] = yakopcic_one_step(
+                            resetV * np.ones_like(x_pos[mask_depress]),
+                            x_pos[mask_depress],
+                            self.Ap_pos[mask_depress], self.An_pos[mask_depress],
+                            self.Vp_pos[mask_depress], self.Vn_pos[mask_depress],
+                            self.alphap_pos[mask_depress], self.alphan_pos[mask_depress],
+                            self.xp_pos[mask_depress], self.xn_pos[mask_depress])
+
+                if self.strategy == 'symmetric-probabilistic':
+                    # compute probabilities for symmetric-probabilistic
+                    device_selection = np.random.rand(*update_direction.shape)
+                    # POTENTIATE
+                    x_pos[(mask_potentiate) & (device_selection >= 0.5)] = yakopcic_one_step(
+                        setV * np.ones_like(x_pos[(mask_potentiate) & (device_selection >= 0.5)]),
+                        x_pos[(mask_potentiate) & (device_selection >= 0.5)],
+                        self.Ap_pos[(mask_potentiate) & (device_selection >= 0.5)],
+                        self.An_pos[(mask_potentiate) & (device_selection >= 0.5)],
+                        self.Vp_pos[(mask_potentiate) & (device_selection >= 0.5)],
+                        self.Vn_pos[(mask_potentiate) & (device_selection >= 0.5)],
+                        self.alphap_pos[(mask_potentiate) & (device_selection >= 0.5)],
+                        self.alphan_pos[(mask_potentiate) & (device_selection >= 0.5)],
+                        self.xp_pos[(mask_potentiate) & (device_selection >= 0.5)],
+                        self.xn_pos[(mask_potentiate) & (device_selection >= 0.5)])
+                    x_neg[(mask_potentiate) & (device_selection < 0.5)] = yakopcic_one_step(
+                        resetV * np.ones_like(x_neg[(mask_potentiate) & (device_selection < 0.5)]),
+                        x_neg[(mask_potentiate) & (device_selection < 0.5)],
+                        self.Ap_neg[(mask_potentiate) & (device_selection < 0.5)],
+                        self.An_neg[(mask_potentiate) & (device_selection < 0.5)],
+                        self.Vp_neg[(mask_potentiate) & (device_selection < 0.5)],
+                        self.Vn_neg[(mask_potentiate) & (device_selection < 0.5)],
+                        self.alphap_neg[(mask_potentiate) & (device_selection < 0.5)],
+                        self.alphan_neg[(mask_potentiate) & (device_selection < 0.5)],
+                        self.xp_neg[(mask_potentiate) & (device_selection < 0.5)],
+                        self.xn_neg[(mask_potentiate) & (device_selection < 0.5)])
+                    # DEPRESS
+                    x_pos[(mask_depress) & (device_selection >= 0.5)] = yakopcic_one_step(
+                        resetV * np.ones_like(x_pos[(mask_depress) & (device_selection >= 0.5)]),
+                        x_pos[(mask_depress) & (device_selection >= 0.5)],
+                        self.Ap_pos[(mask_depress) & (device_selection >= 0.5)],
+                        self.An_pos[(mask_depress) & (device_selection >= 0.5)],
+                        self.Vp_pos[(mask_depress) & (device_selection >= 0.5)],
+                        self.Vn_pos[(mask_depress) & (device_selection >= 0.5)],
+                        self.alphap_pos[(mask_depress) & (device_selection >= 0.5)],
+                        self.alphan_pos[(mask_depress) & (device_selection >= 0.5)],
+                        self.xp_pos[(mask_depress) & (device_selection >= 0.5)],
+                        self.xn_pos[(mask_depress) & (device_selection >= 0.5)])
+                    x_neg[(mask_depress) & (device_selection < 0.5)] = yakopcic_one_step(
+                        setV * np.ones_like(x_neg[(mask_depress) & (device_selection < 0.5)]),
+                        x_neg[(mask_depress) & (device_selection < 0.5)],
+                        self.Ap_neg[(mask_depress) & (device_selection < 0.5)],
+                        self.An_neg[(mask_depress) & (device_selection < 0.5)],
+                        self.Vp_neg[(mask_depress) & (device_selection < 0.5)],
+                        self.Vn_neg[(mask_depress) & (device_selection < 0.5)],
+                        self.alphap_neg[(mask_depress) & (device_selection < 0.5)],
+                        self.alphan_neg[(mask_depress) & (device_selection < 0.5)],
+                        self.xp_neg[(mask_depress) & (device_selection < 0.5)],
+                        self.xn_neg[(mask_depress) & (device_selection < 0.5)])
 
                 # -- calculate the current through the devices
                 i_pos = current(readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,
@@ -477,7 +529,7 @@ def build_mpes(model, mpes, rule):
                 bmin_p_pos, gmax_n_pos, gmax_p_pos, gmin_n_pos, gmin_p_pos, Vn_pos, Vp_pos, alphan_pos, alphap_pos,
                 An_pos, Ap_pos, x_pos, xn_pos, xp_pos, bmax_n_neg, bmax_p_neg, bmin_n_neg, bmin_p_neg, gmax_n_neg,
                 gmax_p_neg, gmin_n_neg, gmin_p_neg, Vn_neg, Vp_neg, alphan_neg, alphap_neg, An_neg, Ap_neg, x_neg,
-                xn_neg, xp_neg, mpes.initial_state)
+                xn_neg, xp_neg, mpes.initial_state, mpes.strategy)
     )
 
     # expose these for probes
