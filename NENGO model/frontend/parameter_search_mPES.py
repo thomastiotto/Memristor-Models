@@ -11,7 +11,7 @@ parser.add_argument("-D", "--dimensions", default=3, type=int)
 parser.add_argument("-N", "--neurons", type=int, default=10)
 parser.add_argument("-i", "--inputs", default=["sine", "sine"], nargs="*", choices=["sine", "white"])
 parser.add_argument("-l", "--limits", nargs=2, type=float, required=True)
-parser.add_argument("-n", "--number", type=int, default=10)
+parser.add_argument("-n", "--number", type=int, default=None)
 parser.add_argument("-a", "--averaging", type=int, required=True)
 parser.add_argument("-d", "--directory", default="../data/")
 args = parser.parse_args()
@@ -23,7 +23,7 @@ inputs = args.inputs
 parameter = args.parameter
 start_par = args.limits[0]
 end_par = args.limits[1]
-num_par = args.number if args.parameter in ["exponent", "noise", "neurons"] else end_par - start_par + 1
+num_par = args.number if args.number is not None else end_par - start_par + 1
 num_averaging = args.averaging
 directory = args.directory
 

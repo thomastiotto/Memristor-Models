@@ -331,6 +331,7 @@ class SimmPES(Operator):
                 spiked_map = find_spikes(pre_filtered, weights.shape, invert=True)
                 pes_delta[spiked_map] = 0
 
+                # TODO these are not counting corretly in probabalistic case
                 # -- count pulses given to each memristor for post-hoc statistics
                 pos_temp = np.sign(pes_delta)
                 pos_temp[pos_temp < 0] = 0
@@ -389,54 +390,60 @@ class SimmPES(Operator):
                             self.xp_pos[mask_depress], self.xn_pos[mask_depress])
 
                 if self.strategy == 'symmetric-probabilistic':
-                    # compute probabilities for symmetric-probabilistic
+                    # compute probabilities for each synapse
+                    # TODO pass this from frontend
+                    reset_probability = 0.1
                     device_selection = np.random.rand(*update_direction.shape)
                     # POTENTIATE
-                    x_pos[(mask_potentiate) & (device_selection >= 0.5)] = yakopcic_one_step(
-                        setV * np.ones_like(x_pos[(mask_potentiate) & (device_selection >= 0.5)]),
-                        x_pos[(mask_potentiate) & (device_selection >= 0.5)],
-                        self.Ap_pos[(mask_potentiate) & (device_selection >= 0.5)],
-                        self.An_pos[(mask_potentiate) & (device_selection >= 0.5)],
-                        self.Vp_pos[(mask_potentiate) & (device_selection >= 0.5)],
-                        self.Vn_pos[(mask_potentiate) & (device_selection >= 0.5)],
-                        self.alphap_pos[(mask_potentiate) & (device_selection >= 0.5)],
-                        self.alphan_pos[(mask_potentiate) & (device_selection >= 0.5)],
-                        self.xp_pos[(mask_potentiate) & (device_selection >= 0.5)],
-                        self.xn_pos[(mask_potentiate) & (device_selection >= 0.5)])
-                    x_neg[(mask_potentiate) & (device_selection < 0.5)] = yakopcic_one_step(
-                        resetV * np.ones_like(x_neg[(mask_potentiate) & (device_selection < 0.5)]),
-                        x_neg[(mask_potentiate) & (device_selection < 0.5)],
-                        self.Ap_neg[(mask_potentiate) & (device_selection < 0.5)],
-                        self.An_neg[(mask_potentiate) & (device_selection < 0.5)],
-                        self.Vp_neg[(mask_potentiate) & (device_selection < 0.5)],
-                        self.Vn_neg[(mask_potentiate) & (device_selection < 0.5)],
-                        self.alphap_neg[(mask_potentiate) & (device_selection < 0.5)],
-                        self.alphan_neg[(mask_potentiate) & (device_selection < 0.5)],
-                        self.xp_neg[(mask_potentiate) & (device_selection < 0.5)],
-                        self.xn_neg[(mask_potentiate) & (device_selection < 0.5)])
+                    mask_potentiate_set = np.logical_and(update_direction > 0, device_selection >= reset_probability)
+                    x_pos[mask_potentiate_set] = yakopcic_one_step(
+                        setV * np.ones_like(x_pos[mask_potentiate_set]),
+                        x_pos[mask_potentiate_set],
+                        self.Ap_pos[mask_potentiate_set],
+                        self.An_pos[mask_potentiate_set],
+                        self.Vp_pos[mask_potentiate_set],
+                        self.Vn_pos[mask_potentiate_set],
+                        self.alphap_pos[mask_potentiate_set],
+                        self.alphan_pos[mask_potentiate_set],
+                        self.xp_pos[mask_potentiate_set],
+                        self.xn_pos[mask_potentiate_set])
+                    mask_potentiate_reset = np.logical_and(update_direction > 0, device_selection < reset_probability)
+                    x_neg[mask_potentiate_reset] = yakopcic_one_step(
+                        resetV * np.ones_like(x_neg[mask_potentiate_reset]),
+                        x_neg[mask_potentiate_reset],
+                        self.Ap_neg[mask_potentiate_reset],
+                        self.An_neg[mask_potentiate_reset],
+                        self.Vp_neg[mask_potentiate_reset],
+                        self.Vn_neg[mask_potentiate_reset],
+                        self.alphap_neg[mask_potentiate_reset],
+                        self.alphan_neg[mask_potentiate_reset],
+                        self.xp_neg[mask_potentiate_reset],
+                        self.xn_neg[mask_potentiate_reset])
                     # DEPRESS
-                    x_pos[(mask_depress) & (device_selection >= 0.5)] = yakopcic_one_step(
-                        resetV * np.ones_like(x_pos[(mask_depress) & (device_selection >= 0.5)]),
-                        x_pos[(mask_depress) & (device_selection >= 0.5)],
-                        self.Ap_pos[(mask_depress) & (device_selection >= 0.5)],
-                        self.An_pos[(mask_depress) & (device_selection >= 0.5)],
-                        self.Vp_pos[(mask_depress) & (device_selection >= 0.5)],
-                        self.Vn_pos[(mask_depress) & (device_selection >= 0.5)],
-                        self.alphap_pos[(mask_depress) & (device_selection >= 0.5)],
-                        self.alphan_pos[(mask_depress) & (device_selection >= 0.5)],
-                        self.xp_pos[(mask_depress) & (device_selection >= 0.5)],
-                        self.xn_pos[(mask_depress) & (device_selection >= 0.5)])
-                    x_neg[(mask_depress) & (device_selection < 0.5)] = yakopcic_one_step(
-                        setV * np.ones_like(x_neg[(mask_depress) & (device_selection < 0.5)]),
-                        x_neg[(mask_depress) & (device_selection < 0.5)],
-                        self.Ap_neg[(mask_depress) & (device_selection < 0.5)],
-                        self.An_neg[(mask_depress) & (device_selection < 0.5)],
-                        self.Vp_neg[(mask_depress) & (device_selection < 0.5)],
-                        self.Vn_neg[(mask_depress) & (device_selection < 0.5)],
-                        self.alphap_neg[(mask_depress) & (device_selection < 0.5)],
-                        self.alphan_neg[(mask_depress) & (device_selection < 0.5)],
-                        self.xp_neg[(mask_depress) & (device_selection < 0.5)],
-                        self.xn_neg[(mask_depress) & (device_selection < 0.5)])
+                    mask_depress_set = np.logical_and(update_direction < 0, device_selection >= reset_probability)
+                    x_neg[mask_depress_set] = yakopcic_one_step(
+                        setV * np.ones_like(x_neg[mask_depress_set]),
+                        x_neg[mask_depress_set],
+                        self.Ap_neg[mask_depress_set],
+                        self.An_neg[mask_depress_set],
+                        self.Vp_neg[mask_depress_set],
+                        self.Vn_neg[mask_depress_set],
+                        self.alphap_neg[mask_depress_set],
+                        self.alphan_neg[mask_depress_set],
+                        self.xp_neg[mask_depress_set],
+                        self.xn_neg[mask_depress_set])
+                    mask_depress_reset = np.logical_and(update_direction < 0, device_selection < reset_probability)
+                    x_pos[mask_depress_reset] = yakopcic_one_step(
+                        resetV * np.ones_like(x_pos[mask_depress_reset]),
+                        x_pos[mask_depress_reset],
+                        self.Ap_pos[mask_depress_reset],
+                        self.An_pos[mask_depress_reset],
+                        self.Vp_pos[mask_depress_reset],
+                        self.Vn_pos[mask_depress_reset],
+                        self.alphap_pos[mask_depress_reset],
+                        self.alphan_pos[mask_depress_reset],
+                        self.xp_pos[mask_depress_reset],
+                        self.xn_pos[mask_depress_reset])
 
                 # -- calculate the current through the devices
                 i_pos = current(readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,

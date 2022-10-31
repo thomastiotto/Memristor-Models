@@ -110,7 +110,7 @@ if args.plot >= 2:
 if args.plot >= 3:
     save_data = True
 
-debug = False
+debug = True
 
 # TODO give better names to folders or make hierarchy
 if save_plots or save_data:
