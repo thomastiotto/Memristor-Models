@@ -240,31 +240,56 @@ if probe > 0:
 
     if isinstance(conn.learning_rule_type, mPES) and debug:
         # -- evaluate number of memristor pulses over simulation
-        pos_pulse_counter = mpes_op.pos_pulse_counter
-        neg_pulse_counter = mpes_op.neg_pulse_counter
-        printlv2('Average number of SET pulses')
-        printlv1(np.mean(pos_pulse_counter))
-        printlv2('Average number of RESET pulses')
-        printlv1(np.mean(neg_pulse_counter))
+        # pos_pulse_counter = mpes_op.set_pulse_counter
+        # neg_pulse_counter = mpes_op.reset_pulse_counter
+        # printlv2('Average number of SET pulses')
+        # printlv1(np.mean(pos_pulse_counter))
+        # printlv2('Average number of RESET pulses')
+        # printlv1(np.mean(neg_pulse_counter))
 
         # -- evaluate the average length of consecutive reset or set pulses
-        from itertools import groupby, product
 
-        pulse_archive = np.array(mpes_op.pulse_archive)
-        lengths_set = []
-        lengths_reset = []
-        for i, j in tqdm(product(range(pulse_archive.shape[1]), range(pulse_archive.shape[2])),
-                         total=pulse_archive.shape[1] * pulse_archive.shape[2],
-                         desc='Calculating average number of consecutive pulses'):
-            for k, g in groupby(pulse_archive[:, i, j]):
-                if k == 1:
-                    lengths_set.append(len(list(g)))
-                elif k == -1:
-                    lengths_reset.append(len(list(g)))
+        def average_number_consecutive_pulses(pulse_archive):
+            from itertools import groupby, product
+
+            pulse_archive = np.array(pulse_archive)
+
+            lengths_set = []
+            lengths_reset = []
+            for i, j in tqdm(product(range(pulse_archive.shape[1]), range(pulse_archive.shape[2])),
+                             total=pulse_archive.shape[1] * pulse_archive.shape[2],
+                             desc='Calculating average number of consecutive pulses'):
+                for k, g in groupby(pulse_archive[:, i, j]):
+                    if k == 1:
+                        lengths_set.append(len(list(g)))
+                    elif k == -1:
+                        lengths_reset.append(len(list(g)))
+
+            return np.mean(lengths_set), np.mean(lengths_reset)
+
+
+        def average_number_pulses(pulse_archive):
+            pulse_archive = np.array(pulse_archive)
+
+            avg_set = np.mean(np.sum(np.where(pulse_archive == 1, pulse_archive, 0), axis=0))
+            avg_reset = np.mean(np.sum(np.where(pulse_archive == -1, -1 * pulse_archive, 0), axis=0))
+
+            return avg_set, avg_reset
+
+
+        consec_pos_set, consec_pos_reset = average_number_consecutive_pulses(mpes_op.pos_pulse_archive)
+        consec_neg_set, consec_neg_reset = average_number_consecutive_pulses(mpes_op.neg_pulse_archive)
         printlv2('Average length of consecutive SET pulses')
-        printlv1(np.mean(lengths_set))
+        printlv1(np.mean([consec_pos_set, consec_neg_set]))
         printlv2('Average length of consecutive RESET pulses')
-        printlv1(np.mean(lengths_reset))
+        printlv1(np.mean([consec_pos_reset, consec_neg_reset]))
+
+        num_pos_set, num_pos_reset = average_number_pulses(mpes_op.pos_pulse_archive)
+        num_neg_set, num_neg_reset = average_number_pulses(mpes_op.neg_pulse_archive)
+        printlv2('Average number of SET pulses')
+        printlv1(np.mean([num_pos_set, num_neg_set]))
+        printlv2('Average number of RESET pulses')
+        printlv1(np.mean([num_pos_reset, num_neg_reset]))
 
 if probe > 1:
     # Average

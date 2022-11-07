@@ -235,9 +235,8 @@ class SimmPES(Operator):
 
         self.strategy = strategy
 
-        self.pos_pulse_counter = np.zeros_like(An_pos)
-        self.neg_pulse_counter = np.zeros_like(An_neg)
-        self.pulse_archive = []
+        self.pos_pulse_archive = []
+        self.neg_pulse_archive = []
 
         self.sets = []
         self.incs = []
@@ -331,16 +330,8 @@ class SimmPES(Operator):
                 spiked_map = find_spikes(pre_filtered, weights.shape, invert=True)
                 pes_delta[spiked_map] = 0
 
-                # TODO these are not counting corretly in probabalistic case
-                # -- count pulses given to each memristor for post-hoc statistics
-                pos_temp = np.sign(pes_delta)
-                pos_temp[pos_temp < 0] = 0
-                neg_temp = np.sign(pes_delta)
-                neg_temp[neg_temp > 0] = 0
-                neg_temp = np.abs(neg_temp)
-                self.pos_pulse_counter += pos_temp
-                self.neg_pulse_counter += neg_temp
-                self.pulse_archive.append(np.sign(pes_delta))
+                ts_pos_pulses = np.zeros_like(pes_delta)
+                ts_neg_pulses = np.zeros_like(pes_delta)
 
                 def yakopcic_one_step(V, x, Ap, An, Vp, Vn, alphap, alphan, xp, xn):
                     # Calculate the state variables at the current timestep
@@ -373,6 +364,10 @@ class SimmPES(Operator):
                         self.Vp_neg[mask_depress], self.Vn_neg[mask_depress],
                         self.alphap_neg[mask_depress], self.alphan_neg[mask_depress],
                         self.xp_neg[mask_depress], self.xn_neg[mask_depress])
+
+                    ts_pos_pulses = mask_potentiate.astype(int)
+                    ts_neg_pulses = mask_depress.astype(int)
+
                     if self.strategy == 'symmetric':
                         x_neg[mask_potentiate] = yakopcic_one_step(
                             resetV * np.ones_like(x_neg[mask_potentiate]),
@@ -389,10 +384,13 @@ class SimmPES(Operator):
                             self.alphap_pos[mask_depress], self.alphan_pos[mask_depress],
                             self.xp_pos[mask_depress], self.xn_pos[mask_depress])
 
+                        ts_neg_pulses = ts_neg_pulses + -1 * mask_potentiate.astype(int)
+                        ts_pos_pulses = ts_pos_pulses + -1 * mask_depress.astype(int)
+
                 if self.strategy == 'symmetric-probabilistic':
                     # compute probabilities for each synapse
                     # TODO pass this from frontend
-                    reset_probability = 0.1
+                    reset_probability = 0.5
                     device_selection = np.random.rand(*update_direction.shape)
                     # POTENTIATE
                     mask_potentiate_set = np.logical_and(update_direction > 0, device_selection >= reset_probability)
@@ -444,6 +442,14 @@ class SimmPES(Operator):
                         self.alphan_pos[mask_depress_reset],
                         self.xp_pos[mask_depress_reset],
                         self.xn_pos[mask_depress_reset])
+
+                    ts_pos_pulses = mask_potentiate_set.astype(int)
+                    ts_neg_pulses = -1 * mask_potentiate_reset.astype(int)
+                    ts_neg_pulses = ts_neg_pulses + mask_depress_set.astype(int)
+                    ts_pos_pulses = ts_pos_pulses + -1 * mask_depress_reset.astype(int)
+
+                self.pos_pulse_archive.append(ts_pos_pulses)
+                self.neg_pulse_archive.append(ts_neg_pulses)
 
                 # -- calculate the current through the devices
                 i_pos = current(readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,
