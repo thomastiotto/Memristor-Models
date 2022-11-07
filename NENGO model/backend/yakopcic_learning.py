@@ -112,6 +112,7 @@ class mPES(LearningRuleType):
 
     pre_synapse = SynapseParam("pre_synapse", default=Lowpass(tau=0.005), readonly=True)
     gain = NumberParam("gain", readonly=True, default=5e6)
+    reset_probability = NumberParam("reset_probability", readonly=True, default=0.5)
     initial_state = DictParam("initial_state", optional=True)
 
     def __init__(self,
@@ -120,7 +121,8 @@ class mPES(LearningRuleType):
                  gain=Default,
                  initial_state=None,
                  seed=None,
-                 strategy='symmetric-probabilistic'):
+                 strategy='symmetric-probabilistic',
+                 reset_probability=Default):
         super().__init__(size_in="post_state")
 
         self.pre_synapse = pre_synapse
@@ -136,6 +138,7 @@ class mPES(LearningRuleType):
 
         assert strategy in ['assymmetric', 'symmetric', 'symmetric-probabilistic']
         self.strategy = strategy
+        self.reset_probability = reset_probability
 
     @property
     def _argdefaults(self):
@@ -187,6 +190,7 @@ class SimmPES(Operator):
             xp_neg,
             initial_state,
             strategy,
+            reset_probability,
             tag=None
     ):
         super(SimmPES, self).__init__(tag=tag)
@@ -194,6 +198,7 @@ class SimmPES(Operator):
         self.gain = gain
         self.error_threshold = 1e-5
         self.readV = -1
+        self.reset_probability = reset_probability
 
         self.An_pos = An_pos
         self.Ap_pos = Ap_pos
@@ -389,11 +394,10 @@ class SimmPES(Operator):
 
                 if self.strategy == 'symmetric-probabilistic':
                     # compute probabilities for each synapse
-                    # TODO pass this from frontend
-                    reset_probability = 0.5
                     device_selection = np.random.rand(*update_direction.shape)
                     # POTENTIATE
-                    mask_potentiate_set = np.logical_and(update_direction > 0, device_selection >= reset_probability)
+                    mask_potentiate_set = np.logical_and(update_direction > 0,
+                                                         device_selection >= self.reset_probability)
                     x_pos[mask_potentiate_set] = yakopcic_one_step(
                         setV * np.ones_like(x_pos[mask_potentiate_set]),
                         x_pos[mask_potentiate_set],
@@ -405,7 +409,8 @@ class SimmPES(Operator):
                         self.alphan_pos[mask_potentiate_set],
                         self.xp_pos[mask_potentiate_set],
                         self.xn_pos[mask_potentiate_set])
-                    mask_potentiate_reset = np.logical_and(update_direction > 0, device_selection < reset_probability)
+                    mask_potentiate_reset = np.logical_and(update_direction > 0,
+                                                           device_selection < self.reset_probability)
                     x_neg[mask_potentiate_reset] = yakopcic_one_step(
                         resetV * np.ones_like(x_neg[mask_potentiate_reset]),
                         x_neg[mask_potentiate_reset],
@@ -418,7 +423,8 @@ class SimmPES(Operator):
                         self.xp_neg[mask_potentiate_reset],
                         self.xn_neg[mask_potentiate_reset])
                     # DEPRESS
-                    mask_depress_set = np.logical_and(update_direction < 0, device_selection >= reset_probability)
+                    mask_depress_set = np.logical_and(update_direction < 0,
+                                                      device_selection >= self.reset_probability)
                     x_neg[mask_depress_set] = yakopcic_one_step(
                         setV * np.ones_like(x_neg[mask_depress_set]),
                         x_neg[mask_depress_set],
@@ -430,7 +436,8 @@ class SimmPES(Operator):
                         self.alphan_neg[mask_depress_set],
                         self.xp_neg[mask_depress_set],
                         self.xn_neg[mask_depress_set])
-                    mask_depress_reset = np.logical_and(update_direction < 0, device_selection < reset_probability)
+                    mask_depress_reset = np.logical_and(update_direction < 0,
+                                                        device_selection < self.reset_probability)
                     x_pos[mask_depress_reset] = yakopcic_one_step(
                         resetV * np.ones_like(x_pos[mask_depress_reset]),
                         x_pos[mask_depress_reset],
@@ -542,7 +549,7 @@ def build_mpes(model, mpes, rule):
                 bmin_p_pos, gmax_n_pos, gmax_p_pos, gmin_n_pos, gmin_p_pos, Vn_pos, Vp_pos, alphan_pos, alphap_pos,
                 An_pos, Ap_pos, x_pos, xn_pos, xp_pos, bmax_n_neg, bmax_p_neg, bmin_n_neg, bmin_p_neg, gmax_n_neg,
                 gmax_p_neg, gmin_n_neg, gmin_p_neg, Vn_neg, Vp_neg, alphan_neg, alphap_neg, An_neg, Ap_neg, x_neg,
-                xn_neg, xp_neg, mpes.initial_state, mpes.strategy)
+                xn_neg, xp_neg, mpes.initial_state, mpes.strategy, mpes.reset_probability)
     )
 
     # expose these for probes
