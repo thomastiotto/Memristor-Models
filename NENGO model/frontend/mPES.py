@@ -31,8 +31,9 @@ parser.add_argument("-n", "--noise", default=0.15, type=float,
                     help="The noise on the simulated memristors.  Default is 0.15")
 parser.add_argument("-g", "--gain", default=1e6, type=float)  # default chosen by parameter search experiments
 parser.add_argument("-l", "--learning_rule", default="mPES", choices=["mPES", "PES"])
-parser.add_argument("-P", "--parameters", default=Default, type=float,
-                    help="The parameters of simualted memristors.  For now only the exponent c")
+parser.add_argument('-st', '--strategy', default='symmetric',
+                    choices=['symmetric', 'asymmetric', 'symmetric-probabilistic', 'asymmetric-probabilistic'])
+# parser.add_argument('-sp', '--')
 parser.add_argument("-b", "--backend", default="nengo_core", choices=["nengo_dl", "nengo_core"])
 parser.add_argument("-o", "--optimisations", default="run", choices=["run", "build", "memory"])
 parser.add_argument("-s", "--seed", default=None, type=int)  # Can use seed = 13 for quick check
@@ -86,7 +87,7 @@ if len(args.neurons) == 3:
 dimensions = args.dimensions
 noise_percent = args.noise
 gain = args.gain
-exponent = args.parameters
+strategy = args.strategy
 learning_rule = args.learning_rule
 backend = args.backend
 optimisations = args.optimisations
@@ -166,7 +167,8 @@ with model:
         conn.learning_rule_type = mPES(
             noisy=noise_percent,
             gain=gain,
-            seed=seed, )
+            seed=seed,
+            strategy=strategy)
     if learning_rule == "PES":
         conn.learning_rule_type = PES()
     printlv2("Simulating with", conn.learning_rule_type)
@@ -249,6 +251,7 @@ if probe > 0:
 
         # -- evaluate the average length of consecutive reset or set pulses
 
+        # TODO when only giving SET pulses, the average length of consecutive SET pulses is 5
         def average_number_consecutive_pulses(pulse_archive):
             from itertools import groupby, product
 

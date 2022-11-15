@@ -114,6 +114,7 @@ class mPES(LearningRuleType):
     gain = NumberParam("gain", readonly=True, default=5e6)
     initial_state = DictParam("initial_state", optional=True)
 
+    # TODO pass reset probability as parameter
     def __init__(self,
                  pre_synapse=Default,
                  noisy=False,
@@ -155,6 +156,8 @@ class mPES(LearningRuleType):
             self.reset_probability = 0.0
         else:
             raise ValueError(f"Unknown strategy {strategy}")
+
+        print(strategy, self.set_probability, self.reset_probability)
 
     @property
     def _argdefaults(self):
@@ -366,46 +369,6 @@ class SimmPES(Operator):
 
                 # -- update memristor states
                 update_direction = np.sign(pes_delta)
-                mask_potentiate = update_direction > 0
-                mask_depress = update_direction < 0
-
-                # if self.strategy == 'symmetric' or self.strategy == 'assymmetric':
-                #     x_pos[mask_potentiate] = yakopcic_one_step(
-                #         setV * np.ones_like(x_pos[mask_potentiate]),
-                #         x_pos[mask_potentiate],
-                #         self.Ap_pos[mask_potentiate], self.An_pos[mask_potentiate],
-                #         self.Vp_pos[mask_potentiate], self.Vn_pos[mask_potentiate],
-                #         self.alphap_pos[mask_potentiate], self.alphan_pos[mask_potentiate],
-                #         self.xp_pos[mask_potentiate], self.xn_pos[mask_potentiate])
-                #     x_neg[mask_depress] = yakopcic_one_step(
-                #         setV * np.ones_like(x_neg[mask_depress]),
-                #         x_neg[mask_depress],
-                #         self.Ap_neg[mask_depress], self.An_neg[mask_depress],
-                #         self.Vp_neg[mask_depress], self.Vn_neg[mask_depress],
-                #         self.alphap_neg[mask_depress], self.alphan_neg[mask_depress],
-                #         self.xp_neg[mask_depress], self.xn_neg[mask_depress])
-                #
-                #     ts_pos_pulses = mask_potentiate.astype(int)
-                #     ts_neg_pulses = mask_depress.astype(int)
-                #
-                #     if self.strategy == 'symmetric':
-                #         x_neg[mask_potentiate] = yakopcic_one_step(
-                #             resetV * np.ones_like(x_neg[mask_potentiate]),
-                #             x_neg[mask_potentiate],
-                #             self.Ap_neg[mask_potentiate], self.An_neg[mask_potentiate],
-                #             self.Vp_neg[mask_potentiate], self.Vn_neg[mask_potentiate],
-                #             self.alphap_neg[mask_potentiate], self.alphan_neg[mask_potentiate],
-                #             self.xp_neg[mask_potentiate], self.xn_neg[mask_potentiate])
-                #         x_pos[mask_depress] = yakopcic_one_step(
-                #             resetV * np.ones_like(x_pos[mask_depress]),
-                #             x_pos[mask_depress],
-                #             self.Ap_pos[mask_depress], self.An_pos[mask_depress],
-                #             self.Vp_pos[mask_depress], self.Vn_pos[mask_depress],
-                #             self.alphap_pos[mask_depress], self.alphan_pos[mask_depress],
-                #             self.xp_pos[mask_depress], self.xn_pos[mask_depress])
-                #
-                #         ts_neg_pulses = ts_neg_pulses + -1 * mask_potentiate.astype(int)
-                #         ts_pos_pulses = ts_pos_pulses + -1 * mask_depress.astype(int)
 
                 # compute SET and RESET probabilities for each synapse
                 device_selection_set = np.random.rand(*update_direction.shape)
