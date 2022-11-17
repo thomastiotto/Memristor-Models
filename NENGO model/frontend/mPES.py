@@ -113,7 +113,6 @@ if args.plot >= 3:
 
 debug = True
 
-# TODO give better names to folders or make hierarchy
 if save_plots or save_data:
     dir_name, dir_images, dir_data = make_timestamped_dir(root=plots_directory + learning_rule + "/")
 
@@ -154,7 +153,7 @@ with model:
 
     # Connect pre and post with a communication channel
     # the matrix given to transform is the initial weights found in model.sig[conn]["weights"]
-    # the initial transform has not influence on learning because it is overwritten by mPES
+    # the initial transform has no influence on learning because it is overwritten by mPES
     # the only influence is on the very first timesteps, before the error becomes large enough
     conn = nengo.Connection(
         pre.neurons,
@@ -164,11 +163,7 @@ with model:
 
     # Apply the learning rule to conn
     if learning_rule == "mPES":
-        conn.learning_rule_type = mPES(
-            noisy=noise_percent,
-            gain=gain,
-            seed=seed,
-            strategy=strategy)
+        conn.learning_rule_type = mPES(noisy=noise_percent, gain=gain, seed=seed, strategy=strategy, resetP=0.5)
     if learning_rule == "PES":
         conn.learning_rule_type = PES()
     printlv2("Simulating with", conn.learning_rule_type)

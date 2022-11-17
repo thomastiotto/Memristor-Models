@@ -499,11 +499,14 @@ class Plotter():
         return fig
 
 
-def make_timestamped_dir(root=None):
+def make_timestamped_dir(root=None, make_subfolders=False):
     if root is None:
         root = "../data/"
 
     os.makedirs(os.path.dirname(root), exist_ok=True)
+
+    if root.endswith("/"):
+        root = root[:-1]
 
     time_string = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
     dir_name = root + "/" + time_string + "/"
@@ -512,10 +515,14 @@ def make_timestamped_dir(root=None):
     dir_images = dir_name + "images/"
     dir_data = dir_name + "data/"
     os.makedirs(dir_name)
-    os.makedirs(dir_images)
-    os.makedirs(dir_data)
+    
+    if make_subfolders:
+        os.makedirs(dir_images)
+        os.makedirs(dir_data)
 
-    return dir_name, dir_images, dir_data
+        return dir_name, dir_images, dir_data
+
+    return dir_name
 
 
 def mse_to_rho_ratio(mse, rho):

@@ -85,27 +85,27 @@ def iterate_yakopcic(resetV, setV, iterations=10, plot_output=False, print_outpu
         Preset = 1 / k
 
     print_cond('k:', k)
-    print_cond('Vset', setV, '| Vreset', resetV)
-    print_cond('Pset:', Pset, '| Preset:', Preset)
+    print_cond('Vreset', resetV, '| Vset', setV)
+    print_cond('Preset:', Preset, '| Pset:', Pset)
 
-    return k, setV, resetV
+    return k, setV, resetV, Pset, Preset
 
 
-def residuals(x):
+def residuals_voltages(x):
     resetV = x[0]
     setV = x[1]
 
-    k, _, _, = iterate_yakopcic(resetV, setV)
+    k, _, _, _, _ = iterate_yakopcic(resetV, setV)
 
     return k
 
 
-res_minimisation = optimize.least_squares(residuals, [-0.2, 3.86621037038006], bounds=([-10, 0], [0, 10]),
-                                          method='dogbox', verbose=1)
-print(f'Optimisation result:\nVreset: {res_minimisation.x[0]}\nVset: {res_minimisation.x[1]}')
+# -- target probabilities at 1 and find voltages that give that outcome
+find_voltages = optimize.least_squares(residuals_voltages, [-0.2, 3.86621037038006], bounds=([-10, 0], [0, 10]),
+                                       method='dogbox', verbose=1)
+print('VOLTAGES GIVEN TARGET PROBABILITIES AT 1')
+iterate_yakopcic(find_voltages.x[0], find_voltages.x[1], plot_output=True, print_output=True)
 
-k, setV, resetV = iterate_yakopcic(res_minimisation.x[0], res_minimisation.x[1], plot_output=True, print_output=True)
-
-setV = 3.86621037038006
-resetV = -8.135891404816215
-k, setV, resetV = iterate_yakopcic(resetV, setV, plot_output=True, print_output=True)
+# -- calculate probabilities given voltages
+print('PROBABILITIES GIVEN VOLTAGES')
+iterate_yakopcic(-2, 3.86621037038006, plot_output=True, print_output=True)

@@ -114,7 +114,6 @@ class mPES(LearningRuleType):
     gain = NumberParam("gain", readonly=True, default=5e6)
     initial_state = DictParam("initial_state", optional=True)
 
-    # TODO pass reset probability as parameter
     def __init__(self,
                  pre_synapse=Default,
                  noisy=False,
@@ -122,8 +121,10 @@ class mPES(LearningRuleType):
                  initial_state=None,
                  seed=None,
                  strategy='symmetric-probabilistic',
-                 set_probability=0.5,
-                 reset_probability=0.5):
+                 setP=1,
+                 resetP=1,
+                 setV=3.86621037038006,
+                 resetV=-0.24529948944820018):  # voltages found in percentage_change_resistance.py, these can be used with P(SET)=P(RESET)
         super().__init__(size_in="post_state")
 
         self.pre_synapse = pre_synapse
@@ -138,26 +139,32 @@ class mPES(LearningRuleType):
         self.initial_state = {} if initial_state is None else initial_state
 
         if strategy == 'symmetric-probabilistic':
-            if set_probability is None or reset_probability is None:
+            if setP is None or resetP is None:
                 raise ValueError(
-                    ", set_probability and reset_probability must be set for symmetric-probabilistic strategy")
-            self.set_probability = set_probability
-            self.reset_probability = reset_probability
+                    ", setP and resetP must be set for symmetric-probabilistic strategy")
+            self.setP = setP
+            self.resetP = resetP
         elif strategy == 'asymmetric-probabilistic':
-            if reset_probability is None:
-                raise ValueError("reset_probability must be specified for asymmetric-probabilistic strategy")
-            self.set_probability = 1 - reset_probability
-            self.reset_probability = reset_probability
+            if resetP is None:
+                raise ValueError("resetP must be specified for asymmetric-probabilistic strategy")
+            self.setP = 1 - resetP
+            self.resetP = resetP
         elif strategy == 'symmetric':
-            self.set_probability = 1.0
-            self.reset_probability = 1.0
+            self.setP = 1.0
+            self.resetP = 1.0
         elif strategy == 'asymmetric':
-            self.set_probability = 1.0
-            self.reset_probability = 0.0
+            self.setP = 1.0
+            self.resetP = 0.0
         else:
             raise ValueError(f"Unknown strategy {strategy}")
 
-        print(strategy, self.set_probability, self.reset_probability)
+        self.setV = setV
+        self.resetV = resetV
+        self.setP = setP
+        self.resetP = resetP
+
+        print(f'Using {strategy} strategy: P(SET)={self.setP}, P(RESET)={self.resetP}')
+        print(f'Voltage amplitudes: setV={self.setV} V, resetV={self.resetV} V')
 
     @property
     def _argdefaults(self):
@@ -208,8 +215,10 @@ class SimmPES(Operator):
             xn_neg,
             xp_neg,
             initial_state,
-            set_probability,
-            reset_probability,
+            setP,
+            resetP,
+            setV,
+            resetV,
             tag=None
     ):
         super(SimmPES, self).__init__(tag=tag)
@@ -217,8 +226,10 @@ class SimmPES(Operator):
         self.gain = gain
         self.error_threshold = 1e-5
         self.readV = -1
-        self.set_probability = set_probability
-        self.reset_probability = reset_probability
+        self.setP = setP
+        self.resetP = resetP
+        self.setV = setV
+        self.resetV = resetV
 
         self.An_pos = An_pos
         self.Ap_pos = Ap_pos
@@ -320,14 +331,7 @@ class SimmPES(Operator):
         gain = self.gain
         error_threshold = self.error_threshold
 
-        # ---- voltages found by pulse_experiment_1s_to_1ms.py
         readV = -.1
-        setV = 3.86621037038006
-        # resetV = -8.135891404816215
-        resetV = -0.2
-        # print('readV', readV)
-        # print("setV: ", setV)
-        # print("resetV: ", resetV)
 
         # overwrite initial transform with memristor-based weights
         if "weights" in self.initial_state:
@@ -353,9 +357,6 @@ class SimmPES(Operator):
                 spiked_map = find_spikes(pre_filtered, weights.shape, invert=True)
                 pes_delta[spiked_map] = 0
 
-                ts_pos_pulses = np.zeros_like(pes_delta)
-                ts_neg_pulses = np.zeros_like(pes_delta)
-
                 def yakopcic_one_step(V, x, Ap, An, Vp, Vn, alphap, alphan, xp, xn):
                     # Calculate the state variables at the current timestep
                     np.seterr(all="raise")
@@ -376,9 +377,9 @@ class SimmPES(Operator):
 
                 # POTENTIATE
                 mask_potentiate_set = np.logical_and(update_direction > 0,
-                                                     device_selection_set < self.set_probability)
+                                                     device_selection_set < self.setP)
                 x_pos[mask_potentiate_set] = yakopcic_one_step(
-                    setV * np.ones_like(x_pos[mask_potentiate_set]),
+                    self.setV * np.ones_like(x_pos[mask_potentiate_set]),
                     x_pos[mask_potentiate_set],
                     self.Ap_pos[mask_potentiate_set],
                     self.An_pos[mask_potentiate_set],
@@ -389,9 +390,9 @@ class SimmPES(Operator):
                     self.xp_pos[mask_potentiate_set],
                     self.xn_pos[mask_potentiate_set])
                 mask_potentiate_reset = np.logical_and(update_direction > 0,
-                                                       device_selection_reset < self.reset_probability)
+                                                       device_selection_reset < self.resetP)
                 x_neg[mask_potentiate_reset] = yakopcic_one_step(
-                    resetV * np.ones_like(x_neg[mask_potentiate_reset]),
+                    self.resetV * np.ones_like(x_neg[mask_potentiate_reset]),
                     x_neg[mask_potentiate_reset],
                     self.Ap_neg[mask_potentiate_reset],
                     self.An_neg[mask_potentiate_reset],
@@ -403,9 +404,9 @@ class SimmPES(Operator):
                     self.xn_neg[mask_potentiate_reset])
                 # DEPRESS
                 mask_depress_set = np.logical_and(update_direction < 0,
-                                                  device_selection_set < self.set_probability)
+                                                  device_selection_set < self.setP)
                 x_neg[mask_depress_set] = yakopcic_one_step(
-                    setV * np.ones_like(x_neg[mask_depress_set]),
+                    self.setV * np.ones_like(x_neg[mask_depress_set]),
                     x_neg[mask_depress_set],
                     self.Ap_neg[mask_depress_set],
                     self.An_neg[mask_depress_set],
@@ -416,9 +417,9 @@ class SimmPES(Operator):
                     self.xp_neg[mask_depress_set],
                     self.xn_neg[mask_depress_set])
                 mask_depress_reset = np.logical_and(update_direction < 0,
-                                                    device_selection_reset < self.reset_probability)
+                                                    device_selection_reset < self.resetP)
                 x_pos[mask_depress_reset] = yakopcic_one_step(
-                    resetV * np.ones_like(x_pos[mask_depress_reset]),
+                    self.resetV * np.ones_like(x_pos[mask_depress_reset]),
                     x_pos[mask_depress_reset],
                     self.Ap_pos[mask_depress_reset],
                     self.An_pos[mask_depress_reset],
@@ -527,7 +528,7 @@ def build_mpes(model, mpes, rule):
                 bmin_p_pos, gmax_n_pos, gmax_p_pos, gmin_n_pos, gmin_p_pos, Vn_pos, Vp_pos, alphan_pos, alphap_pos,
                 An_pos, Ap_pos, x_pos, xn_pos, xp_pos, bmax_n_neg, bmax_p_neg, bmin_n_neg, bmin_p_neg, gmax_n_neg,
                 gmax_p_neg, gmin_n_neg, gmin_p_neg, Vn_neg, Vp_neg, alphan_neg, alphap_neg, An_neg, Ap_neg, x_neg,
-                xn_neg, xp_neg, mpes.initial_state, mpes.set_probability, mpes.reset_probability)
+                xn_neg, xp_neg, mpes.initial_state, mpes.setP, mpes.resetP, mpes.setV, mpes.resetV)
     )
 
     # expose these for probes
