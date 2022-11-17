@@ -5,7 +5,7 @@ import nengo_dl
 from nengo.dists import Gaussian
 from nengo.learning_rules import PES
 from nengo.processes import WhiteNoise, WhiteSignal
-
+from tqdm import tqdm
 from extras import *
 from yakopcic_learning import mPES
 
@@ -233,6 +233,12 @@ def LearningModel(neurons, dimensions, learning_rule, function_to_learn, convolv
 errors_iterations_mpes = []
 errors_iterations_pes = []
 errors_iterations_nef = []
+
+# average pulse durations and consecutive amounts
+avg_set_n = []
+avg_reset_n = []
+avg_set_len = []
+avg_reset_len = []
 for i in range(args.iterations):
 
     learned_model_mpes = LearningModel(neurons, dimensions,
@@ -249,6 +255,9 @@ for i in range(args.iterations):
 
     print("Iteration", i)
     with nengo.Simulator(learned_model_mpes) as sim_mpes:
+        if isinstance(learned_model_mpes.conn.learning_rule_type, mPES):
+            # -- evaluate number of memristor pulses over simulation
+            mpes_op = get_operator_from_sim(sim_mpes, 'SimmPES')
         print("Learning network (mPES)")
         sim_mpes.run(sim_time)
     with nengo.Simulator(control_model_pes) as sim_pes:
@@ -278,7 +287,52 @@ for i in range(args.iterations):
         total_error = np.sum(np.sum(np.abs(test_post_data - test_ground_truth_data), axis=1), axis=1)
         lst.append(total_error)
 
+    def average_number_consecutive_pulses(pulse_archive):
+        from itertools import groupby, product
 
+        pulse_archive = np.array(pulse_archive)
+
+        lengths_set = []
+        lengths_reset = []
+        for i, j in tqdm(product(range(pulse_archive.shape[1]), range(pulse_archive.shape[2])),
+                         total=pulse_archive.shape[1] * pulse_archive.shape[2],
+                         desc='Calculating average number of consecutive pulses'):
+            for k, g in groupby(pulse_archive[:, i, j]):
+                if k == 1:
+                    lengths_set.append(len(list(g)))
+                elif k == -1:
+                    lengths_reset.append(len(list(g)))
+
+        return np.mean(lengths_set), np.mean(lengths_reset)
+
+
+    def average_number_pulses(pulse_archive):
+        pulse_archive = np.array(pulse_archive)
+
+        avg_set = np.mean(np.sum(np.where(pulse_archive == 1, pulse_archive, 0), axis=0))
+        avg_reset = np.mean(np.sum(np.where(pulse_archive == -1, -1 * pulse_archive, 0), axis=0))
+
+        return avg_set, avg_reset
+
+
+    consec_pos_set, consec_pos_reset = average_number_consecutive_pulses(mpes_op.pos_pulse_archive)
+    consec_neg_set, consec_neg_reset = average_number_consecutive_pulses(mpes_op.neg_pulse_archive)
+    avg_set_len.append(np.mean([consec_pos_set, consec_neg_set]))
+    avg_reset_len.append(np.mean([consec_pos_reset, consec_neg_reset]))
+
+    num_pos_set, num_pos_reset = average_number_pulses(mpes_op.pos_pulse_archive)
+    num_neg_set, num_neg_reset = average_number_pulses(mpes_op.neg_pulse_archive)
+    avg_set_n.append(np.mean([num_pos_set, num_neg_set]))
+    avg_reset_n.append(np.mean([num_pos_reset, num_neg_reset]))
+
+print('Average length of consecutive SET pulses')
+print(np.mean(avg_set_len))
+print('Average length of consecutive RESET pulses')
+print(np.mean(avg_reset_len))
+print('Average number of SET pulses')
+print(np.mean(avg_set_n))
+print('Average number of RESET pulses')
+print(np.mean(avg_reset_n))
 # 95% confidence interval
 def ci(data, confidence=0.95):
     from scipy.stats import norm
