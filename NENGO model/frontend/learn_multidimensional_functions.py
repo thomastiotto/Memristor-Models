@@ -37,6 +37,7 @@ parser.add_argument("-d", "--device", default="/cpu:0", type=none_or_str, nargs=
                     help='device to run on [ "/cpu:0" or "/gpu:[0-n]" ]')
 parser.add_argument('--decoded', dest='decoded', action='store_true')
 parser.add_argument('--no-decoded', dest='decoded', action='store_false')
+parser.add_argument('--pulse-statistics', dest='decoded', action='store_true')
 parser.add_argument("-g", "--gain", default=1e4, type=float)
 parser.add_argument("-n", "--noise", default=0.15, type=float,
                     help="The noise on the simulated memristors.  Default is 0.15")
@@ -52,6 +53,7 @@ parser.add_argument("-rsp", "--resetP", default=1, type=float,
                     help="The RESET probability determining how often to pulse the simulated memristors.  Default is 1")
 parser.set_defaults(decoded=True)
 parser.set_defaults(make_hierarchy=True)
+parser.set_defaults(pulse_statistics=False)
 args = parser.parse_args()
 
 if args.experiment:
@@ -222,7 +224,7 @@ def LearningModel(neurons, dimensions, learning_rule, function_to_learn, convolv
         model.pre_probe = nengo.Probe(model.pre, synapse=0.01)
         model.post_probe = nengo.Probe(model.post, synapse=0.01)
         model.ground_truth_probe = nengo.Probe(model.ground_truth, synapse=0.01)
-        model.weights_probe = nengo.Probe(model.conn, 'weights', synapse=None, sample_every=0.001)
+        # model.weights_probe = nengo.Probe(model.conn, 'weights', synapse=None, sample_every=0.001)
         # function_learning_model.error_probe = nengo.Probe( function_learning_model.error, synapse=0.03 )
 
     return model
@@ -234,7 +236,6 @@ errors_iterations_mpes = []
 errors_iterations_pes = []
 errors_iterations_nef = []
 for i in range(args.iterations):
-
     learned_model_mpes = LearningModel(neurons, dimensions,
                                        mPES(noisy=args.noise, gain=args.gain,
                                             strategy=args.strategy,
@@ -242,9 +243,11 @@ for i in range(args.iterations):
                                             setV=args.setV, resetV=args.resetV),
                                        function_to_learn,
                                        convolve=convolve, seed=seed + i)
-    control_model_pes = LearningModel(neurons, dimensions, PES(), function_to_learn,
+    control_model_pes = LearningModel(neurons, dimensions, PES(),
+                                      function_to_learn,
                                       convolve=convolve, seed=seed + i)
-    control_model_nef = LearningModel(neurons, dimensions, None, function_to_learn,
+    control_model_nef = LearningModel(neurons, dimensions, None,
+                                      function_to_learn,
                                       convolve=convolve, seed=seed + i)
 
     print("Iteration", i)
@@ -258,7 +261,7 @@ for i in range(args.iterations):
         print("Control network (NEF)")
         sim_nef.run(sim_time)
 
-    # essential statistics
+    # statistics
     num_blocks = int(sim_time / learn_block_time)
     num_testing_blocks = int(num_blocks / 2)
     for sim, mod, lst in zip([sim_mpes, sim_pes, sim_nef],
@@ -278,17 +281,23 @@ for i in range(args.iterations):
         total_error = np.sum(np.sum(np.abs(test_post_data - test_ground_truth_data), axis=1), axis=1)
         lst.append(total_error)
 
+        if isinstance(mod.conn.learning_rule_type, mPES) and args.pulse_statistics:
+            # -- evaluate number of memristor pulses over simulation
+            mpes_op = get_operator_from_sim(sim, 'SimmPES')
 
-# 95% confidence interval
-def ci(data, confidence=0.95):
-    from scipy.stats import norm
+            consec_pos_set, consec_pos_reset = average_number_consecutive_pulses(mpes_op.pos_pulse_archive)
+            consec_neg_set, consec_neg_reset = average_number_consecutive_pulses(mpes_op.neg_pulse_archive)
+            print('Average length of consecutive SET pulses')
+            print(np.mean([consec_pos_set, consec_neg_set]))
+            print('Average length of consecutive RESET pulses')
+            print(np.mean([consec_pos_reset, consec_neg_reset]))
 
-    z = norm.ppf((1 + confidence) / 2)
-
-    return np.mean(data, axis=0), \
-           np.mean(data, axis=0) + z * np.std(data, axis=0) / np.sqrt(len(data)), \
-           np.mean(data, axis=0) - z * np.std(data, axis=0) / np.sqrt(len(data))
-
+            num_pos_set, num_pos_reset = average_number_pulses(mpes_op.pos_pulse_archive)
+            num_neg_set, num_neg_reset = average_number_pulses(mpes_op.neg_pulse_archive)
+            print('Average number of SET pulses')
+            print(np.mean([num_pos_set, num_neg_set]))
+            print('Average number of RESET pulses')
+            print(np.mean([num_pos_reset, num_neg_reset]))
 
 # compute mean testing error and confidence intervals
 ci_mpes = ci(errors_iterations_mpes)
@@ -371,6 +380,6 @@ print(f"Saved plots in {dir_name}")
 end_time = time.time()
 print(f"Elapsed time: {datetime.timedelta(seconds=np.ceil(end_time - start_time))} (h:mm:ss)")
 
-import subprocess
+# import subprocess
 
 # subprocess.call(["open", "-R", dir_data])

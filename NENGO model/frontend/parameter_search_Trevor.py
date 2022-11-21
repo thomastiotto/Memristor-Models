@@ -1,9 +1,10 @@
 import argparse
 import pathlib
 import sys
-from subprocess import run
+import subprocess
 
 import pandas as pd
+import arrow
 
 from extras import *
 
@@ -40,15 +41,19 @@ print("Number of parameters:", num_parameters)
 print("Averaging per parameter", num_averaging)
 print("Total iterations", num_parameters * num_averaging)
 
+times = []
 for k, par in enumerate(res_list):
     print(f"Parameter #{k} ({par})")
     print('----------------------------------------')
+    # time execution
+    start = arrow.now()
+
     if parameter == "noise":
         if np.any(np.array(args.limits) > 1.0):
             print('Assuming noise is given in %, converting to decimal')
             par /= 100
 
-        result = run(
+        result = subprocess.run(
             [sys.executable, "learn_multidimensional_functions.py",
              '-E', str(args.experiment),
              '--directory', str(dir_name),
@@ -58,7 +63,7 @@ for k, par in enumerate(res_list):
              '-n', str(par),
              ])
     elif parameter == "gain":
-        result = run(
+        result = subprocess.run(
             [sys.executable, "learn_multidimensional_functions.py",
              '-E', str(args.experiment),
              '--directory', str(dir_name),
@@ -68,7 +73,13 @@ for k, par in enumerate(res_list):
              '-n', str(0.15),
              ])
 
-    # rename dirextory with parameter value
+    end = arrow.now()
+    times.append(end - start)
+    print('----------------------------------------')
+    print('Predicted ETA to end sweep:', arrow.now() + np.mean(times) * num_parameters)
+    print('----------------------------------------')
+
+    # rename directory with parameter value
     newest_dir = max(pathlib.Path(dir_name).glob('*/'), key=os.path.getmtime)
     os.rename(newest_dir, os.path.join(dir_name, str(par)))
 

@@ -163,7 +163,7 @@ with model:
 
     # Apply the learning rule to conn
     if learning_rule == "mPES":
-        conn.learning_rule_type = mPES(noisy=noise_percent, gain=gain, seed=seed, strategy=strategy, resetP=0.5)
+        conn.learning_rule_type = mPES(noisy=noise_percent, gain=gain, seed=seed, strategy=strategy)
     if learning_rule == "PES":
         conn.learning_rule_type = PES()
     printlv2("Simulating with", conn.learning_rule_type)
@@ -245,36 +245,6 @@ if probe > 0:
         # printlv1(np.mean(neg_pulse_counter))
 
         # -- evaluate the average length of consecutive reset or set pulses
-
-        # TODO when only giving SET pulses, the average length of consecutive SET pulses is 5
-        def average_number_consecutive_pulses(pulse_archive):
-            from itertools import groupby, product
-
-            pulse_archive = np.array(pulse_archive)
-
-            lengths_set = []
-            lengths_reset = []
-            for i, j in tqdm(product(range(pulse_archive.shape[1]), range(pulse_archive.shape[2])),
-                             total=pulse_archive.shape[1] * pulse_archive.shape[2],
-                             desc='Calculating average number of consecutive pulses'):
-                for k, g in groupby(pulse_archive[:, i, j]):
-                    if k == 1:
-                        lengths_set.append(len(list(g)))
-                    elif k == -1:
-                        lengths_reset.append(len(list(g)))
-
-            return np.mean(lengths_set), np.mean(lengths_reset)
-
-
-        def average_number_pulses(pulse_archive):
-            pulse_archive = np.array(pulse_archive)
-
-            avg_set = np.mean(np.sum(np.where(pulse_archive == 1, pulse_archive, 0), axis=0))
-            avg_reset = np.mean(np.sum(np.where(pulse_archive == -1, -1 * pulse_archive, 0), axis=0))
-
-            return avg_set, avg_reset
-
-
         consec_pos_set, consec_pos_reset = average_number_consecutive_pulses(mpes_op.pos_pulse_archive)
         consec_neg_set, consec_neg_reset = average_number_consecutive_pulses(mpes_op.neg_pulse_archive)
         printlv2('Average length of consecutive SET pulses')

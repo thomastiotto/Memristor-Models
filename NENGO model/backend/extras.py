@@ -9,6 +9,7 @@ from nengo.processes import Process
 from nengo.params import NdarrayParam, NumberParam
 from nengo.utils.matplotlib import rasterplot
 import tensorflow as tf
+from tqdm import tqdm
 
 
 def modify_learning_rate(sim, conn, rule, new_lr):
@@ -515,7 +516,7 @@ def make_timestamped_dir(root=None, make_subfolders=False):
     dir_images = dir_name + "images/"
     dir_data = dir_name + "data/"
     os.makedirs(dir_name)
-    
+
     if make_subfolders:
         os.makedirs(dir_images)
         os.makedirs(dir_data)
@@ -615,3 +616,42 @@ def get_operator_from_sim(sim, name):
             break
 
     return op
+
+
+def ci(data, confidence=0.95):
+    from scipy.stats import norm
+
+    z = norm.ppf((1 + confidence) / 2)
+
+    return np.mean(data, axis=0), \
+           np.mean(data, axis=0) + z * np.std(data, axis=0) / np.sqrt(len(data)), \
+           np.mean(data, axis=0) - z * np.std(data, axis=0) / np.sqrt(len(data))
+
+
+# TODO when only giving SET pulses, the average length of consecutive SET pulses is 5
+def average_number_consecutive_pulses(pulse_archive):
+    from itertools import groupby, product
+
+    pulse_archive = np.array(pulse_archive)
+
+    lengths_set = []
+    lengths_reset = []
+    for i, j in tqdm(product(range(pulse_archive.shape[1]), range(pulse_archive.shape[2])),
+                     total=pulse_archive.shape[1] * pulse_archive.shape[2],
+                     desc='Calculating average number of consecutive pulses'):
+        for k, g in groupby(pulse_archive[:, i, j]):
+            if k == 1:
+                lengths_set.append(len(list(g)))
+            elif k == -1:
+                lengths_reset.append(len(list(g)))
+
+    return np.mean(lengths_set), np.mean(lengths_reset)
+
+
+def average_number_pulses(pulse_archive):
+    pulse_archive = np.array(pulse_archive)
+
+    avg_set = np.mean(np.sum(np.where(pulse_archive == 1, pulse_archive, 0), axis=0))
+    avg_reset = np.mean(np.sum(np.where(pulse_archive == -1, -1 * pulse_archive, 0), axis=0))
+
+    return avg_set, avg_reset
