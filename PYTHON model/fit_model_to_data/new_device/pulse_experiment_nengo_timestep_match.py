@@ -56,7 +56,8 @@ time_gt, voltage_gt, i_gt, r_gt, x_gt = model_sim_with_params(pulse_length=progr
                                                               resetV=resetV, numreset=num_reset_pulses,
                                                               setV=setV, numset=num_set_pulses,
                                                               readV=readV, read_length=read_time,
-                                                              init_set_length=initial_time, init_setV=initialV, **model)
+                                                              init_set_length=initial_time, init_setV=initialV,
+                                                              **model)
 peaks_gt = find_peaks(r_gt, voltage_gt, readV, initial_time, dt=model['dt'])
 fig_plot_fit_electron, ax = plt.subplots(1, 1, figsize=(6, 5))
 ax.plot(data, 'o', label='Data')
@@ -87,7 +88,8 @@ time_opt, voltage_opt, i_opt, r_opt, x_opt = model_sim_with_params(pulse_length=
                                                                    numreset=num_reset_pulses,
                                                                    setV=res_minimisation.x[1], numset=num_set_pulses,
                                                                    readV=readV, read_length=nengo_read_time,
-                                                                   init_set_length=initial_time, init_setV=setV,
+                                                                   init_set_length=initial_time,
+                                                                   init_setV=initialV,
                                                                    **model)
 fig_plot_opt = plot_images(time_gt, voltage_gt, i_gt, r_gt, x_gt,
                            f'Model (WRITE {program_time} s / READ {read_time} s)', readV,

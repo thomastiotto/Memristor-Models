@@ -8,8 +8,7 @@ import matplotlib.pyplot as plt
 import os
 import sys
 
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
-import functions
+from fit_model_to_data_functions import *
 
 model = {'An': 0.02662694665,
          'Ap': 0.071 * 7,

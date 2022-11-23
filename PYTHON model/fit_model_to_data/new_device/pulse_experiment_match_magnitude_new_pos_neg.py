@@ -114,8 +114,11 @@ def residuals_model_electron_pos(x, peaks_gt, pulse_length, readV, read_length, 
 
     # print('An:', x[0], 'xn:', x[1])
 
-    time, voltage, i, r, x = model_sim_with_params(pulse_length, resetV, num_reset_pulses, setV, num_set_pulses, readV,
-                                                   read_length, initial_time, initialV,
+    time, voltage, i, r, x = model_sim_with_params(pulse_length=pulse_length,
+                                                   resetV=resetV, numreset=num_reset_pulses,
+                                                   setV=setV, numset=num_set_pulses,
+                                                   readV=readV, read_length=read_length,
+                                                   init_set_length=initial_time, init_setV=initialV,
                                                    progress_bar=False,
                                                    **model_upd)
     peaks_model = find_peaks(r, voltage, readV, initial_time)
@@ -140,9 +143,12 @@ model['xp'] = res_minimisation_electron.x[1]
 model['alphap'] = res_minimisation_electron.x[2]
 
 # -- PLOT REGRESSED MODEL
-time, voltage, i, r, x = model_sim_with_params(program_time, resetV, num_reset_pulses, setV, num_set_pulses, readV,
-                                               read_time,
-                                               initial_time, initialV, **model)
+time, voltage, i, r, x = model_sim_with_params(pulse_length=program_time,
+                                               resetV=resetV, numreset=num_reset_pulses,
+                                               setV=setV, numset=num_set_pulses,
+                                               readV=readV, read_length=read_time,
+                                               init_set_length=initial_time, init_setV=initialV,
+                                               **model)
 fig_plot_fit_electron, ax = plt.subplots(1, 1, figsize=(6, 5))
 ax.plot(data, 'o', label='Data')
 fig_plot_fit_electron = plot_images(time, voltage, i, r, x, f'Model', readV,
