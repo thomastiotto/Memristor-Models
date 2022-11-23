@@ -224,7 +224,7 @@ def LearningModel(neurons, dimensions, learning_rule, function_to_learn, convolv
         model.pre_probe = nengo.Probe(model.pre, synapse=0.01)
         model.post_probe = nengo.Probe(model.post, synapse=0.01)
         model.ground_truth_probe = nengo.Probe(model.ground_truth, synapse=0.01)
-        # model.weights_probe = nengo.Probe(model.conn, 'weights', synapse=None, sample_every=0.001)
+        model.weights_probe = nengo.Probe(model.conn, 'weights', synapse=None, sample_every=0.001)
         # function_learning_model.error_probe = nengo.Probe( function_learning_model.error, synapse=0.03 )
 
     return model
@@ -236,6 +236,7 @@ errors_iterations_mpes = []
 errors_iterations_pes = []
 errors_iterations_nef = []
 for i in range(args.iterations):
+
     learned_model_mpes = LearningModel(neurons, dimensions,
                                        mPES(noisy=args.noise, gain=args.gain,
                                             strategy=args.strategy,
@@ -243,15 +244,16 @@ for i in range(args.iterations):
                                             setV=args.setV, resetV=args.resetV),
                                        function_to_learn,
                                        convolve=convolve, seed=seed + i)
-    control_model_pes = LearningModel(neurons, dimensions, PES(),
-                                      function_to_learn,
+    control_model_pes = LearningModel(neurons, dimensions, PES(), function_to_learn,
                                       convolve=convolve, seed=seed + i)
-    control_model_nef = LearningModel(neurons, dimensions, None,
-                                      function_to_learn,
+    control_model_nef = LearningModel(neurons, dimensions, None, function_to_learn,
                                       convolve=convolve, seed=seed + i)
 
     print("Iteration", i)
     with nengo.Simulator(learned_model_mpes) as sim_mpes:
+        if isinstance(learned_model_mpes.conn.learning_rule_type, mPES):
+            # -- evaluate number of memristor pulses over simulation
+            mpes_op = get_operator_from_sim(sim_mpes, 'SimmPES')
         print("Learning network (mPES)")
         sim_mpes.run(sim_time)
     with nengo.Simulator(control_model_pes) as sim_pes:
@@ -261,7 +263,7 @@ for i in range(args.iterations):
         print("Control network (NEF)")
         sim_nef.run(sim_time)
 
-    # statistics
+    # essential statistics
     num_blocks = int(sim_time / learn_block_time)
     num_testing_blocks = int(num_blocks / 2)
     for sim, mod, lst in zip([sim_mpes, sim_pes, sim_nef],
