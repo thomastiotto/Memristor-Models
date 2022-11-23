@@ -30,7 +30,7 @@ def initialise_yakopcic_model(noise_percentage, encoders, acts, seed):
     np.random.seed(seed)
 
     # -- parameters fund with pulse_experiment_1s_to_1ms.py
-    yakopcic_model = json.load(open('../../fitted/fitting_pulses/regress_negative_xp_alphap-adjusted_ap_an'))
+    yakopcic_model = json.load(open('../../fitted/fitting_pulses/old_device/regress_negative_xp_alphap-adjusted_ap_an'))
 
     An = get_truncated_normal(yakopcic_model['An'], yakopcic_model['An'] * noise_percentage * 0.585,
                               0, np.inf,

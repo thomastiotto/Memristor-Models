@@ -1,8 +1,11 @@
-from yakopcic_model import *
 from yakopcic_functions import *
-import scipy.signal
+import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from tqdm.auto import tqdm
+
+
+def absolute_mean_percent_error(value, forecast):
+    return np.mean(np.abs((value - forecast) / value)) * 100
 
 
 def read_pulse_length(data, readV):
@@ -16,8 +19,10 @@ def read_pulse_length(data, readV):
     return read_length
 
 
-def compute_time_voltage_vectors(resetV, numreset, setV, numset, pulse_length, readV, read_length, dt):
-    input_pulses = set_pulse(resetV, numreset, setV, numset, pulse_length, readV, read_length)
+def compute_time_voltage_vectors(resetV, numreset, setV, numset, pulse_length, readV, read_length, init_set_length,
+                                 init_setV, dt):
+    input_pulses = set_pulse(resetV, numreset, setV, numset, pulse_length, readV, read_length, init_set_length,
+                             init_setV)
     iptVs = startup2(input_pulses)
 
     time, voltage = interactive_iv(iptVs, dt)
@@ -25,12 +30,15 @@ def compute_time_voltage_vectors(resetV, numreset, setV, numset, pulse_length, r
     return time, voltage
 
 
-def model_sim_with_params(pulse_length, resetV, numreset, setV, numset, readV, read_length, **params):
+def model_sim_with_params(pulse_length, resetV, numreset, setV, numset, readV, read_length, init_set_length, init_setV,
+                          progress_bar=True,
+                          **params):
     time, voltage = compute_time_voltage_vectors(resetV, numreset, setV, numset, pulse_length, readV, read_length,
+                                                 init_set_length, init_setV,
                                                  params['dt'])
     x = np.zeros(voltage.shape, dtype=float)
 
-    for j in tqdm(range(1, len(x))):
+    for j in tqdm(range(1, len(x)), disable=not progress_bar):
         x[j] = x[j - 1] + dxdt(voltage[j], x[j - 1], params['Ap'], params['An'], params['Vp'], params['Vn'],
                                params['xp'],
                                params['xn'], params['alphap'], params['alphan'], 1) * params['dt']
@@ -47,7 +55,7 @@ def model_sim_with_params(pulse_length, resetV, numreset, setV, numset, readV, r
     return time, voltage, i, r, x
 
 
-def set_pulse(resetV, num_reset, setV, num_set, pulse_length, readV, read_length):
+def set_pulse(resetV, num_reset, setV, num_set, pulse_length, readV, read_length, init_set_length, init_setV):
     # print('------------------')
     # print('RESET:', resetV, 'V')
     # print('SET:', setV, 'V')
@@ -57,12 +65,13 @@ def set_pulse(resetV, num_reset, setV, num_set, pulse_length, readV, read_length
 
     # FORMAT
     # "t_rise", "t_on":, "t_fall", "t_off", "V_on", "V_off", "n_cycles"
-    return f""".001 120 .001 .01 1 0 1
+    return f""".001 {init_set_length} .001 .01 {init_setV} 0 1
 .001 {pulse_length} .001 {read_length} {resetV} {readV} {num_reset}   
 .001 {pulse_length} .001 {read_length} {setV} {readV} {num_set}"""
 
 
-def find_peaks(r, voltage, readV, dt=0.001, consider_from=120, debug=False):
+def find_peaks(r, voltage, readV, consider_from, dt=0.001, debug=False):
+    consider_from = 0 if consider_from is None else consider_from
     consider_from = int(consider_from / dt)
     r_ranged = r[consider_from:]
     v_ranged = voltage[consider_from:]
@@ -91,16 +100,18 @@ def find_peaks(r, voltage, readV, dt=0.001, consider_from=120, debug=False):
     return peaks
 
 
-def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='pulse', show_peaks=False, model=None,
-                consider_from=None):
-    if consider_from is not None:
-        time = time[consider_from:]
-        voltage = voltage[consider_from:]
-        i = i[consider_from:]
-        r = r[consider_from:]
-        x = x[consider_from:]
+def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='pulse', show_peaks=False, dt=0.001,
+                model=None,
+                consider_from=None, peaks_consider_from=None):
+    consider_from = 0 if consider_from is None else consider_from
+    consider_from = int(consider_from / dt)
+    time = time[consider_from:]
+    voltage = voltage[consider_from:]
+    i = i[consider_from:]
+    r = r[consider_from:]
+    x = x[consider_from:]
 
-    peaks = find_peaks(r, voltage, readV, debug=show_peaks)
+    peaks = find_peaks(r, voltage, readV, consider_from=peaks_consider_from, debug=show_peaks, dt=dt)
 
     if plot_type == 'pulse':  # Plots regular resistance plot; Full plot + its local peaks.
         # w, h = plt.figaspect(1 / 3.5)
@@ -114,11 +125,11 @@ def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='
             fig_plot, ax_plot = plt.subplots(1, 1, figsize=(6, 5))
 
         ax_plot[0].plot(peaks, "o", fillstyle='none', label=label)
-        ax_plot[0].xaxis.set_major_locator(mticker.MultipleLocator(1))
+        ax_plot[0].xaxis.set_major_locator(mticker.MultipleLocator(len(peaks) // 10))
         ax_plot[0].set_yscale("log")
         ax_plot[0].set_xlabel("Pulse number")
         ax_plot[0].set_ylabel("Resistance (Ohm)")
-        ax_plot[0].set_title("Resistance after 120 s SET")
+        ax_plot[0].set_title(f"Resistance after long initial SET")
         ax_plot[0].legend(loc='best')
 
         fig_plot.tight_layout()
@@ -166,9 +177,6 @@ def startup2(lines):
         wave_number += 1
 
     return iptVs
-
-
-# TODO return sample_at to guide sampling instants when finding peaks as the automated method is unreliable
 
 
 def interactive_iv(iptVs, dt):

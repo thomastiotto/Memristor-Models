@@ -21,5 +21,7 @@ for root, dirs, files in os.walk('../../../raw_data/pulses/new_device/'):
             # plot data
             plt.plot(data[:, 0], readV / 1000 / data[:, 1], label=f'{resetV} V, {setV} V, {readV} mV')
             plt.yscale('log')
-plt.legend()
-plt.show()
+
+            print(f'RESET {resetV} V, SET {setV} V, READ {readV} mV: {file}')
+    plt.legend()
+    plt.show()

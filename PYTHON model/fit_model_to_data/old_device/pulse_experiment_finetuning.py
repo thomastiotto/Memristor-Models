@@ -85,4 +85,5 @@ fig_plot_fit_electron_debug.show()
 peaks_model = find_peaks(r, voltage, readV)
 print('Average error:', np.mean(p100mv - peaks_model))
 pprint.pprint(model_upd)
-json.dump(model_upd, open('../../../fitted/fitting_pulses/regress_negative_xp_alphap-adjusted_ap_an', 'w'), indent=2)
+json.dump(model_upd,
+          open('../../../fitted/fitting_pulses/old_device/regress_negative_xp_alphap-adjusted_ap_an', 'w'), indent=2)

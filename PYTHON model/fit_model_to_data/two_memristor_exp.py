@@ -1,8 +1,6 @@
-import scipy.stats as stats
 import random
 
 import json
-from functions import *
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -103,7 +101,7 @@ def one_step_yakopcic(voltage, x, readV, **params):
     return x, r
 
 
-model = json.load(open('../../../fitted/fitting_pulses/regress_negative_xp_alphap-adjusted_ap_an'))
+model = json.load(open('../../fitted/fitting_pulses/old_device/regress_negative_xp_alphap-adjusted_ap_an'))
 iterations = 5000
 
 x0 = 0.6251069761800688

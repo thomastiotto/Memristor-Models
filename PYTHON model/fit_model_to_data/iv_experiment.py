@@ -1,5 +1,4 @@
 from yakopcic_functions import *
-from functions import *
 from yakopcic_model import *
 from experiment_setup import *
 from scipy import interpolate
@@ -50,7 +49,7 @@ if sim_mode == 1:
 
 if sim_mode == 2:
     ### Using interpolation to produce the IV curve. Requires the "-2V_0.csv" file.
-    data = pd.read_csv("../../../imported_data/data/Radius 10 um/-2V_0.csv")
+    data = pd.read_csv("../../imported_data/data/Radius 10 um/-2V_0.csv")
     time = np.array(data["Smu1.Time[1][1]"])
     v = np.array(data["Smu1.V[1][1]"])
 

@@ -2,8 +2,14 @@ from scipy import optimize
 import pprint
 import copy
 import json
+import numpy as np
+import matplotlib.pyplot as plt
 
-from functions import *
+import os
+import sys
+
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+import functions
 
 model = {'An': 0.02662694665,
          'Ap': 0.071 * 7,
@@ -31,13 +37,14 @@ pprint.pprint(model)
 
 print('------------------ IMPORT REAL DATA ------------------')
 p100mv = np.loadtxt(
-    "../../../raw_data/pulses/hold_p1V_10x_negative pulse_m4V_10x_positive_pulse_p100mV_m1V_measure.txt",
+    "../../../../raw_data/pulses/old_device/hold_p1V_10x_negative pulse_m4V_10x_positive_pulse_p100mV_m1V_measure.txt",
     delimiter="\t", skiprows=1, usecols=[1])
 p500mv = np.loadtxt(
-    "../../../raw_data/pulses/hold_p1V_10x_negative pulse_m4V_10x_positive_pulse_p500mV_m1V_measure.txt",
+    "../../../../raw_data/pulses/old_device/hold_p1V_10x_negative pulse_m4V_10x_positive_pulse_p500mV_m1V_measure.txt",
     delimiter="\t", skiprows=1, usecols=[1])
-p1v = np.loadtxt("../../../raw_data/pulses/hold_p1V_10x_negative pulse_m4V_10x_positive_pulse_p1V_m1V_measure.txt",
-                 delimiter="\t", skiprows=1, usecols=[1])
+p1v = np.loadtxt(
+    "../../../../raw_data/pulses/old_device/hold_p1V_10x_negative pulse_m4V_10x_positive_pulse_p1V_m1V_measure.txt",
+    delimiter="\t", skiprows=1, usecols=[1])
 
 # -- calculate the length of read pulses
 p100readv = np.loadtxt(
@@ -98,4 +105,5 @@ fig_plot_fit_electron_debug.show()
 peaks_model = find_peaks(r, voltage, readV)
 print('Average error:', np.mean(p100mv - peaks_model))
 pprint.pprint(model_upd)
-json.dump(model_upd, open('../../../fitted/fitting_pulses/regress_negative_Ap_xp_alphap_adjusted', 'w'), indent=2)
+json.dump(model_upd, open('../../../fitted/fitting_pulses/old_device/regress_negative_Ap_xp_alphap_adjusted', 'w'),
+          indent=2)

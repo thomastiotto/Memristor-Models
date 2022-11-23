@@ -5,7 +5,7 @@ from order_of_magnitude import order_of_magnitude
 from functions import *
 
 # -- model found with pulse_experiment_match_magnitude.py and pulse_experiment_finetuning.py
-model = json.load(open('../../../fitted/fitting_pulses/regress_negative_xp_alphap-adjusted_ap_an'))
+model = json.load(open('../../../fitted/fitting_pulses/old_device/regress_negative_xp_alphap-adjusted_ap_an'))
 
 readV = -1
 debug = False

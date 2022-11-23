@@ -1,6 +1,5 @@
 import random
 import time
-from functions import *
 from experiment_setup import *
 from yakopcic_functions import *
 from tqdm.auto import tqdm
