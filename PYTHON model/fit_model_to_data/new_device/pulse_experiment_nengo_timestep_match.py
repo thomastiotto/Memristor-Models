@@ -88,8 +88,7 @@ time_opt, voltage_opt, i_opt, r_opt, x_opt = model_sim_with_params(pulse_length=
                                                                    numreset=num_reset_pulses,
                                                                    setV=res_minimisation.x[1], numset=num_set_pulses,
                                                                    readV=readV, read_length=nengo_read_time,
-                                                                   init_set_length=initial_time,
-                                                                   init_setV=initialV,
+                                                                   init_set_length=initial_time, init_setV=initialV,
                                                                    **model)
 fig_plot_opt = plot_images(time_gt, voltage_gt, i_gt, r_gt, x_gt,
                            f'Model (WRITE {program_time} s / READ {read_time} s)', readV,

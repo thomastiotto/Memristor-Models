@@ -1,4 +1,5 @@
 from yakopcic_functions import *
+from fit_model_to_data_functions import *
 import pandas as pd
 import json
 import re
@@ -11,7 +12,7 @@ def load_model():
         model (dict).
     """
     # -- model found with pulse_experiment_match_magnitude.py and pulse_experiment_finetuning.py
-    model = json.load(open('../../fitted/fitting_pulses/old_device/regress_negative_xp_alphap-adjusted_ap_an'))
+    model = json.load(open('../../../fitted/fitting_pulses/new_device/regress_negative_then_positive'))
 
     # fig_plot_default = plot_images(time, voltage, i, r, x, f'{round(resetV, 3)} V / +{round(setV, 3)} V (model)',
     #                               readV, fig_plot_default)
@@ -77,20 +78,31 @@ def find_sensitivity(sign, params, idx, case, model, name):
         dif: the amount of change in a parameter required to achieve a 10% error, float.
 
     """
-    # -- find sensitivity
-    setV = 3.86621037038006;
-    resetV = -8.135891404816215;
-    readV = -1
-    dt = 0.001
-    read_length = 0.001
+
+    # -- EXPERIMENT HYPERPARAMETNERS
+    resetV = -5.846891601011591
+    setV = 4.410540843557414
+    readV = -0.5
+    initialV = setV
+    num_reset_pulses = 100
+    num_set_pulses = 100
+    nengo_time = 0.001
+    nengo_program_time = nengo_time * 0.7
+    nengo_read_time = nengo_time * 0.3
+    initial_time = 60
     count_iter = 0
     dif = 50
-    debug = False
 
     print("Calculating ground truth ({}): {} = {}".format(case, name, model["{}".format(name)]))
     time, current_v, current_i, current_r, current_x = \
-        model_sim_with_params(0.001, resetV, 10, setV, 10, readV, read_length, **model)
-    peaks_gt = find_peaks(current_r, current_v, readV, debug=False)
+        model_sim_with_params(pulse_length=nengo_program_time,
+                              resetV=resetV, numreset=num_reset_pulses,
+                              setV=setV, numset=num_set_pulses,
+                              readV=readV, read_length=nengo_read_time,
+                              init_set_length=initial_time, init_setV=initialV,
+                              **model,
+                              progress_bar=False)
+    peaks_gt = find_peaks(current_r, current_v, readV, consider_from=initial_time, debug=False)
     plt.plot(range(len(peaks_gt)), peaks_gt)
 
     new_model = model.copy()
@@ -104,20 +116,30 @@ def find_sensitivity(sign, params, idx, case, model, name):
         if case == "I":
             print("Calculating new model (I), {} = {}:".format(
                 name, gt_param + sign * (dif * params[idx] / 100)))
-            time, voltage, i, r, x = model_sim_with_params(0.001, resetV, 10, setV, 10, readV, read_length=0.001,
-                                                           **new_model)
-            peaks_new = find_peaks(r, voltage, readV=readV, debug=False)
+            time, voltage, i, r, x = model_sim_with_params(pulse_length=nengo_program_time,
+                                                           resetV=resetV, numreset=num_reset_pulses,
+                                                           setV=setV, numset=num_set_pulses,
+                                                           readV=readV, read_length=nengo_read_time,
+                                                           init_set_length=initial_time, init_setV=initialV,
+                                                           **new_model,
+                                                           progress_bar=False)
+            peaks_new = find_peaks(r, voltage, readV=readV, consider_from=initial_time, debug=False)
         else:
             print("Calculating new model (dxdt), {} = {}:".format(
                 name, gt_param + sign * (dif * params[idx] / 100)))
-            time, voltage, i, r, x = model_sim_with_params(0.001, resetV, 10, setV, 10, readV, read_length=0.001,
-                                                           **new_model)
-            peaks_new = find_peaks(r, voltage, readV=readV, debug=False)
+            time, voltage, i, r, x = model_sim_with_params(pulse_length=nengo_program_time,
+                                                           resetV=resetV, numreset=num_reset_pulses,
+                                                           setV=setV, numset=num_set_pulses,
+                                                           readV=readV, read_length=nengo_read_time,
+                                                           init_set_length=initial_time, init_setV=initialV,
+                                                           **new_model,
+                                                           progress_bar=False)
+            peaks_new = find_peaks(r, voltage, readV=readV, consider_from=initial_time, debug=False)
             # print("New: ", new_current_sim)
             # print("Current I length:", len(this_current))
             # print("New I length:", len(new_current_sim))
-        change = np.sum(np.abs(peaks_gt - peaks_new) / np.abs(peaks_gt)) \
-                 / (len(peaks_gt) + 1) * 100
+
+        change = absolute_mean_percent_error(peaks_gt, peaks_new)
         # print("change:", change)
         plt.plot(range(len(peaks_new)), peaks_new)
 
@@ -137,9 +159,11 @@ def find_sensitivity(sign, params, idx, case, model, name):
             dif = round(dif + 10, 1) if change < 0.01 else round(dif + 0.1, 1)
 
         count_iter += 1
+
     shift_dir = "increasing" if sign == 1 else "decreasing"
     plt.title(f"{name} sensitivity | {shift_dir}")
     plt.show()
+
     return dif
 
 
@@ -210,22 +234,19 @@ def df_latex(df_params, df_results):
     print(df_params.to_latex(escape=False))
 
 
-if __name__ == "__main__":
-    # Load the memristor model.
-    model = load_model()
+# Load the memristor model.
+model = load_model()
 
-    # Extract the parameters, their names and make a dataframe.
-    params_dxdt, params_I, param_names_dxdt, param_names_I, df_params, output, area = load_parameters(model)
+# Extract the parameters, their names and make a dataframe.
+params_dxdt, params_I, param_names_dxdt, param_names_I, df_params, output, area = load_parameters(model)
 
-    # Perform a sensitivity analysis, show resulting dataframe.
-    df_results = sensitivity_analysis(params_dxdt, params_I, param_names_dxdt, param_names_I, area, model)
+# Perform a sensitivity analysis, show resulting dataframe.
+df_results = sensitivity_analysis(params_dxdt, params_I, param_names_dxdt, param_names_I, area, model)
 
-    # Plot results
-    plt.show()
+# Plot results
+plt.show()
 
-    # Convert dataframes to latex.
-    df_latex(df_params, df_results)
+# Convert dataframes to latex.
+df_latex(df_params, df_results)
 
-# TODO:
-# Decide on the number of iterations, and the percentage change (how much should dif shift by?).
-# Disable/Enable print states in model_sim_with_params() and related functions with an argument rather than manually.
+# TODO: Decide on the number of iterations, and the percentage change (how much should dif shift by?).

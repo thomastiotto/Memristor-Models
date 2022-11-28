@@ -30,7 +30,7 @@ def iterate_yakopcic(resetV, setV, iterations=100, plot_output=False, print_outp
     if print_output:
         print_cond = print
 
-    x0 = 0.5
+    x0 = 0.00001
     readV = -0.5
 
     # random.seed(0)
@@ -108,7 +108,7 @@ def residuals_voltages(x, iterations):
 # -- initial conditions
 resetV = -6.342839121380956
 setV = 4.8838587394343485
-n_iter = 100
+n_iter = 10
 
 print('\nDEFAULT VOLTAGES:')
 iterate_yakopcic(resetV, setV, iterations=n_iter, plot_output=True, print_output=True)

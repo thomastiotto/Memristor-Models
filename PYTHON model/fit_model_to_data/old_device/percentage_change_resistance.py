@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from yakopcic_functions import *
 
-model = json.load(open('../../../fitted/fitting_pulses/old_device/regress_negative_xp_alphap-adjusted_ap_an'))
+model = json.load(open('../../fitted/fitting_pulses/old_device/regress_negative_xp_alphap-adjusted_ap_an'))
 
 
 def one_step_yakopcic(voltage, x, readV, **params):
@@ -40,18 +40,18 @@ def iterate_yakopcic(resetV, setV, iterations=10, plot_output=False, print_outpu
     X_p = [x_p]
     X_n = [x_n]
 
-    for j in tqdm(range(iterations)):
+    for j in tqdm(range(iterations), disable=not print_output):
         x_p, r_p = one_step_yakopcic(setV, x_p, readV, **model)
         R_p.append(r_p)
-    print_cond('\nStart value:', R_p[0], 'End value:', R_p[-1])
+    print_cond('Start value:', R_p[0], 'End value:', R_p[-1])
     # calculate average percent change in resistances (https://sciencing.com/calculate-mean-change-5953798.html)
     set_efficacy = np.abs(np.mean(np.diff(R_p) / np.abs(R_p[:-1])) * 100)
     print_cond('Average resistance change with SET pulses:', set_efficacy, '%')
 
-    for j in tqdm(range(iterations)):
+    for j in tqdm(range(iterations), disable=not print_output):
         x_n, r_n = one_step_yakopcic(resetV, x_n, readV, **model)
         R_n.append(r_n)
-    print_cond('\nStart value:', R_n[0], 'End value:', R_n[-1])
+    print_cond('Start value:', R_n[0], 'End value:', R_n[-1])
     reset_efficacy = np.abs(np.mean(np.diff(R_n) / np.abs(R_n[:-1])) * 100)
     print_cond('Average resistance change with RESET pulses:', reset_efficacy, '%')
 
@@ -86,21 +86,31 @@ def iterate_yakopcic(resetV, setV, iterations=10, plot_output=False, print_outpu
     return k, setV, resetV, Pset, Preset
 
 
-def residuals_voltages(x):
+def residuals_voltages(x, iterations):
     resetV = x[0]
     setV = x[1]
 
-    k, _, _, _, _ = iterate_yakopcic(resetV, setV)
+    k, _, _, _, _ = iterate_yakopcic(resetV, setV, iterations=iterations)
 
     return k
 
 
-# -- target probabilities at 1 and find voltages that give that outcome
-find_voltages = optimize.least_squares(residuals_voltages, [-0.2, 3.86621037038006], bounds=([-10, 0], [0, 10]),
-                                       method='dogbox', verbose=1)
-print('VOLTAGES GIVEN TARGET PROBABILITIES AT 1')
-iterate_yakopcic(find_voltages.x[0], find_voltages.x[1], plot_output=True, print_output=True)
+# -- initial conditions
+resetV = -8.135891404816215
+setV = 3.86621037038006
+n_iter = 10
+
+print('\nDEFAULT VOLTAGES:')
+iterate_yakopcic(resetV, setV, iterations=n_iter, plot_output=True, print_output=True)
 
 # -- calculate probabilities given voltages
-print('PROBABILITIES GIVEN VOLTAGES')
-iterate_yakopcic(-2, 3.86621037038006, plot_output=True, print_output=True)
+print('\nPROBABILITIES GIVEN VOLTAGES:')
+iterate_yakopcic(resetV, setV, iterations=n_iter, plot_output=False, print_output=True)
+
+# -- target probabilities at 1 and find voltages that give that outcome
+find_voltages = optimize.least_squares(residuals_voltages, [resetV, setV],
+                                       args=[n_iter],
+                                       bounds=([-10, 0], [0, 10]),
+                                       method='dogbox', verbose=0)
+print('\nVOLTAGES GIVEN TARGET PROBABILITIES AT 1:')
+iterate_yakopcic(find_voltages.x[0], find_voltages.x[1], iterations=n_iter, plot_output=True, print_output=True)

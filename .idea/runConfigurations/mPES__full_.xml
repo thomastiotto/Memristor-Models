@@ -10,7 +10,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/NENGO model/frontend/mPES.py" />
-    <option name="PARAMETERS" value="--plot 1 --neurons 100 --gain 1e6 --noise 0.15" />
+    <option name="PARAMETERS" value="--plot 1 --neurons 100 --gain 8e2 --noise 0.15" />
     <option name="SHOW_COMMAND_LINE" value="true" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

@@ -8,7 +8,7 @@ from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
 
 from extras import *
-from yakopcic_learning import mPES
+from yakopcic_learning_new import mPES
 
 setup()
 
@@ -31,7 +31,7 @@ parser.add_argument("-n", "--noise", default=0.15, type=float,
                     help="The noise on the simulated memristors.  Default is 0.15")
 parser.add_argument("-g", "--gain", default=1e6, type=float)  # default chosen by parameter search experiments
 parser.add_argument("-l", "--learning_rule", default="mPES", choices=["mPES", "PES"])
-parser.add_argument('-st', '--strategy', default='symmetric',
+parser.add_argument('-st', '--strategy', default='asymmetric',
                     choices=['symmetric', 'asymmetric', 'symmetric-probabilistic', 'asymmetric-probabilistic'])
 # parser.add_argument('-sp', '--')
 parser.add_argument("-b", "--backend", default="nengo_core", choices=["nengo_dl", "nengo_core"])
@@ -235,7 +235,8 @@ if probe > 0:
     printlv2("MSE-to-rho after learning [f(pre) vs. post]:")
     printlv1(mse_to_rho_ratio(mse, correlation_coefficients[1]))
 
-    if isinstance(conn.learning_rule_type, mPES) and debug:
+    # if isinstance(conn.learning_rule_type, mPES) and debug:
+    if False:
         # -- evaluate number of memristor pulses over simulation
         # pos_pulse_counter = mpes_op.set_pulse_counter
         # neg_pulse_counter = mpes_op.reset_pulse_counter
@@ -299,7 +300,7 @@ if generate_plots and probe > 1:
                                                    smooth=True)
     plots["testing"] = plotter.plot_testing(function_to_learn(sim.data[pre_probe]), sim.data[post_probe],
                                             smooth=False)
-    if debug:
+    if debug and learning_rule == "mPES":
         res_pos, res_neg = mpes_op.compute_resistance(sim.data[x_pos_probe], sim.data[x_neg_probe])
     if n_neurons <= 10 and learning_rule == "mPES":
         # plots["weights_mpes"] = plotter.plot_weights_over_time(sim.data[x_pos_probe],
@@ -332,14 +333,15 @@ if show_plots:
     for fig in plots.values():
         fig.show()
 
-    # DEBUG: zoom in on one synapse
-    if learning_rule == "mPES" and debug:
-        # -- weights trajectory
+    # -- weights trajectory
+    if debug:
         plt.plot(np.mean(sim.data[weight_probe], axis=(1, 2)))
         plt.title("Average weight over time")
         plt.show()
 
+    # DEBUG: zoom in on one synapse
+    if learning_rule == "mPES" and debug:
         plt.figure(figsize=(20, 20))
-        plt.plot(res_pos[4000:7500, 0, 0], c='r')
-        plt.plot(res_neg[4000:7500, 0, 0], c='b')
+        plt.plot(res_pos[4000:7500, 1, 0], c='r')
+        plt.plot(res_neg[4000:7500, 1, 0], c='b')
         plt.show()

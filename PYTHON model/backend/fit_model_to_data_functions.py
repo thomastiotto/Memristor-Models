@@ -19,9 +19,66 @@ def read_pulse_length(data, readV):
     return read_length
 
 
+def set_pulse(switching_time, resetV, num_reset, setV, num_set, pulse_length, readV, read_length, init_set_length,
+              init_setV):
+    # print('------------------')
+    # print('RESET:', resetV, 'V')
+    # print('SET:', setV, 'V')
+    # print('Pulse length:', pulse_length, 's')
+    # print('READ:', readV, 'V')
+    # print('READ length:', read_length, 's')
+
+    # FORMAT
+    # "t_rise", "t_on":, "t_fall", "t_off", "V_on", "V_off", "n_cycles"
+    return f"""{switching_time} {init_set_length} {switching_time} .01 {init_setV} 0 1
+{switching_time} {pulse_length} {switching_time} {read_length} {resetV} {readV} {num_reset}   
+{switching_time} {pulse_length} {switching_time} {read_length} {setV} {readV} {num_set}"""
+
+
+def startup2(lines):
+    iptVs = {}
+    lines = lines.split('\n')
+
+    wave_number = 1
+    for line in lines:
+        t_rise, t_on, t_fall, t_off, V_on, V_off, n_cycles = map(float, line.split())
+        iptV = {"t_rise": t_rise, "t_on": t_on, "t_fall": t_fall, "t_off": t_off, "V_on": V_on, "V_off": V_off,
+                "n_cycles": int(n_cycles)}
+        iptVs["{}".format(wave_number)] = iptV
+        wave_number += 1
+
+    return iptVs
+
+
+def interactive_iv(iptVs, dt):
+    t = 0
+    # print("dt: ", dt)
+    for iptV in iptVs.values():
+        for j in range(0, int(iptV['n_cycles'])):
+            if j == 0 and iptVs["1"] == iptV:
+                t, v_total = generate_wave(iptV, dt, t)
+            else:
+                t, v_total = generate_wave(iptV, dt, t, v_total)
+                # t, v_total = generate_wave({'t_rise': 0.0003, 't_on': 0.0003,'t_fall':0.0003,'t_off':0.0003,'V_on':iptV['V_on']/2,'V_off':iptV['V_off']}, dt, t, v_total)
+
+    time = np.linspace(0, t + dt, len(v_total))
+    return time, v_total
+
+
+def generate_wave(iv, dt, t, base=None):
+    base = np.array([0]) if base is None else base
+    t += (iv["t_rise"] + iv["t_fall"] + iv["t_on"] + iv["t_off"]) * 2
+    v1 = np.linspace(iv["V_off"], iv["V_on"], round(iv["t_rise"] * 1 / dt))
+    v2 = iv["V_on"] * np.ones(round(iv["t_on"] * 1 / dt))
+    v3 = np.linspace(iv["V_on"], iv["V_off"], round(iv["t_fall"] * 1 / dt))
+    v4 = np.array([]) if iv["t_off"] == 0 else iv["V_off"] * np.ones(round(iv["t_off"] * 1 / dt))
+    vtotal = np.concatenate((base, v1, v2, v3, v4))
+    return t, vtotal
+
+
 def compute_time_voltage_vectors(resetV, numreset, setV, numset, pulse_length, readV, read_length, init_set_length,
                                  init_setV, dt):
-    input_pulses = set_pulse(resetV, numreset, setV, numset, pulse_length, readV, read_length, init_set_length,
+    input_pulses = set_pulse(dt, resetV, numreset, setV, numset, pulse_length, readV, read_length, init_set_length,
                              init_setV)
     iptVs = startup2(input_pulses)
 
@@ -55,21 +112,6 @@ def model_sim_with_params(pulse_length, resetV, numreset, setV, numset, readV, r
     return time, voltage, i, r, x
 
 
-def set_pulse(resetV, num_reset, setV, num_set, pulse_length, readV, read_length, init_set_length, init_setV):
-    # print('------------------')
-    # print('RESET:', resetV, 'V')
-    # print('SET:', setV, 'V')
-    # print('Pulse length:', pulse_length, 's')
-    # print('READ:', readV, 'V')
-    # print('READ length:', read_length, 's')
-
-    # FORMAT
-    # "t_rise", "t_on":, "t_fall", "t_off", "V_on", "V_off", "n_cycles"
-    return f""".001 {init_set_length} .001 .01 {init_setV} 0 1
-.001 {pulse_length} .001 {read_length} {resetV} {readV} {num_reset}   
-.001 {pulse_length} .001 {read_length} {setV} {readV} {num_set}"""
-
-
 def find_peaks(r, voltage, readV, consider_from, dt=0.001, debug=False):
     consider_from = 0 if consider_from is None else consider_from
     consider_from = int(consider_from / dt)
@@ -101,8 +143,11 @@ def find_peaks(r, voltage, readV, consider_from, dt=0.001, debug=False):
 
 
 def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='pulse', show_peaks=False, dt=0.001,
-                model=None,
-                consider_from=None, peaks_consider_from=None):
+                model=None, consider_from=None, peaks_consider_from=None, unit='Resistance'):
+    assert unit in ['Resistance', 'Conductance']
+    if unit == 'Conductance':
+        r = 1 / r
+
     consider_from = 0 if consider_from is None else consider_from
     consider_from = int(consider_from / dt)
     time = time[consider_from:]
@@ -123,13 +168,14 @@ def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='
             ax_plot = fig_plot.axes
         else:
             fig_plot, ax_plot = plt.subplots(1, 1, figsize=(6, 5))
+            ax_plot = [ax_plot]
 
         ax_plot[0].plot(peaks, "o", fillstyle='none', label=label)
         ax_plot[0].xaxis.set_major_locator(mticker.MultipleLocator(len(peaks) // 10))
         ax_plot[0].set_yscale("log")
         ax_plot[0].set_xlabel("Pulse number")
         ax_plot[0].set_ylabel("Resistance (Ohm)")
-        ax_plot[0].set_title(f"Resistance after long initial SET")
+        ax_plot[0].set_title(f"{unit} after long initial SET")
         ax_plot[0].legend(loc='best')
 
         fig_plot.tight_layout()
@@ -162,43 +208,3 @@ def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='
         return fig_debug
     else:
         return None
-
-
-def startup2(lines):
-    iptVs = {}
-    lines = lines.split('\n')
-
-    wave_number = 1
-    for line in lines:
-        t_rise, t_on, t_fall, t_off, V_on, V_off, n_cycles = map(float, line.split())
-        iptV = {"t_rise": t_rise, "t_on": t_on, "t_fall": t_fall, "t_off": t_off, "V_on": V_on, "V_off": V_off,
-                "n_cycles": int(n_cycles)}
-        iptVs["{}".format(wave_number)] = iptV
-        wave_number += 1
-
-    return iptVs
-
-
-def interactive_iv(iptVs, dt):
-    t = 0
-    # print("dt: ", dt)
-    for iptV in iptVs.values():
-        for j in range(0, int(iptV['n_cycles'])):
-            if j == 0 and iptVs["1"] == iptV:
-                t, v_total = generate_wave(iptV, dt, t)
-            else:
-                t, v_total = generate_wave(iptV, dt, t, v_total)
-
-    time = np.linspace(0, t + dt, len(v_total))
-    return time, v_total
-
-
-def generate_wave(iv, dt, t, base=None):
-    base = np.array([0]) if base is None else base
-    t += (iv["t_rise"] + iv["t_fall"] + iv["t_on"] + iv["t_off"])
-    v1 = np.linspace(iv["V_off"], iv["V_on"], round(iv["t_rise"] * 1 / dt))
-    v2 = iv["V_on"] * np.ones(round(iv["t_on"] * 1 / dt))
-    v3 = np.linspace(iv["V_on"], iv["V_off"], round(iv["t_fall"] * 1 / dt))
-    v4 = np.array([]) if iv["t_off"] == 0 else iv["V_off"] * np.ones(round(iv["t_off"] * 1 / dt))
-    vtotal = np.concatenate((base, v1, v2, v3, v4))
-    return t, vtotal

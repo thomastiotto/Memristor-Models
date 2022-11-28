@@ -36,7 +36,7 @@ debug = False
 pprint.pprint(model)
 
 #  -- IMPORT DATA
-data = np.loadtxt('../../../../raw_data/pulses/new_device/Sp1V_RSm2V_Rm500mV_processed.txt', delimiter='\t', skiprows=1,
+data = np.loadtxt('../../../raw_data/pulses/new_device/Sp1V_RSm2V_Rm500mV_processed.txt', delimiter='\t', skiprows=1,
                   usecols=[2])
 # -- transform data from current to resistance
 data = readV / data
