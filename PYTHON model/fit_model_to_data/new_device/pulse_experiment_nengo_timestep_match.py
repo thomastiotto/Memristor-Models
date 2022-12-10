@@ -2,11 +2,16 @@ from scipy import optimize
 import json
 from order_of_magnitude import order_of_magnitude
 import matplotlib.pyplot as plt
+import pprint
 
 from fit_model_to_data_functions import *
 
 # -- model found with pulse_experiment_match_magnitude_new_pos_neg.py
-model = json.load(open('../../../fitted/fitting_pulses/new_device/regress_negative_then_positive'))
+# model = json.load(open('../../../fitted/fitting_pulses/new_device/regress_negative_then_positive'))
+# model = json.load(open('../../../fitted/fitting_pulses/new_device/regress_positive_from_handtuned_negative'))
+model = json.load(open('../../../fitted/fitting_pulses/new_device/mystery_model'))
+
+pprint.pprint(model)
 
 # -- EXPERIMENT HYPERPARAMETNERS
 resetV = -2
@@ -36,10 +41,10 @@ def residuals(x, peaks_gt, pulse_length, readV, read_length, model):
                                                    resetV=resetV, numreset=num_reset_pulses,
                                                    setV=setV, numset=num_set_pulses,
                                                    readV=readV, read_length=read_length,
-                                                   init_set_length=initial_time, init_setV=initialV,
+                                                   init_set_length=0, init_setV=0,
                                                    progress_bar=False,
                                                    **model)
-    peaks_model = find_peaks(r, voltage, readV, initial_time, dt=model['dt'])
+    peaks_model = find_peaks(r, voltage, readV, 0, dt=model['dt'])
 
     return peaks_gt - peaks_model
 
@@ -56,9 +61,9 @@ time_gt, voltage_gt, i_gt, r_gt, x_gt = model_sim_with_params(pulse_length=progr
                                                               resetV=resetV, numreset=num_reset_pulses,
                                                               setV=setV, numset=num_set_pulses,
                                                               readV=readV, read_length=read_time,
-                                                              init_set_length=initial_time, init_setV=initialV,
+                                                              init_set_length=0, init_setV=0,
                                                               **model)
-peaks_gt = find_peaks(r_gt, voltage_gt, readV, initial_time, dt=model['dt'])
+peaks_gt = find_peaks(r_gt, voltage_gt, readV, 0, dt=model['dt'])
 fig_plot_fit_electron, ax = plt.subplots(1, 1, figsize=(6, 5))
 ax.plot(data, 'o', label='Data')
 fig_plot_fit_electron = plot_images(time_gt, voltage_gt, i_gt, r_gt, x_gt, f'Model', readV,
@@ -88,7 +93,7 @@ time_opt, voltage_opt, i_opt, r_opt, x_opt = model_sim_with_params(pulse_length=
                                                                    numreset=num_reset_pulses,
                                                                    setV=res_minimisation.x[1], numset=num_set_pulses,
                                                                    readV=readV, read_length=nengo_read_time,
-                                                                   init_set_length=initial_time, init_setV=initialV,
+                                                                   init_set_length=0, init_setV=0,
                                                                    **model)
 fig_plot_opt = plot_images(time_gt, voltage_gt, i_gt, r_gt, x_gt,
                            f'Model (WRITE {program_time} s / READ {read_time} s)', readV,
@@ -99,13 +104,11 @@ fig_plot_opt = plot_images(time_opt, voltage_opt, i_opt, r_opt, x_opt,
                            fig_plot_opt)
 fig_plot_opt.show()
 fig_plot_opt_debug = plot_images(time_opt, voltage_opt, i_opt, r_opt, x_opt, f'{resetV} V / {setV} V', readV,
-                                 plot_type='debug', model=model, show_peaks=True, consider_from=initial_time,
+                                 plot_type='debug', model=model, show_peaks=True,
                                  dt=model['dt'])
 fig_plot_opt_debug.show()
-peaks_opt = find_peaks(r_opt, voltage_opt, readV, initial_time, dt=model['dt'])
+peaks_opt = find_peaks(r_opt, voltage_opt, readV, 0, dt=model['dt'])
 print(
     f'Average error from data: {order_of_magnitude.convert(np.round(np.mean(data - peaks_opt), 2), scale="mega")[0]} MOhm ({np.round(absolute_mean_percent_error(data, peaks_opt), 2)} %)')
 print(
     f'Average error from previous model: {order_of_magnitude.convert(np.round(np.mean(peaks_gt - peaks_opt), 2), scale="mega")[0]} MOhm ({np.round(absolute_mean_percent_error(peaks_gt, peaks_opt), 2)} %)')
-
-print("Value of x after long initial SET pulse:", np.max(x_gt[int(initial_time / model['dt']):]))

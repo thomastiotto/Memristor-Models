@@ -1,4 +1,5 @@
 import json
+import pprint
 from scipy import optimize
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,7 +7,16 @@ from tqdm import tqdm
 from yakopcic_functions import *
 from fit_model_to_data_functions import *
 
-model = json.load(open('../../../fitted/fitting_pulses/new_device/regress_negative_then_positive'))
+readV = -0.5
+#  -- IMPORT DATA
+data = np.loadtxt('../../../raw_data/pulses/new_device/Sp1V_RSm2V_Rm500mV_processed.txt', delimiter='\t', skiprows=1,
+                  usecols=[2])
+# -- transform data from current to resistance
+data = readV / data
+
+model = json.load(open('../../../fitted/fitting_pulses/new_device/mystery_model'))
+
+pprint.pprint(model)
 
 
 def one_step_yakopcic(voltage, x, readV):
@@ -25,126 +35,107 @@ def one_step_yakopcic(voltage, x, readV):
     return x, g
 
 
-def iterate_yakopcic(resetV, setV, iterations=100, plot_output=False, print_output=False):
+def iterate_yakopcic(resetV, setV, antiresetV=1, antisetV=1, reset_iter=100, set_iter=100, x0=None,
+                     plot_output=False, print_output=False):
     print_cond = lambda *a, **k: None
     if print_output:
         print_cond = print
 
-    x0 = 0.999993124834466
-    readV = -0.5
+    # -- initial conditions
+    resetV = resetV
+    setV = setV
+    nengo_time = 0.001
+    nengo_program_time = nengo_time * 0.7
+    nengo_read_time = nengo_time * 0.3
+    if x0 is not None:
+        model['x0'] = x0
 
-    antisetV = setV * -1 / 2
-    antiresetV = resetV * -1 / 2
-    antisetV = 0
-    antiresetV = 0
+    # simulate model and generate waveforms with higher precision if any time parameter is below the current dt
+    times = [nengo_time, nengo_program_time, nengo_read_time]
+    if any(t < model['dt'] for t in times):
+        model['dt'] = min(times)
 
-    # random.seed(0)
+    time, voltage, i, r, x = model_sim_with_params(pulse_length=nengo_program_time,
+                                                   resetV=resetV, numreset=reset_iter,
+                                                   setV=setV, numset=set_iter,
+                                                   readV=readV, read_length=nengo_read_time,
+                                                   init_set_length=0, init_setV=0,
+                                                   antiresetV=antiresetV, antisetV=antisetV,
+                                                   progress_bar=False,
+                                                   **model)
+    peaks = find_peaks(r, voltage, readV, 0, dt=model['dt'], debug=False)
 
-    G = [current(readV, x0,
-                 model['gmax_p'], model['bmax_p'], model['gmax_n'], model['bmax_n'],
-                 model['gmin_p'], model['bmin_p'], model['gmin_n'], model['bmin_n']) / readV]
-    X = [x0]
+    print_cond('x0:', x[0])
+    if reset_iter > 0:
+        print_cond(
+            f'RESET change: {peaks[0]} Ω → {peaks[reset_iter - 1]} Ω ({absolute_mean_percent_error(peaks[0], peaks[reset_iter - 1])} % change)')
+        if set_iter > 0:
+            print_cond(
+                f'SET change: {peaks[reset_iter - 1]} Ω → {peaks[-1]} Ω ({absolute_mean_percent_error(peaks[reset_iter - 1], peaks[-1])} % change)')
+    else:
+        print_cond(
+            f'SET change: {peaks[0]} Ω → {peaks[-1]} Ω ({absolute_mean_percent_error(peaks[0], peaks[-1])} % change)')
 
-    for _ in tqdm(range(iterations), disable=True):
-        x, g = one_step_yakopcic(resetV, X[-1], readV)
-        x, g = one_step_yakopcic(antiresetV, x, readV)
-        G.append(g)
-        X.append(x)
-    print_cond('RESET:')
-    print_cond('Start resistance:', 1 / G[iterations], 'End resistance:', 1 / G[-1])
-    print_cond('Start conductance:', G[0], 'End conductance:', G[-1])
-
-    for _ in tqdm(range(iterations + 1), disable=True):
-        x, g = one_step_yakopcic(setV, X[-1], readV)
-        x, g = one_step_yakopcic(antisetV, x, readV)
-        G.append(g)
-        X.append(x)
-    print_cond('SET:')
-    print_cond('Start resistance:', 1 / G[iterations], 'End resistance:', 1 / G[-1])
-    print_cond('Start conductance:', G[iterations], 'End conductance:', G[-1])
-
-    print_cond('Dynamic range:', np.max(np.abs(G[:iterations + 1] - np.flip(G[iterations + 1:]))), 'S')
-
+    G = 1 / peaks
     G_norm = (G - np.min(G)) / (np.max(G) - np.min(G))
-    NL = np.max(np.abs(G_norm[:iterations + 1] - np.flip(G_norm[iterations + 1:])))
-    NL_point = np.argmax(np.abs(G_norm[:iterations + 1] - np.flip(G_norm[iterations + 1:])))
-    print_cond('NL:', NL)
+    NL = None
+    NL_point = None
+    if reset_iter == set_iter:
+        NL = np.max(np.abs(G_norm[:reset_iter] - np.flip(G_norm[reset_iter:])))
+        NL_point = np.argmax(np.abs(G_norm[:reset_iter] - np.flip(G_norm[reset_iter:])))
+        print_cond('NL:', NL)
+        print_cond('Dynamic range:', np.max(np.abs(G[:reset_iter] - np.flip(G[reset_iter:]))), 'S')
 
     if plot_output:
+        fig_plot = plot_images(time, voltage, i, r, x, f'Model', readV, unit='Resistance')
+        fig_plot.show()
+
         fig, ax = plt.subplots()
-        ax.plot(G_norm[:iterations], label='RESET', color='blue')
-        ax.plot(np.flip(G_norm[iterations:]), label='SET', color='red')
-        ax.plot([NL_point, NL_point], [G_norm[:iterations + 1][NL_point], np.flip(G_norm[iterations + 1:])[NL_point]],
-                marker='o', color='black', linestyle='dashed')
+        ax.plot(G_norm[:reset_iter], marker='o', label='RESET', color='blue')
+        ax.plot(np.flip(G_norm[reset_iter:]), marker='o', label='SET', color='red')
+        try:
+            import warnings
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="Creating an ndarray from ragged nested sequences")
+                ax.plot([NL_point, NL_point], [G_norm[:reset_iter][NL_point], np.flip(G_norm[reset_iter:])[NL_point]],
+                        marker='o', color='black', linestyle='dashed')
+        except:
+            pass
         ax.legend()
         fig.suptitle(f'SET {setV} V, RESET {resetV} V')
         fig.show()
 
-        R = 1 / np.array(G)
-        fig, ax = plt.subplots()
-        ax.plot(R[:iterations], label='RESET', color='blue')
-        ax.plot(np.flip(R[iterations:]), label='SET', color='red')
-        fig.show()
-
-    return NL, NL_point, G_norm, G, X
+    return NL, NL_point, peaks, 1 / G, x, voltage, G
 
 
-def residuals_voltages(x, iterations):
-    resetV = x[0]
-    setV = x[1]
-
-    NL, _, _, _, _ = iterate_yakopcic(resetV, setV, iterations=iterations)
-
-    return NL
-
-
-# -- initial conditions
-n_iter = 100
-resetV = -6.342839121380956
-setV = 4.8838587394343485
-readV = -0.5
-initialV = setV
-num_reset_pulses = num_set_pulses = n_iter
-read_time = 0.1
-nengo_time = 0.001
-nengo_program_time = nengo_time * 0.7
-nengo_read_time = nengo_time * 0.3
-initial_time = 60
-
-# simulate model and generate waveforms with higher precision if any time parameter is below the current dt
-times = [read_time, nengo_time, nengo_program_time, nengo_read_time]
-if any(t < model['dt'] for t in times):
-    model['dt'] = min(times)
-
-time, voltage, i, r, x = model_sim_with_params(pulse_length=nengo_program_time,
-                                               resetV=resetV, numreset=num_reset_pulses,
-                                               setV=setV, numset=num_set_pulses,
-                                               readV=readV, read_length=nengo_read_time,
-                                               init_set_length=initial_time, init_setV=initialV,
-                                               **model)
-peaks = find_peaks(r, voltage, readV, initial_time, dt=model['dt'], debug=False)
-
-fig_plot = plot_images(time, voltage, i, r, x, f'Model', readV, unit='Conductance')
-fig_plot.show()
-
-G = 1 / peaks
-G_norm = (G - np.min(G)) / (np.max(G) - np.min(G))
-NL = np.max(np.abs(G_norm[:n_iter] - np.flip(G_norm[n_iter:])))
-NL_point = np.argmax(np.abs(G_norm[:n_iter] - np.flip(G_norm[n_iter:])))
-print('NL:', NL)
-print('Dynamic range:', np.max(np.abs(G[:n_iter] - np.flip(G[n_iter:]))), 'S')
-
-fig, ax = plt.subplots()
-ax.plot(G_norm[:n_iter], label='RESET', color='blue')
-ax.plot(np.flip(G_norm[n_iter:]), label='SET', color='red')
-ax.plot([NL_point, NL_point], [G_norm[:n_iter][NL_point], np.flip(G_norm[n_iter:])[NL_point]],
-        marker='o', color='black', linestyle='dashed')
-ax.legend()
-fig.suptitle(f'SET {setV} V, RESET {resetV} V')
+resetV = -6.640464569013251
+setV = 5.016534745455379
+print(f'\nDEFAULT VOLTAGES ({resetV}) V / {setV} V')
+NL, NL_point, peaks, R, X, V, G = iterate_yakopcic(resetV, setV, reset_iter=100, set_iter=1000,
+                                                   plot_output=True, print_output=True)
+fig, ax = plt.subplots(figsize=(20, 10))
+ax.plot(X[:200])
+ax.twinx().plot(V[:200], 'r')
+fig.show()
+fig, ax = plt.subplots(figsize=(20, 10))
+ax.plot(X[750:950])
+ax.twinx().plot(V[750:950], 'r')
+fig.show()
+fig, ax = plt.subplots(figsize=(20, 10))
+ax.plot(X)
 fig.show()
 
-# print(f'\nDEFAULT VOLTAGES ({setV} V, {resetV}) V:')
-# iterate_yakopcic(resetV, setV, iterations=n_iter, plot_output=True, print_output=True)
+# print('CHECK NONLINEARITY')
+# for rs in np.arange(1, -0.1, -0.1):
+#     iterate_yakopcic(resetV, setV, reset_iter=2, set_iter=0, x0=rs, plot_output=False, print_output=True)
+# for rs in np.arange(0, 1.1, 0.1):
+#     iterate_yakopcic(resetV, setV, reset_iter=0, set_iter=2, x0=rs, plot_output=False, print_output=True)
+
+# iterate_yakopcic(resetV, setV, reset_iter=100, set_iter=0, plot_output=True, print_output=True)
+# iterate_yakopcic(resetV, setV, reset_iter=0, set_iter=100, plot_output=True, print_output=True)
+
+# iterate_yakopcic(resetV, setV, reset_iter=100, set_iter=100, x0=1, plot_output=True, print_output=True)
+# iterate_yakopcic(resetV, setV, reset_iter=100, set_iter=100, x0=0, plot_output=True, print_output=True)
 
 # # -- target probabilities at 1 and find voltages that give that outcome
 # find_voltages = optimize.least_squares(residuals_voltages, [resetV, setV],

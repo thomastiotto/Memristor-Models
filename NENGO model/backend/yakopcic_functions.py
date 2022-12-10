@@ -18,6 +18,14 @@ def h2(v, g_p, b_p, g_n, b_n):
     return np.where(v >= 0, g_p * (1 - np.exp(-b_p * v)), g_n * np.sinh(b_n * v))
 
 
+def h2_2(v, g_p, b_p, g_n, b_n):
+    return np.where(v >= 0, g_p * np.sinh(b_p * v), g_n * (1 - np.exp(-b_n * v)))
+
+
+def h2_3(v, g_p, b_p, g_n, b_n):
+    return np.where(v >= 0, g_p * np.sinh(b_p * v), g_n * (((b_n + 1) * v) / (b_n * v + 1)))
+
+
 # def current(v, x, gmax_p, bmax_p, gmax_n, bmax_n, gmin_p, bmin_p, gmin_n, bmin_n):  # First implementation
 #    return mimd(v, gmax_p, bmax_p, gmax_n, bmax_n) * x + mimd(v, gmin_p, bmin_p, gmin_n, bmin_n) * (1 - x)
 

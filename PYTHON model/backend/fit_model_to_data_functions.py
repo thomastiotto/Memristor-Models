@@ -2,10 +2,17 @@ from yakopcic_functions import *
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from tqdm.auto import tqdm
+import numbers
 
 
 def absolute_mean_percent_error(value, forecast):
-    return np.mean(np.abs((value - forecast) / value)) * 100
+    if isinstance(value, numbers.Number):
+        if value < forecast:
+            return np.mean(np.abs((value - forecast) / value)) * 100
+        else:
+            return np.mean(np.abs((forecast - value) / forecast)) * 100
+    else:
+        return np.mean(np.abs((value - forecast) / value)) * 100
 
 
 def read_pulse_length(data, readV):
@@ -17,6 +24,17 @@ def read_pulse_length(data, readV):
     print('Average readV pulse length:', np.round(read_length, 2), 'seconds')
 
     return read_length
+
+
+def compute_time_voltage_vectors(resetV, numreset, setV, numset, pulse_length, readV, read_length, init_set_length,
+                                 init_setV, dt, antiresetV=None, antisetV=None):
+    input_pulses = set_pulse(dt, resetV, numreset, setV, numset, pulse_length, readV, read_length, init_set_length,
+                             init_setV)
+    iptVs = startup2(input_pulses, antiresetV, antisetV)
+
+    time, voltage = interactive_iv(iptVs, dt)
+
+    return time, voltage
 
 
 def set_pulse(switching_time, resetV, num_reset, setV, num_set, pulse_length, readV, read_length, init_set_length,
@@ -35,14 +53,15 @@ def set_pulse(switching_time, resetV, num_reset, setV, num_set, pulse_length, re
 {switching_time} {pulse_length} {switching_time} {read_length} {setV} {readV} {num_set}"""
 
 
-def startup2(lines):
+def startup2(lines, antiresetV=None, antisetV=None):
     iptVs = {}
     lines = lines.split('\n')
 
     wave_number = 1
     for line in lines:
         t_rise, t_on, t_fall, t_off, V_on, V_off, n_cycles = map(float, line.split())
-        iptV = {"t_rise": t_rise, "t_on": t_on, "t_fall": t_fall, "t_off": t_off, "V_on": V_on, "V_off": V_off,
+        iptV = {"t_rise": t_rise, "t_on": t_on, "t_fall": t_fall, 't_anti': t_off, "t_off": t_off,
+                "V_on": V_on, "V_off": V_off, 'V_anti': antiresetV if V_on < 0 else antisetV,
                 "n_cycles": int(n_cycles)}
         iptVs["{}".format(wave_number)] = iptV
         wave_number += 1
@@ -58,8 +77,10 @@ def interactive_iv(iptVs, dt):
             if j == 0 and iptVs["1"] == iptV:
                 t, v_total = generate_wave(iptV, dt, t)
             else:
-                t, v_total = generate_wave(iptV, dt, t, v_total)
-                # t, v_total = generate_wave({'t_rise': 0.0003, 't_on': 0.0003,'t_fall':0.0003,'t_off':0.0003,'V_on':iptV['V_on']/2,'V_off':iptV['V_off']}, dt, t, v_total)
+                if iptV['V_anti'] is not None:
+                    t, v_total = generate_wave_with_anti(iptV, dt, t, v_total)
+                else:
+                    t, v_total = generate_wave(iptV, dt, t, v_total)
 
     time = np.linspace(0, t + dt, len(v_total))
     return time, v_total
@@ -67,38 +88,45 @@ def interactive_iv(iptVs, dt):
 
 def generate_wave(iv, dt, t, base=None):
     base = np.array([0]) if base is None else base
-    t += (iv["t_rise"] + iv["t_fall"] + iv["t_on"] + iv["t_off"]) * 2
+    t += (iv["t_rise"] + iv["t_on"] + iv["t_fall"] + iv["t_off"])
     v1 = np.linspace(iv["V_off"], iv["V_on"], round(iv["t_rise"] * 1 / dt))
     v2 = iv["V_on"] * np.ones(round(iv["t_on"] * 1 / dt))
     v3 = np.linspace(iv["V_on"], iv["V_off"], round(iv["t_fall"] * 1 / dt))
     v4 = np.array([]) if iv["t_off"] == 0 else iv["V_off"] * np.ones(round(iv["t_off"] * 1 / dt))
     vtotal = np.concatenate((base, v1, v2, v3, v4))
+
     return t, vtotal
 
 
-def compute_time_voltage_vectors(resetV, numreset, setV, numset, pulse_length, readV, read_length, init_set_length,
-                                 init_setV, dt):
-    input_pulses = set_pulse(dt, resetV, numreset, setV, numset, pulse_length, readV, read_length, init_set_length,
-                             init_setV)
-    iptVs = startup2(input_pulses)
+def generate_wave_with_anti(iv, dt, t, base=None):
+    base = np.array([0]) if base is None else base
+    t += (iv["t_rise"] + iv["t_on"] + iv["t_fall"] + iv['t_anti'] + iv['t_rise'] + iv["t_off"])
+    v1 = np.linspace(iv["V_off"], iv["V_on"], round(iv["t_rise"] * 1 / dt))
+    v2 = iv["V_on"] * np.ones(round(iv["t_on"] * 1 / dt))
+    v3 = np.linspace(iv["V_on"], iv["V_anti"], round(iv["t_fall"] * 1 / dt))
+    v3a = iv["V_anti"] * np.ones(round(iv["t_anti"] * 1 / dt))
+    v3b = np.linspace(iv["V_anti"], iv["V_off"], round(iv["t_rise"] * 1 / dt))
+    v4 = np.array([]) if iv["t_off"] == 0 else iv["V_off"] * np.ones(round(iv["t_off"] * 1 / dt))
+    vtotal = np.concatenate((base, v1, v2, v3, v3a, v3b, v4))
 
-    time, voltage = interactive_iv(iptVs, dt)
-
-    return time, voltage
+    return t, vtotal
 
 
 def model_sim_with_params(pulse_length, resetV, numreset, setV, numset, readV, read_length, init_set_length, init_setV,
+                          antiresetV=None, antisetV=None,
                           progress_bar=True,
                           **params):
     time, voltage = compute_time_voltage_vectors(resetV, numreset, setV, numset, pulse_length, readV, read_length,
                                                  init_set_length, init_setV,
-                                                 params['dt'])
+                                                 params['dt'], antiresetV, antisetV)
     x = np.zeros(voltage.shape, dtype=float)
+    if init_set_length == 0 and init_setV == 0:
+        x[0] = params['x0']
 
     for j in tqdm(range(1, len(x)), disable=not progress_bar):
-        x[j] = x[j - 1] + dxdt(voltage[j], x[j - 1], params['Ap'], params['An'], params['Vp'], params['Vn'],
-                               params['xp'],
-                               params['xn'], params['alphap'], params['alphan'], 1) * params['dt']
+        x[j] = x[j - 1] + dxdt(voltage[j], x[j - 1],
+                               params['Ap'], params['An'], params['Vp'], params['Vn'],
+                               params['xp'], params['xn'], params['alphap'], params['alphan'], 1) * params['dt']
         if x[j] < 0:
             x[j] = 0
         if x[j] > 1:
@@ -171,11 +199,12 @@ def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='
             ax_plot = [ax_plot]
 
         ax_plot[0].plot(peaks, "o", fillstyle='none', label=label)
-        ax_plot[0].xaxis.set_major_locator(mticker.MultipleLocator(len(peaks) // 10))
+        ax_plot[0].xaxis.set_major_locator(
+            mticker.MultipleLocator(len(peaks) // 10) if len(peaks) > 10 else mticker.MultipleLocator(1))
         ax_plot[0].set_yscale("log")
         ax_plot[0].set_xlabel("Pulse number")
-        ax_plot[0].set_ylabel("Resistance (Ohm)")
-        ax_plot[0].set_title(f"{unit} after long initial SET")
+        ax_plot[0].set_ylabel(f"{unit}")
+        ax_plot[0].set_title(f"{unit} peaks after long initial SET")
         ax_plot[0].legend(loc='best')
 
         fig_plot.tight_layout()
@@ -206,5 +235,6 @@ def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='
         fig_debug.tight_layout()
 
         return fig_debug
+
     else:
         return None
