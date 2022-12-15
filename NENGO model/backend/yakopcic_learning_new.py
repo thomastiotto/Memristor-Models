@@ -30,7 +30,7 @@ def initialise_yakopcic_model(noise_percentage, encoders, acts, seed):
     np.random.seed(seed)
 
     # -- parameters fund with pulse_experiment_1s_to_1ms.py
-    yakopcic_model = json.load(open('../../fitted/fitting_pulses/new_device/regress_negative_then_positive'))
+    yakopcic_model = json.load(open('../../fitted/fitting_pulses/new_device/mystery_model'))
 
     An = get_truncated_normal(yakopcic_model['An'], yakopcic_model['An'] * noise_percentage,
                               0, np.inf,
@@ -81,11 +81,12 @@ def initialise_yakopcic_model(noise_percentage, encoders, acts, seed):
                               0, np.inf,
                               encoders.shape[0], acts.shape[0])
     # -- obtained from pulse_experiment_1s_to_1ms.py
-    x0 = get_truncated_normal(0.5, 0.5 * noise_percentage,
+    x0 = get_truncated_normal(0.0032239748515913717, 0.0032239748515913717 * noise_percentage,
                               0, 1,
                               encoders.shape[0], acts.shape[0])
+    dt = yakopcic_model['dt']
 
-    return An, Ap, Vn, Vp, alphan, alphap, bmax_n, bmax_p, bmin_n, bmin_p, gmax_n, gmax_p, gmin_n, gmin_p, xn, xp, x0
+    return An, Ap, Vn, Vp, alphan, alphap, bmax_n, bmax_p, bmin_n, bmin_p, gmax_n, gmax_p, gmin_n, gmin_p, xn, xp, x0, dt
 
 
 def find_spikes(input_activities, shape, output_activities=None, invert=False):
@@ -123,9 +124,12 @@ class mPES(LearningRuleType):
                  strategy='symmetric-probabilistic',
                  setP=1,
                  resetP=1,
-                 # voltages found in percentage_change_resistance.py, these can be used with P(SET)=P(RESET)
-                 resetV=-6.342839121380956 / 5,
-                 setV=4.8838587394343485 / 5):
+                 # voltages found in NL_characterisation.py, these can be used with P(SET)=P(RESET)
+                 resetV=-6.4688295585009605,
+                 setV=0.24694177778629942,
+                 high_precision=True,
+                 program_length=7,
+                 read_length=3):
         super().__init__(size_in="post_state")
 
         self.pre_synapse = pre_synapse
@@ -161,15 +165,20 @@ class mPES(LearningRuleType):
 
         self.setV = setV
         self.resetV = resetV
+        self.high_precision = high_precision
+        self.program_length = program_length
+        self.read_length = read_length
 
         print(f'Using {strategy} strategy: P(SET)={self.setP}, P(RESET)={self.resetP}')
         print(f'Voltage amplitudes: setV={self.setV} V, resetV={self.resetV} V')
+        print('High' if self.high_precision else 'Low', 'precision mode')
 
-    @property
-    def _argdefaults(self):
-        return (
-            ("pre_synapse", mPES.pre_synapse.default)
-        )
+
+@property
+def _argdefaults(self):
+    return (
+        ("pre_synapse", mPES.pre_synapse.default)
+    )
 
 
 class SimmPES(Operator):
@@ -218,6 +227,10 @@ class SimmPES(Operator):
             resetP,
             setV,
             resetV,
+            dt,
+            high_precision,
+            program_length,
+            read_length,
             tag=None
     ):
         super(SimmPES, self).__init__(tag=tag)
@@ -229,6 +242,11 @@ class SimmPES(Operator):
         self.resetP = resetP
         self.setV = setV
         self.resetV = resetV
+
+        self.dt = dt
+        self.high_precision = high_precision
+        self.program_length = program_length
+        self.read_length = read_length
 
         self.An_pos = An_pos
         self.Ap_pos = Ap_pos
@@ -330,7 +348,7 @@ class SimmPES(Operator):
         gain = self.gain
         error_threshold = self.error_threshold
 
-        readV = -.1
+        readV = -0.5
 
         # overwrite initial transform with memristor-based weights
         if "weights" in self.initial_state:
@@ -346,6 +364,23 @@ class SimmPES(Operator):
             weights[:] = gain * (i_pos / readV - i_neg / readV)
 
         def step_simmpes():
+            def yakopcic_one_step(V, x, Ap, An, Vp, Vn, alphap, alphan, xp, xn):
+                # Calculate the state variables at the current timestep
+                np.seterr(all="raise")
+                x = x + dxdt(V, x, Ap, An, Vp,
+                             Vn,
+                             xp, xn, alphap, alphan, 1) * self.dt
+                # Clip the value of state variables beyond the [0,1] range
+                x = np.clip(x, 0, 1)
+
+                return x
+
+            def yakopcic_update(V, x, steps, Ap, An, Vp, Vn, alphap, alphan, xp, xn):
+                for _ in range(steps):
+                    x = yakopcic_one_step(V, x, Ap, An, Vp, Vn, alphap, alphan, xp, xn)
+
+                return x
+
             # set update to zero if error is small or adjustments go on forever
             # if error is small return zero delta
             if np.any(np.absolute(local_error) > error_threshold):
@@ -355,17 +390,6 @@ class SimmPES(Operator):
                 # some memristors are adjusted erroneously if we don't filter
                 spiked_map = find_spikes(pre_filtered, weights.shape, invert=True)
                 pes_delta[spiked_map] = 0
-
-                def yakopcic_one_step(V, x, Ap, An, Vp, Vn, alphap, alphan, xp, xn):
-                    # Calculate the state variables at the current timestep
-                    np.seterr(all="raise")
-                    x = x + dxdt(V, x, Ap, An, Vp,
-                                 Vn,
-                                 xp, xn, alphap, alphan, 1) * dt
-                    # Clip the value of state variables beyond the [0,1] range
-                    x = np.clip(x, 0, 1)
-
-                    return x
 
                 # -- update memristor states
                 update_direction = np.sign(pes_delta)
@@ -377,9 +401,10 @@ class SimmPES(Operator):
                 # POTENTIATE
                 mask_potentiate_set = np.logical_and(update_direction > 0,
                                                      device_selection_set < self.setP)
-                x_pos[mask_potentiate_set] = yakopcic_one_step(
+                x_pos[mask_potentiate_set] = yakopcic_update(
                     self.setV * np.ones_like(x_pos[mask_potentiate_set]),
                     x_pos[mask_potentiate_set],
+                    self.program_length,
                     self.Ap_pos[mask_potentiate_set],
                     self.An_pos[mask_potentiate_set],
                     self.Vp_pos[mask_potentiate_set],
@@ -390,9 +415,10 @@ class SimmPES(Operator):
                     self.xn_pos[mask_potentiate_set])
                 mask_potentiate_reset = np.logical_and(update_direction > 0,
                                                        device_selection_reset < self.resetP)
-                x_neg[mask_potentiate_reset] = yakopcic_one_step(
+                x_neg[mask_potentiate_reset] = yakopcic_update(
                     self.resetV * np.ones_like(x_neg[mask_potentiate_reset]),
                     x_neg[mask_potentiate_reset],
+                    self.program_length,
                     self.Ap_neg[mask_potentiate_reset],
                     self.An_neg[mask_potentiate_reset],
                     self.Vp_neg[mask_potentiate_reset],
@@ -404,9 +430,10 @@ class SimmPES(Operator):
                 # DEPRESS
                 mask_depress_set = np.logical_and(update_direction < 0,
                                                   device_selection_set < self.setP)
-                x_neg[mask_depress_set] = yakopcic_one_step(
+                x_neg[mask_depress_set] = yakopcic_update(
                     self.setV * np.ones_like(x_neg[mask_depress_set]),
                     x_neg[mask_depress_set],
+                    self.program_length,
                     self.Ap_neg[mask_depress_set],
                     self.An_neg[mask_depress_set],
                     self.Vp_neg[mask_depress_set],
@@ -417,9 +444,10 @@ class SimmPES(Operator):
                     self.xn_neg[mask_depress_set])
                 mask_depress_reset = np.logical_and(update_direction < 0,
                                                     device_selection_reset < self.resetP)
-                x_pos[mask_depress_reset] = yakopcic_one_step(
+                x_pos[mask_depress_reset] = yakopcic_update(
                     self.resetV * np.ones_like(x_pos[mask_depress_reset]),
                     x_pos[mask_depress_reset],
+                    self.program_length,
                     self.Ap_pos[mask_depress_reset],
                     self.An_pos[mask_depress_reset],
                     self.Vp_pos[mask_depress_reset],
@@ -436,7 +464,35 @@ class SimmPES(Operator):
                 self.pos_pulse_archive.append(ts_pos_pulses)
                 self.neg_pulse_archive.append(ts_neg_pulses)
 
+            # -- reading cycle
+            x_pos[:] = yakopcic_update(
+                self.readV * np.ones_like(x_pos),
+                x_pos,
+                self.read_length,
+                self.Ap_pos,
+                self.An_pos,
+                self.Vp_pos,
+                self.Vn_pos,
+                self.alphap_pos,
+                self.alphan_pos,
+                self.xp_pos,
+                self.xn_pos)
+
+            x_neg[:] = yakopcic_update(
+                self.readV * np.ones_like(x_neg),
+                x_neg,
+                self.read_length,
+                self.Ap_neg,
+                self.An_neg,
+                self.Vp_neg,
+                self.Vn_neg,
+                self.alphap_neg,
+                self.alphan_neg,
+                self.xp_neg,
+                self.xn_neg)
+
             # -- calculate the current through the devices
+            # ---- (there'll be a slight mismatch because in find_peaks() we looked at the centre of the read interval
             i_pos = current(readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,
                             self.gmax_n_pos, self.bmax_n_pos, self.gmin_p_pos, self.bmin_p_pos, self.gmin_n_pos,
                             self.bmin_n_pos)
@@ -481,26 +537,26 @@ def build_mpes(model, mpes, rule):
 
     # -- Instantiate two sets of Yakopcic memristors
     An_pos, Ap_pos, \
-    Vn_pos, Vp_pos, \
-    alphan_pos, alphap_pos, \
-    bmax_n_pos, bmax_p_pos, \
-    bmin_n_pos, bmin_p_pos, \
-    gmax_n_pos, gmax_p_pos, \
-    gmin_n_pos, gmin_p_pos, \
-    xn_pos, xp_pos, \
-    x0_pos = initialise_yakopcic_model(mpes.noise_percentage, encoders, acts,
-                                       mpes.seed)
+        Vn_pos, Vp_pos, \
+        alphan_pos, alphap_pos, \
+        bmax_n_pos, bmax_p_pos, \
+        bmin_n_pos, bmin_p_pos, \
+        gmax_n_pos, gmax_p_pos, \
+        gmin_n_pos, gmin_p_pos, \
+        xn_pos, xp_pos, \
+        x0_pos, dt_yk = initialise_yakopcic_model(mpes.noise_percentage, encoders, acts,
+                                                  mpes.seed)
 
     An_neg, Ap_neg, \
-    Vn_neg, Vp_neg, \
-    alphan_neg, alphap_neg, \
-    bmax_n_neg, bmax_p_neg, \
-    bmin_n_neg, bmin_p_neg, \
-    gmax_n_neg, gmax_p_neg, \
-    gmin_n_neg, gmin_p_neg, \
-    xn_neg, xp_neg, \
-    x0_neg = initialise_yakopcic_model(mpes.noise_percentage, encoders, acts,
-                                       mpes.seed + 1 if mpes.seed is not None else None)
+        Vn_neg, Vp_neg, \
+        alphan_neg, alphap_neg, \
+        bmax_n_neg, bmax_p_neg, \
+        bmin_n_neg, bmin_p_neg, \
+        gmax_n_neg, gmax_p_neg, \
+        gmin_n_neg, gmin_p_neg, \
+        xn_neg, xp_neg, \
+        x0_neg, dt_yk = initialise_yakopcic_model(mpes.noise_percentage, encoders, acts,
+                                                  mpes.seed + 1 if mpes.seed is not None else None)
 
     if conn.post_obj is not conn.post:
         # in order to avoid slicing encoders along an axis > 0, we pad
@@ -522,12 +578,22 @@ def build_mpes(model, mpes, rule):
     x_neg = Signal(shape=(encoders.shape[0], acts.shape[0]), name=f"{rule}:x_neg",
                    initial_value=x0_neg)
 
+    if mpes.high_precision:
+        program_length = mpes.program_length
+        read_length = mpes.read_length
+        dt = dt_yk
+    else:
+        program_length = 1
+        read_length = 1
+        dt = mpes.program_length * dt_yk + mpes.read_length * dt_yk
+
     model.operators.append(
         SimmPES(acts, local_error, model.sig[conn]["weights"], mpes.gain, bmax_n_pos, bmax_p_pos, bmin_n_pos,
                 bmin_p_pos, gmax_n_pos, gmax_p_pos, gmin_n_pos, gmin_p_pos, Vn_pos, Vp_pos, alphan_pos, alphap_pos,
                 An_pos, Ap_pos, x_pos, xn_pos, xp_pos, bmax_n_neg, bmax_p_neg, bmin_n_neg, bmin_p_neg, gmax_n_neg,
                 gmax_p_neg, gmin_n_neg, gmin_p_neg, Vn_neg, Vp_neg, alphan_neg, alphap_neg, An_neg, Ap_neg, x_neg,
-                xn_neg, xp_neg, mpes.initial_state, mpes.setP, mpes.resetP, mpes.setV, mpes.resetV)
+                xn_neg, xp_neg, mpes.initial_state, mpes.setP, mpes.resetP, mpes.setV, mpes.resetV, dt,
+                mpes.high_precision, program_length, read_length)
     )
 
     # expose these for probes

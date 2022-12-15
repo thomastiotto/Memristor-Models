@@ -48,7 +48,7 @@ def set_pulse(switching_time, resetV, num_reset, setV, num_set, pulse_length, re
 
     # FORMAT
     # "t_rise", "t_on":, "t_fall", "t_off", "V_on", "V_off", "n_cycles"
-    return f"""{switching_time} {init_set_length} {switching_time} .01 {init_setV} 0 1
+    return f"""{switching_time} {init_set_length} {switching_time} 0.0 {init_setV} 0 1
 {switching_time} {pulse_length} {switching_time} {read_length} {resetV} {readV} {num_reset}   
 {switching_time} {pulse_length} {switching_time} {read_length} {setV} {readV} {num_set}"""
 
@@ -87,13 +87,15 @@ def interactive_iv(iptVs, dt):
 
 
 def generate_wave(iv, dt, t, base=None):
-    base = np.array([0]) if base is None else base
-    t += (iv["t_rise"] + iv["t_on"] + iv["t_fall"] + iv["t_off"])
-    v1 = np.linspace(iv["V_off"], iv["V_on"], round(iv["t_rise"] * 1 / dt))
+    base = np.array([]) if base is None else base
+    # t += (iv["t_rise"] + iv["t_on"] + iv["t_fall"] + iv["t_off"])
+    t += (iv["t_on"] + iv["t_off"])
+    # v1 = np.linspace(iv["V_off"], iv["V_on"], round(iv["t_rise"] * 1 / dt))
     v2 = iv["V_on"] * np.ones(round(iv["t_on"] * 1 / dt))
-    v3 = np.linspace(iv["V_on"], iv["V_off"], round(iv["t_fall"] * 1 / dt))
+    # v3 = np.linspace(iv["V_on"], iv["V_off"], round(iv["t_fall"] * 1 / dt))
     v4 = np.array([]) if iv["t_off"] == 0 else iv["V_off"] * np.ones(round(iv["t_off"] * 1 / dt))
-    vtotal = np.concatenate((base, v1, v2, v3, v4))
+    # vtotal = np.concatenate((base, v1, v2, v3, v4))
+    vtotal = np.concatenate((base, v2, v4))
 
     return t, vtotal
 
@@ -122,6 +124,8 @@ def model_sim_with_params(pulse_length, resetV, numreset, setV, numset, readV, r
     x = np.zeros(voltage.shape, dtype=float)
     if init_set_length == 0 and init_setV == 0:
         x[0] = params['x0']
+    # 0.002995190624018
+    # 0.003175268784414
 
     for j in tqdm(range(1, len(x)), disable=not progress_bar):
         x[j] = x[j - 1] + dxdt(voltage[j], x[j - 1],
@@ -140,7 +144,7 @@ def model_sim_with_params(pulse_length, resetV, numreset, setV, numset, readV, r
     return time, voltage, i, r, x
 
 
-def find_peaks(r, voltage, readV, consider_from, dt=0.001, debug=False):
+def find_peaks(r, voltage, readV, consider_from, x=None, dt=0.001, debug=False):
     consider_from = 0 if consider_from is None else consider_from
     consider_from = int(consider_from / dt)
     r_ranged = r[consider_from:]
@@ -152,7 +156,7 @@ def find_peaks(r, voltage, readV, consider_from, dt=0.001, debug=False):
     indexes = np.nonzero(diffs)[0] + 1
     groups = np.split(data, indexes)
     peaks_idx = []
-    for g in groups[1:]:
+    for g in groups:
         interval_centr = int(g[0] + (g[-1] - g[0]) / 2)
         peaks_idx.append(interval_centr)
     peaks = r_ranged[peaks_idx]
@@ -166,6 +170,11 @@ def find_peaks(r, voltage, readV, consider_from, dt=0.001, debug=False):
         ax2.plot(peaks_idx, r_ranged[peaks_idx], 'x', color='b')
         fig.suptitle(f'Peaks found: {len(peaks_idx)} at {readV} V')
         fig.show()
+
+    if x is not None:
+        x_peaks = x[consider_from:][peaks_idx]
+
+        return peaks, x_peaks
 
     return peaks
 

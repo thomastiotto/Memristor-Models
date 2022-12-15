@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="mPES (PES)" type="PythonConfigurationType" factoryName="Python" singleton="false">
+  <configuration default="false" name="PES (fast)" type="PythonConfigurationType" factoryName="Python" singleton="false">
     <module name="memristor models" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
