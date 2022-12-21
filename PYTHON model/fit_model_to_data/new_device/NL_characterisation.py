@@ -24,48 +24,18 @@ model['dt'] = 0.0001
 pprint.pprint(model)
 
 
-def min_NL(x, scaler):
+def min_NL_max_DR(x, scaler, x0, iterations):
     NL, DR, NL_point, peaks, R, X, X_peaks, V = iterate_yakopcic(x[0], x[1],
-                                                                 # antiresetV=x[2], antisetV=x[3],
-                                                                 reset_iter=100, set_iter=100,
+                                                                 x0=x0,
+                                                                 reset_iter=iterations, set_iter=iterations,
                                                                  plot_output=False, print_output=False)
     # -- normalise DR to [0,1]
-    DR = (DR - scaler[1]) / (scaler[0] - scaler[1])
+    DR = DR / (scaler[1] - scaler[0])
 
-    return NL
-
-
-def max_DR(x, scaler):
-    NL, DR, NL_point, peaks, R, X, X_peaks, V = iterate_yakopcic(x[0], x[1],
-                                                                 # antiresetV=x[2], antisetV=x[3],
-                                                                 reset_iter=100, set_iter=100,
-                                                                 plot_output=False, print_output=False)
-    # -- normalise DR to [0,1]
-    DR = (DR - scaler[1]) / (scaler[0] - scaler[1])
-
-    return -DR
-
-
-def min_NL_max_DR(x, scaler):
-    NL, DR, NL_point, peaks, R, X, X_peaks, V = iterate_yakopcic(x[0], x[1],
-                                                                 x0=0.005628693958937491,
-                                                                 reset_iter=100, set_iter=100,
-                                                                 plot_output=False, print_output=False)
-    # -- normalise DR to [0,1]
-    DR = (DR - scaler[0]) / (scaler[1] - scaler[0])
+    initial_point_distance = np.abs(peaks[-1] - peaks[0])
+    initial_point_distance = initial_point_distance / (scaler[1] - scaler[0])
 
     return NL - DR
-
-
-def min_distance(x, scaler):
-    NL, DR, NL_point, peaks, R, X, X_peaks, V = iterate_yakopcic(x[0], x[1],
-                                                                 # antiresetV=x[2], antisetV=x[3],
-                                                                 reset_iter=100, set_iter=100,
-                                                                 plot_output=False, print_output=False)
-    # -- normalise DR to [0,1]
-    DR = (DR - scaler[0]) / (scaler[1] - scaler[0])
-
-    return np.mean(np.abs(peaks[:100] - peaks[100:]))
 
 
 def find_nearest(array, value):
@@ -200,19 +170,6 @@ fig.suptitle('Initial X and R with default voltages')
 fig.legend()
 fig.show()
 
-# fig, ax = plt.subplots(figsize=(20, 10))
-# ax.plot(X[:200])
-# ax.twinx().plot(V[:200], 'r')
-# fig.show()
-# fig, ax = plt.subplots(figsize=(20, 10))
-# ax.plot(X[750:950])
-# ax.twinx().plot(V[750:950], 'r')
-# fig.show()
-# fig, ax = plt.subplots(figsize=(20, 10))
-# ax.plot(X)
-# fig.show()
-
-
 # -- compute scaling factor
 min_R = readV / current(readV, 1, model['gmax_p'], model['bmax_p'], model['gmax_n'], model['bmax_n'], model['gmin_p'],
                         model['bmin_p'], model['gmin_n'], model['bmin_n'])
@@ -224,7 +181,7 @@ x0 = [resetV, setV]
 # bounds = [(-10, -1), (0.1, 10), (0, 10), (-10, 0)]
 bounds = [(-10, 1), (0, 10)]
 print('MINIMISE NL AND MAXIMISE DR')
-res_NL_DR = scipy.optimize.minimize(min_NL_max_DR, x0=x0, bounds=bounds, args=scaler)
+res_NL_DR = scipy.optimize.minimize(min_NL_max_DR, x0=x0, bounds=bounds, args=(scaler, None, 100))
 NL, DR, NL_point, peaks, R, X, X_peaks, V = iterate_yakopcic(res_NL_DR.x[0], res_NL_DR.x[1],
                                                              reset_iter=100,
                                                              set_iter=100,
@@ -238,7 +195,7 @@ print('FROM CROSSOVER POINT')
 cross_point = np.argmin(np.abs(peaks[:100] - np.flip(peaks[100:])))
 X_cross = X_peaks[cross_point]
 NL, DR, NL_point, peaks, R, X, X_peaks, V = iterate_yakopcic(res_NL_DR.x[0], res_NL_DR.x[1],
-                                                             reset_iter=100, set_iter=100,
+                                                             reset_iter=70, set_iter=70,
                                                              x0=X_cross * 1.25,
                                                              plot_output=True, print_output=True)
 
@@ -258,70 +215,10 @@ fig.suptitle('Initial X and R with reduced voltages')
 fig.legend()
 fig.show()
 
-# def min_NL_max_DR_restricted(x, scaler, resetV, setV):
-#     NL, DR, NL_point, peaks, R, X, X_peaks, V = iterate_yakopcic(resetV, setV,
-#                                                                  x0=x[0],
-#                                                                  reset_iter=100, set_iter=100,
-#                                                                  plot_output=False, print_output=False)
-#     # -- normalise DR to [0,1]
-#     DR = (DR - scaler[0]) / (scaler[1] - scaler[0])
-#
-#     return NL
-#
-#
-# print('MINIMISE NL AND MAXIMISE DR RESTRICTED')
-# x0 = [X_cross]
-# bounds = [(0, 1)]
-# res_NL_DR_restricted = scipy.optimize.minimize(min_NL_max_DR_restricted, x0=x0, bounds=bounds,
-#                                                args=(scaler, res_NL_DR.x[0], res_NL_DR.x[1]))
-# _, _, _, _, _, _, X_peaks_restricted, _ = iterate_yakopcic(res_NL_DR.x[0], res_NL_DR.x[1],
-#                                                            x0=res_NL_DR_restricted.x[0],
-#                                                            reset_iter=100,
-#                                                            set_iter=100,
-#                                                            plot_output=True, print_output=True)
-# print(res_NL_DR_restricted.x)
-
-# print('MINIMISE DISTANCE')
-# res_distance = scipy.optimize.minimize(min_distance, x0=x0, bounds=bounds, args=scaler)
-# iterate_yakopcic(res_distance.x[0], res_distance.x[1],
-#                  # antiresetV=res_NL.x[2], antisetV=res_NL.x[3],
-#                  reset_iter=100, set_iter=100,
-#                  plot_output=True, print_output=True)
-# print(res_distance.x)
-# print('MINIMISE NL')
-# res_NL = scipy.optimize.minimize(min_NL, x0=x0, bounds=bounds, args=scaler)
-# iterate_yakopcic(res_NL.x[0], res_NL.x[1],
-#                  # antiresetV=res_NL.x[2], antisetV=res_NL.x[3],
-#                  reset_iter=100, set_iter=100,
-#                  plot_output=True, print_output=True)
-# print(res_NL.x)
-# print('MAXIMISE DR')
-# res_DR = scipy.optimize.minimize(max_DR, x0=x0, bounds=bounds, args=scaler)
-# iterate_yakopcic(res_DR.x[0], res_DR.x[1],
-#                  # antiresetV=res_DR.x[2], antisetV=res_DR.x[3],
-#                  reset_iter=100, set_iter=100,
-#                  plot_output=True, print_output=True)
-# print(res_DR.x)
-
-# print('CHECK NONLINEARITY')
-# for rs in np.arange(1, -0.1, -0.1):
-#     iterate_yakopcic(resetV, setV, reset_iter=2, set_iter=0, x0=rs, plot_output=False, print_output=True)
-# for rs in np.arange(0, 1.1, 0.1):
-#     iterate_yakopcic(resetV, setV, reset_iter=0, set_iter=2, x0=rs, plot_output=False, print_output=True)
-
-# iterate_yakopcic(resetV, setV, reset_iter=100, set_iter=0, plot_output=True, print_output=True)
-# iterate_yakopcic(resetV, setV, reset_iter=0, set_iter=100, plot_output=True, print_output=True)
-
-# iterate_yakopcic(resetV, setV, reset_iter=100, set_iter=100, x0=1, plot_output=True, print_output=True)
-# iterate_yakopcic(resetV, setV, reset_iter=100, set_iter=100, x0=0, plot_output=True, print_output=True)
-
-# # -- target probabilities at 1 and find voltages that give that outcome
-# find_voltages = optimize.least_squares(residuals_voltages, [resetV, setV],
-#                                        args=[n_iter],
-#                                        bounds=([-10, 0], [0, 10]),
-#                                        method='dogbox', verbose=0)
-# print('\nVOLTAGES GIVEN TARGET PROBABILITIES AT 1:')
-# iterate_yakopcic(find_voltages.x[0], find_voltages.x[1], iterations=n_iter, plot_output=True, print_output=True)
-
-# print('\nREDUCED VOLTAGES:')
-# iterate_yakopcic(resetV / 5, setV, iterations=n_iter, plot_output=True, print_output=True)
+res_NL_DR = scipy.optimize.minimize(min_NL_max_DR, x0=x0, bounds=bounds, args=(scaler, X_cross * 1.25, 70))
+NL, DR, NL_point, peaks, R, X, X_peaks, V = iterate_yakopcic(res_NL_DR.x[0], res_NL_DR.x[1],
+                                                             reset_iter=70, set_iter=70,
+                                                             x0=X_cross * 1.25,
+                                                             plot_output=True, print_output=True)
+print('Found voltages')
+print('RESET V', res_NL_DR.x[0], 'SET V', res_NL_DR.x[1])

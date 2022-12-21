@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from yakopcic_functions import *
 
-model = json.load(open('../../fitted/fitting_pulses/old_device/regress_negative_xp_alphap-adjusted_ap_an'))
+model = json.load(open('../../../fitted/fitting_pulses/old_device/regress_negative_xp_alphap-adjusted_ap_an'))
 
 
 def one_step_yakopcic(voltage, x, readV, **params):
@@ -33,10 +33,13 @@ def iterate_yakopcic(resetV, setV, iterations=10, plot_output=False, print_outpu
     readV = -0.1
 
     # random.seed(0)
-
     x_p = x_n = x0
-    R_p = []
-    R_n = []
+    R_p = [readV / current(readV, x0,
+                           model['gmax_p'], model['bmax_p'], model['gmax_n'], model['bmax_n'],
+                           model['gmin_p'], model['bmin_p'], model['gmin_n'], model['bmin_n'])]
+    R_n = [readV / current(readV, x0,
+                           model['gmax_p'], model['bmax_p'], model['gmax_n'], model['bmax_n'],
+                           model['gmin_p'], model['bmin_p'], model['gmin_n'], model['bmin_n'])]
     X_p = [x_p]
     X_n = [x_n]
 
@@ -46,14 +49,14 @@ def iterate_yakopcic(resetV, setV, iterations=10, plot_output=False, print_outpu
     print_cond('Start value:', R_p[0], 'End value:', R_p[-1])
     # calculate average percent change in resistances (https://sciencing.com/calculate-mean-change-5953798.html)
     set_efficacy = np.abs(np.mean(np.diff(R_p) / np.abs(R_p[:-1])) * 100)
-    print_cond('Average resistance change with SET pulses:', set_efficacy, '%')
+    print_cond(f'Average resistance change with SET pulses: {set_efficacy} % ({R_p[-1] - R_p[0]} Ohm)')
 
     for j in tqdm(range(iterations), disable=not print_output):
         x_n, r_n = one_step_yakopcic(resetV, x_n, readV, **model)
         R_n.append(r_n)
     print_cond('Start value:', R_n[0], 'End value:', R_n[-1])
     reset_efficacy = np.abs(np.mean(np.diff(R_n) / np.abs(R_n[:-1])) * 100)
-    print_cond('Average resistance change with RESET pulses:', reset_efficacy, '%')
+    print_cond(f'Average resistance change with RESET pulses: {reset_efficacy} % ({R_n[-1] - R_n[0]} Ohm)')
 
     if set_efficacy > reset_efficacy:
         reset_vs_set_efficacy_percent = np.abs(((set_efficacy - reset_efficacy) / reset_efficacy) * 100)
@@ -67,7 +70,7 @@ def iterate_yakopcic(resetV, setV, iterations=10, plot_output=False, print_outpu
         ax.plot(R_p, label='SET')
         ax.plot(R_n, label='RESET')
         ax.legend()
-        fig.suptitle(f'SET {setV} V, RESET {resetV} V')
+        fig.suptitle(f'RESET {resetV} V, SET {setV} V')
         fig.show()
 
     if set_efficacy > reset_efficacy:
@@ -95,7 +98,7 @@ def residuals_voltages(x, iterations):
     return k
 
 
-# -- initial conditions
+# -- initial conditions from fitting by pulse_experiment_1s_to_1ms.py
 resetV = -8.135891404816215
 setV = 3.86621037038006
 n_iter = 10

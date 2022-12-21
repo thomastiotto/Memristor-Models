@@ -14,18 +14,6 @@ from debug_plots import debugger_plots
 from yakopcic_functions import *
 
 
-def initialise_yakopcic_memristors(x0, bmax_n, bmax_p, bmin_n, bmin_p, gmax_n, gmax_p, gmin_n, gmin_p,
-                                   in_size, out_size, name):
-    V_read = -1
-    i = current(V_read, x0, gmax_p, bmax_p,
-                gmax_n, bmax_n, gmin_p, bmin_p, gmin_n, bmin_n)
-    r = np.divide(V_read, i)
-
-    memristors = Signal(shape=(out_size, in_size), name=name, initial_value=r)
-
-    return memristors
-
-
 def initialise_yakopcic_model(noise_percentage, encoders, acts, seed):
     np.random.seed(seed)
 
@@ -464,35 +452,34 @@ class SimmPES(Operator):
                 self.pos_pulse_archive.append(ts_pos_pulses)
                 self.neg_pulse_archive.append(ts_neg_pulses)
 
-            # -- reading cycle
-            x_pos[:] = yakopcic_update(
-                self.readV * np.ones_like(x_pos),
-                x_pos,
-                self.read_length,
-                self.Ap_pos,
-                self.An_pos,
-                self.Vp_pos,
-                self.Vn_pos,
-                self.alphap_pos,
-                self.alphan_pos,
-                self.xp_pos,
-                self.xn_pos)
-
-            x_neg[:] = yakopcic_update(
-                self.readV * np.ones_like(x_neg),
-                x_neg,
-                self.read_length,
-                self.Ap_neg,
-                self.An_neg,
-                self.Vp_neg,
-                self.Vn_neg,
-                self.alphap_neg,
-                self.alphan_neg,
-                self.xp_neg,
-                self.xn_neg)
+                # -- reading cycles
+                # x_pos[:] = yakopcic_update(
+                #     self.readV * np.ones_like(x_pos),
+                #     x_pos,
+                #     self.read_length,
+                #     self.Ap_pos,
+                #     self.An_pos,
+                #     self.Vp_pos,
+                #     self.Vn_pos,
+                #     self.alphap_pos,
+                #     self.alphan_pos,
+                #     self.xp_pos,
+                #     self.xn_pos)
+                # x_neg[:] = yakopcic_update(
+                #     self.readV * np.ones_like(x_neg),
+                #     x_neg,
+                #     self.read_length,
+                #     self.Ap_neg,
+                #     self.An_neg,
+                #     self.Vp_neg,
+                #     self.Vn_neg,
+                #     self.alphap_neg,
+                #     self.alphan_neg,
+                #     self.xp_neg,
+                #     self.xn_neg)
 
             # -- calculate the current through the devices
-            # ---- (there'll be a slight mismatch because in find_peaks() we looked at the centre of the read interval
+            # ---- (there'll be a slight mismatch because in find_peaks() we looked at the centre of the read interval and here we look at the end
             i_pos = current(readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,
                             self.gmax_n_pos, self.bmax_n_pos, self.gmin_p_pos, self.bmin_p_pos, self.gmin_n_pos,
                             self.bmin_n_pos)

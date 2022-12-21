@@ -16,7 +16,7 @@ from yakopcic_functions import *
 
 def initialise_yakopcic_memristors(x0, bmax_n, bmax_p, bmin_n, bmin_p, gmax_n, gmax_p, gmin_n, gmin_p,
                                    in_size, out_size, name):
-    V_read = -1
+    V_read = -0.1
     i = current(V_read, x0, gmax_p, bmax_p,
                 gmax_n, bmax_n, gmin_p, bmin_p, gmin_n, bmin_n)
     r = np.divide(V_read, i)
@@ -123,8 +123,10 @@ class mPES(LearningRuleType):
                  strategy='symmetric-probabilistic',
                  setP=1,
                  resetP=1,
-                 setV=3.86621037038006,
-                 resetV=-0.24529948944820018):  # voltages found in percentage_change_resistance.py, these can be used with P(SET)=P(RESET)
+                 # voltages found in percentage_change_resistance.py, these can be used with P(SET)=P(RESET)
+                 # -0.2453233466334084 | Vset 3.8577715191559876
+                 resetV=-0.2453233466334084,
+                 setV=3.8577715191559876):
         super().__init__(size_in="post_state")
 
         self.pre_synapse = pre_synapse
@@ -160,8 +162,6 @@ class mPES(LearningRuleType):
 
         self.setV = setV
         self.resetV = resetV
-        self.setP = setP
-        self.resetP = resetP
 
         print(f'Using {strategy} strategy: P(SET)={self.setP}, P(RESET)={self.resetP}')
         print(f'Voltage amplitudes: setV={self.setV} V, resetV={self.resetV} V')
@@ -331,7 +331,7 @@ class SimmPES(Operator):
         gain = self.gain
         error_threshold = self.error_threshold
 
-        readV = -.1
+        readV = -0.1
 
         # overwrite initial transform with memristor-based weights
         if "weights" in self.initial_state:
@@ -482,26 +482,26 @@ def build_mpes(model, mpes, rule):
 
     # -- Instantiate two sets of Yakopcic memristors
     An_pos, Ap_pos, \
-    Vn_pos, Vp_pos, \
-    alphan_pos, alphap_pos, \
-    bmax_n_pos, bmax_p_pos, \
-    bmin_n_pos, bmin_p_pos, \
-    gmax_n_pos, gmax_p_pos, \
-    gmin_n_pos, gmin_p_pos, \
-    xn_pos, xp_pos, \
-    x0_pos = initialise_yakopcic_model(mpes.noise_percentage, encoders, acts,
-                                       mpes.seed)
+        Vn_pos, Vp_pos, \
+        alphan_pos, alphap_pos, \
+        bmax_n_pos, bmax_p_pos, \
+        bmin_n_pos, bmin_p_pos, \
+        gmax_n_pos, gmax_p_pos, \
+        gmin_n_pos, gmin_p_pos, \
+        xn_pos, xp_pos, \
+        x0_pos = initialise_yakopcic_model(mpes.noise_percentage, encoders, acts,
+                                           mpes.seed)
 
     An_neg, Ap_neg, \
-    Vn_neg, Vp_neg, \
-    alphan_neg, alphap_neg, \
-    bmax_n_neg, bmax_p_neg, \
-    bmin_n_neg, bmin_p_neg, \
-    gmax_n_neg, gmax_p_neg, \
-    gmin_n_neg, gmin_p_neg, \
-    xn_neg, xp_neg, \
-    x0_neg = initialise_yakopcic_model(mpes.noise_percentage, encoders, acts,
-                                       mpes.seed + 1 if mpes.seed is not None else None)
+        Vn_neg, Vp_neg, \
+        alphan_neg, alphap_neg, \
+        bmax_n_neg, bmax_p_neg, \
+        bmin_n_neg, bmin_p_neg, \
+        gmax_n_neg, gmax_p_neg, \
+        gmin_n_neg, gmin_p_neg, \
+        xn_neg, xp_neg, \
+        x0_neg = initialise_yakopcic_model(mpes.noise_percentage, encoders, acts,
+                                           mpes.seed + 1 if mpes.seed is not None else None)
 
     if conn.post_obj is not conn.post:
         # in order to avoid slicing encoders along an axis > 0, we pad

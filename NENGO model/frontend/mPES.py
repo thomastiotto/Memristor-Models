@@ -8,7 +8,6 @@ from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
 
 from extras import *
-from yakopcic_learning_new import mPES
 
 setup()
 
@@ -31,7 +30,7 @@ parser.add_argument("-n", "--noise", default=0.15, type=float,
                     help="The noise on the simulated memristors.  Default is 0.15")
 parser.add_argument("-g", "--gain", default=1e6, type=float)  # default chosen by parameter search experiments
 parser.add_argument("-l", "--learning_rule", default="mPES", choices=["mPES", "PES"])
-parser.add_argument('-st', '--strategy', default='asymmetric',
+parser.add_argument('-st', '--strategy', default='symmetric-probabilistic',
                     choices=['symmetric', 'asymmetric', 'symmetric-probabilistic', 'asymmetric-probabilistic'])
 # parser.add_argument('-sp', '--')
 parser.add_argument("-b", "--backend", default="nengo_core", choices=["nengo_dl", "nengo_core"])
@@ -48,6 +47,7 @@ parser.add_argument("-d", "--device", default="/cpu:0",
 parser.add_argument("-lt", "--learn_time", default=3 / 4, type=float)
 parser.add_argument('--probe', default=1, choices=[0, 1, 2], type=int,
                     help="0: probing disabled, 1: only probes to calculate statistics, 2: all probes active")
+parser.add_argument('--model', default='new', choices=['new', 'old'], type=str)
 
 args = parser.parse_args()
 seed = args.seed
@@ -110,6 +110,13 @@ if args.plot >= 2:
     save_plots = True
 if args.plot >= 3:
     save_data = True
+if args.learning_rule == 'mPES':
+    if args.model == "new":
+        print('Using new model')
+        from yakopcic_learning_new import mPES
+    elif args.model == "old":
+        print('Using old model')
+        from yakopcic_learning import mPES
 
 debug = True
 
@@ -265,10 +272,10 @@ if probe > 1:
     printlv2("Weights average after learning:")
     printlv1(np.average(sim.data[weight_probe][-1, ...]))
 
-    # Sparsity
-    printlv2("Weights sparsity at t=0 and after learning:")
-    printlv1(gini(sim.data[weight_probe][0]), end=" -> ")
-    printlv1(gini(sim.data[weight_probe][-1]))
+    # # Sparsity
+    # printlv2("Weights sparsity at t=0 and after learning:")
+    # printlv1(gini(sim.data[weight_probe][0]), end=" -> ")
+    # printlv1(gini(sim.data[weight_probe][-1]))
 
 plots = {}
 if generate_plots and probe > 1:
@@ -279,25 +286,25 @@ if generate_plots and probe > 1:
                       dpi=300,
                       pre_alpha=0.3
                       )
-    plots["results_smooth"] = plotter.plot_results(sim.data[input_node_probe], sim.data[pre_probe],
-                                                   sim.data[post_probe],
-                                                   error=
-                                                   sim.data[post_probe] -
-                                                   function_to_learn(sim.data[pre_probe]),
-                                                   smooth=True)
-    plots["results"] = plotter.plot_results(sim.data[input_node_probe], sim.data[pre_probe],
-                                            sim.data[post_probe],
-                                            error=
-                                            sim.data[post_probe] -
-                                            function_to_learn(sim.data[pre_probe]),
-                                            smooth=False)
-    plots["post_spikes"] = plotter.plot_ensemble_spikes("Post", sim.data[post_spikes_probe],
-                                                        sim.data[post_probe])
-    plots["weights"] = plotter.plot_weight_matrices_over_time(sim.data[weight_probe], sample_every=sample_every)
+    # plots["results_smooth"] = plotter.plot_results(sim.data[input_node_probe], sim.data[pre_probe],
+    #                                                sim.data[post_probe],
+    #                                                error=
+    #                                                sim.data[post_probe] -
+    #                                                function_to_learn(sim.data[pre_probe]),
+    #                                                smooth=True)
+    # plots["results"] = plotter.plot_results(sim.data[input_node_probe], sim.data[pre_probe],
+    #                                         sim.data[post_probe],
+    #                                         error=
+    #                                         sim.data[post_probe] -
+    #                                         function_to_learn(sim.data[pre_probe]),
+    #                                         smooth=False)
+    # plots["post_spikes"] = plotter.plot_ensemble_spikes("Post", sim.data[post_spikes_probe],
+    #                                                     sim.data[post_probe])
+    # plots["weights"] = plotter.plot_weight_matrices_over_time(sim.data[weight_probe], sample_every=sample_every)
 
-    plots["testing_smooth"] = plotter.plot_testing(function_to_learn(sim.data[pre_probe]),
-                                                   sim.data[post_probe],
-                                                   smooth=True)
+    # plots["testing_smooth"] = plotter.plot_testing(function_to_learn(sim.data[pre_probe]),
+    #                                                sim.data[post_probe],
+    #                                                smooth=True)
     plots["testing"] = plotter.plot_testing(function_to_learn(sim.data[pre_probe]), sim.data[post_probe],
                                             smooth=False)
     if debug and learning_rule == "mPES":
@@ -342,6 +349,6 @@ if show_plots:
     # DEBUG: zoom in on one synapse
     if learning_rule == "mPES" and debug:
         plt.figure(figsize=(20, 20))
-        plt.plot(res_pos[4000:7500, 1, 0], c='r')
-        plt.plot(res_neg[4000:7500, 1, 0], c='b')
+        plt.plot(res_pos[:, 1, 0], c='r')
+        plt.plot(res_neg[:, 1, 0], c='b')
         plt.show()

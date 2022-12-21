@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="mPES (full)" type="PythonConfigurationType" factoryName="Python" singleton="false">
+  <configuration default="false" name="mPES (full old)" type="PythonConfigurationType" factoryName="Python" singleton="false">
     <module name="memristor models" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -10,7 +10,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/NENGO model/frontend/mPES.py" />
-    <option name="PARAMETERS" value="--plot 1 --neurons 100 --gain 8e2 --noise 0.15" />
+    <option name="PARAMETERS" value="--plot 1 --neurons 100 --model old" />
     <option name="SHOW_COMMAND_LINE" value="true" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

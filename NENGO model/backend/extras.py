@@ -302,7 +302,7 @@ class Plotter():
 
         axes[0, 0].xaxis.set_tick_params(labelsize='xx-large')
         axes[0, 0].yaxis.set_tick_params(labelsize='xx-large')
-        axes[0, 0].set_ylim(-1, 1)
+        # axes[0, 0].set_ylim(-1, 1)
 
         if smooth:
             from scipy.signal import savgol_filter
@@ -624,8 +624,8 @@ def ci(data, confidence=0.95):
     z = norm.ppf((1 + confidence) / 2)
 
     return np.mean(data, axis=0), \
-           np.mean(data, axis=0) + z * np.std(data, axis=0) / np.sqrt(len(data)), \
-           np.mean(data, axis=0) - z * np.std(data, axis=0) / np.sqrt(len(data))
+        np.mean(data, axis=0) + z * np.std(data, axis=0) / np.sqrt(len(data)), \
+        np.mean(data, axis=0) - z * np.std(data, axis=0) / np.sqrt(len(data))
 
 
 # TODO when only giving SET pulses, the average length of consecutive SET pulses is 5
