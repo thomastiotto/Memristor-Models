@@ -69,7 +69,7 @@ def initialise_yakopcic_model(noise_percentage, encoders, acts, seed):
                               0, np.inf,
                               encoders.shape[0], acts.shape[0])
     # -- obtained from pulse_experiment_1s_to_1ms.py
-    x0 = get_truncated_normal(0.0032239748515913717, 0.0032239748515913717 * noise_percentage,
+    x0 = get_truncated_normal(0.003212612055682041, 0.003212612055682041 * noise_percentage,
                               0, 1,
                               encoders.shape[0], acts.shape[0])
     dt = yakopcic_model['dt']
@@ -110,12 +110,21 @@ class mPES(LearningRuleType):
                  initial_state=None,
                  seed=None,
                  strategy='symmetric-probabilistic',
-                 setP=1,
-                 resetP=1,
-                 # voltages found in NL_characterisation.py, these can be used with P(SET)=P(RESET)
-                 resetV=-6.4688295585009605,
-                 setV=0.24694177778629942,
-                 high_precision=True,
+                 setP=0.1,
+                 resetP=0.1,
+                 # voltages found in percentage_change_resistance_new.py, these can be used with P(SET)=P(RESET)
+                 # resetV=-6.4688295585009605,
+                 # setV=0.24694177778629942,
+                 # DR
+                 # resetV=-2.1331527635533685,
+                 # setV=0.011873603203071863,
+                 # DR/2
+                 resetV=-1.6300607380628072,
+                 setV=0.006566045887405729,
+                 # DR/3
+                 # resetV=-1.3180811362586602,
+                 # setV=0.004382346688619062,
+                 high_precision=False,
                  program_length=7,
                  read_length=3):
         super().__init__(size_in="post_state")
@@ -158,7 +167,7 @@ class mPES(LearningRuleType):
         self.read_length = read_length
 
         print(f'Using {strategy} strategy: P(SET)={self.setP}, P(RESET)={self.resetP}')
-        print(f'Voltage amplitudes: setV={self.setV} V, resetV={self.resetV} V')
+        print(f'Voltage amplitudes: resetV={self.resetV} V, setV={self.setV} V')
         print('High' if self.high_precision else 'Low', 'precision mode')
 
 

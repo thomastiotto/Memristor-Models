@@ -6,7 +6,7 @@ from tqdm import tqdm
 from yakopcic_functions import *
 from fit_model_to_data_functions import *
 
-iterations = 100
+iterations = 10
 
 new_model_pack = {
     'model': json.load(open('../../../fitted/fitting_pulses/new_device/mystery_model')),
@@ -126,7 +126,7 @@ def iterate_yakopcic(resetV, setV, model_pack, iterations=None, x0=None, plot_ou
         ax.plot(R_p, label='SET')
         ax.plot(R_n, label='RESET')
         ax.legend()
-        fig.suptitle(f'SET {setV:.2f} V, RESET {resetV:.2f} V')
+        fig.suptitle(f'RESET {resetV:.2f} V | SET {setV:.2f} V')
         ax.set_title(f'k={k:.2f} | DR={DR:.2f} Ohm')
         fig.tight_layout()
         fig.show()
@@ -193,7 +193,7 @@ find_voltages = optimize.minimize(residuals_voltages,
                                   bounds=([-10, 0], [0, 10]),
                                   constraints=({'type': 'ineq',
                                                 'fun': constraint_DR,
-                                                'args': (new_model_pack, DR_old_model)},
+                                                'args': (new_model_pack, DR_old_model / 3)},
                                                {'type': 'ineq',
                                                 'fun': constraint_V,
                                                 'args': [new_model_pack]}),
