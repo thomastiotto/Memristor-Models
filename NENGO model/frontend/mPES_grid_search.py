@@ -1,19 +1,24 @@
-from sklearn.base import BaseEstimator, RegressorMixin
-from sklearn.model_selection import GridSearchCV
+from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin
+from sklearn.experimental import enable_halving_search_cv
+from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
+import pandas as pd
 
-from nengo.learning_rules import PES
-from nengo.params import Default
-from nengo.processes import WhiteSignal
 from sklearn.metrics import mean_squared_error
 from yakopcic_learning_new import mPES
-from tqdm import tqdm
 
 from extras import *
 
 
 class mPES_Estimator(BaseEstimator, RegressorMixin):
-    def __init__(self):
+    def set_params(self, **parameters):
+        for parameter, value in parameters.items():
+            setattr(self, parameter, value)
+        return self
+
+    def __init__(self, gain=1e5):
         nengo.rc['progress']['progress_bar'] = 'nengo.utils.progress.TerminalProgressBar'
+
+        self.gain = gain
 
         self.timestep = 0.001
         dimensions = 3
@@ -73,37 +78,121 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
             self.pre_probe = nengo.Probe(pre, synapse=0.01)
             self.post_probe = nengo.Probe(post, synapse=0.01)
 
-    def fit(self, **kwargs):
+            # optional ones are used to plot the results
+            self.input_node_probe = nengo.Probe(input_node)
+            self.error_probe = nengo.Probe(self.model.error, synapse=0.01)
+            self.learn_probe = nengo.Probe(stop_learning, synapse=None)
+            self.post_spikes_probe = nengo.Probe(post.neurons)
+
+    def fit(self, X, y=None):
+
         with self.model:
             # Apply the learning rule to conn
-            self.model.conn.learning_rule_type = mPES(noisy=self.noise_percent, gain=kwargs['gain'],
+            self.model.conn.learning_rule_type = mPES(noisy=self.noise_percent, gain=self.gain,
                                                       strategy=self.strategy)
             # Provide an error signal to the learning rule
             nengo.Connection(self.model.error, self.model.conn.learning_rule)
 
+            # learning rule probes
+            self.x_pos_probe = nengo.Probe(self.model.conn.learning_rule, "x_pos", synapse=None)
+            self.x_neg_probe = nengo.Probe(self.model.conn.learning_rule, "x_neg", synapse=None)
+            self.weight_probe = nengo.Probe(self.model.conn, "weights", synapse=None)
+
         self.sim = nengo.Simulator(self.model)
         self.sim.run(self.learn_time)
-
-    def predict(self):
         self.sim.run(self.test_time)
 
-        # -- evaluate number of memristor pulses over simulation
-        mpes_op = get_operator_from_sim(self.sim, 'SimmPES')
+        return self
 
-        # essential statistics
+    def predict(self, X):
+        self.sim.run(self.test_time)
+
+        learning_time = int((self.learn_time / self.timestep))
+        y = self.sim.data[self.post_probe][learning_time:, ...]
+
+        return y
+
+    def score(self, X, y=None, sample_weight=None):
         y_true = self.sim.data[self.pre_probe][int((self.learn_time / self.timestep)):, ...]
         y_pred = self.sim.data[self.post_probe][int((self.learn_time / self.timestep)):, ...]
+
         # MSE after learning
         mse = mean_squared_error(self.function_to_learn(y_true), y_pred, multioutput='raw_values')
         # Correlation coefficients after learning
         correlation_coefficients = correlations(self.function_to_learn(y_true), y_pred)
 
-        return mse_to_rho_ratio(mse, correlation_coefficients[1])
+        return np.mean(mse_to_rho_ratio(mse, correlation_coefficients[1]))
 
+    def plot(self, smooth=False):
+        pre = self.function_to_learn(self.sim.data[self.pre_probe])
+        post = self.sim.data[self.post_probe]
 
-estimator = mPES_Estimator()
-estimator.fit(gain=1e5)
-print(estimator.predict())
+        fig, axes = plt.subplots(1, 1, sharex=True, sharey=True, squeeze=False)
+        fig.set_size_inches((12, 8))
+
+        learning_time = int((self.learn_time / self.timestep))
+        time = self.sim.trange()[learning_time:, ...]
+        pre = pre[learning_time:, ...]
+        post = post[learning_time:, ...]
+
+        axes[0, 0].xaxis.set_tick_params(labelsize='xx-large')
+        axes[0, 0].yaxis.set_tick_params(labelsize='xx-large')
+        # axes[0, 0].set_ylim(-1, 1)
+
+        if smooth:
+            from scipy.signal import savgol_filter
+
+            pre = np.apply_along_axis(savgol_filter, 0, pre, window_length=51, polyorder=3)
+            post = np.apply_along_axis(savgol_filter, 0, post, window_length=51, polyorder=3)
+
+        axes[0, 0].plot(
+            time,
+            pre,
+            # linestyle=":",
+            alpha=0.3,
+            label='Pre')
+        axes[0, 0].set_prop_cycle(None)
+        axes[0, 0].plot(
+            time,
+            post,
+            label='Post')
+        # if self.n_dims <= 3:
+        #     axes[ 0, 0 ].legend(
+        #             [ f"Pre dim {i}" for i in range( self.n_dims ) ] +
+        #             [ f"Post dim {i}" for i in range( self.n_dims ) ],
+        #             loc='best' )
+        # axes[ 0, 0 ].set_title( "Pre and post decoded on testing phase", fontsize=16 )
+
+        plt.tight_layout()
+
+        return fig
+
+    def count_pulses(self):
+        mpes_op = get_operator_from_sim(self.sim, 'SimmPES')
+
+        # -- evaluate number of memristor pulses over simulation
+        pos_pulse_counter = mpes_op.set_pulse_counter
+        neg_pulse_counter = mpes_op.reset_pulse_counter
+        print('Average number of SET pulses')
+        print(np.mean(pos_pulse_counter))
+        print('Average number of RESET pulses')
+        print(np.mean(neg_pulse_counter))
+
+        # -- evaluate the average length of consecutive reset or set pulses
+        consec_pos_set, consec_pos_reset = average_number_consecutive_pulses(mpes_op.pos_pulse_archive)
+        consec_neg_set, consec_neg_reset = average_number_consecutive_pulses(mpes_op.neg_pulse_archive)
+        print('Average length of consecutive SET pulses')
+        print(np.mean([consec_pos_set, consec_neg_set]))
+        print('Average length of consecutive RESET pulses')
+        print(np.mean([consec_pos_reset, consec_neg_reset]))
+
+        num_pos_set, num_pos_reset = average_number_pulses(mpes_op.pos_pulse_archive)
+        num_neg_set, num_neg_reset = average_number_pulses(mpes_op.neg_pulse_archive)
+        print('Average number of SET pulses')
+        print(np.mean([num_pos_set, num_neg_set]))
+        print('Average number of RESET pulses')
+        print(np.mean([num_pos_reset, num_neg_reset]))
+
 
 voltage_options = [[-2.1331527635533685, 0.011873603203071863],
                    [-1.6300607380628072, 0.006566045887405729],
@@ -111,7 +200,26 @@ voltage_options = [[-2.1331527635533685, 0.011873603203071863],
 
 # -- define grid search parameters
 param_grid = {
-    'gain': [1e3, 1e4, 1e5, 1e6],
-    'probability': [0.1, 0.2, 0.3, 0.4, 0.5],
-    'voltages': voltage_options
+    #     'gain': np.logspace(np.rint(1e4).astype(int), np.rint(1e6).astype(int),
+    #                         num=np.rint(10).astype(int)),
+    'gain': [1e3, 1e4, 1e5, 1e6]
+    # 'probability': np.linspace(start_par, end_par, num=num_par),
+    # 'voltages': voltage_options
 }
+
+gs = GridSearchCV(mPES_Estimator(), param_grid=param_grid, cv=2, verbose=3)
+gs.fit(np.zeros(30000))
+pd_results = pd.DataFrame(gs.cv_results_)
+print(gs.best_params_)
+print(gs.best_score_)
+
+estimator = mPES_Estimator(**gs.best_params_)
+estimator.fit([0])
+print(estimator.score([0]))
+estimator.plot().show()
+
+gsh = HalvingGridSearchCV(mPES_Estimator(), param_grid=param_grid, cv=2, verbose=3)
+gsh.fit(np.zeros(30000))
+pd_results_h = pd.DataFrame(gsh.cv_results_)
+print(gsh.best_params_)
+print(gsh.best_score_)

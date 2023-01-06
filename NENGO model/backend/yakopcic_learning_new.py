@@ -166,6 +166,7 @@ class mPES(LearningRuleType):
         self.program_length = program_length
         self.read_length = read_length
 
+        print('Gain:', self.gain)
         print(f'Using {strategy} strategy: P(SET)={self.setP}, P(RESET)={self.resetP}')
         print(f'Voltage amplitudes: resetV={self.resetV} V, setV={self.setV} V')
         print('High' if self.high_precision else 'Low', 'precision mode')
