@@ -15,10 +15,18 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
             setattr(self, parameter, value)
         return self
 
-    def __init__(self, gain=1e5):
+    def __init__(self, gain=1e5, voltages=[-1.6300607380628072, 0.006566045887405729], probability=0.1,
+                 low_memory=False):
         nengo.rc['progress']['progress_bar'] = 'nengo.utils.progress.TerminalProgressBar'
+        nengo.rc['decoder_cache']['enabled'] = 'False'
+
+        self.low_memory = low_memory
+
+        self.results_ready = False
 
         self.gain = gain
+        self.voltages = voltages
+        self.probability = probability
 
         self.timestep = 0.001
         dimensions = 3
@@ -79,28 +87,31 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
             self.post_probe = nengo.Probe(post, synapse=0.01)
 
             # optional ones are used to plot the results
-            self.input_node_probe = nengo.Probe(input_node)
-            self.error_probe = nengo.Probe(self.model.error, synapse=0.01)
-            self.learn_probe = nengo.Probe(stop_learning, synapse=None)
-            self.post_spikes_probe = nengo.Probe(post.neurons)
+            # self.input_node_probe = nengo.Probe(input_node)
+            # self.error_probe = nengo.Probe(self.model.error, synapse=0.01)
+            # self.learn_probe = nengo.Probe(stop_learning, synapse=None)
+            # self.post_spikes_probe = nengo.Probe(post.neurons)
 
     def fit(self, X, y=None):
-
         with self.model:
             # Apply the learning rule to conn
             self.model.conn.learning_rule_type = mPES(noisy=self.noise_percent, gain=self.gain,
-                                                      strategy=self.strategy)
+                                                      strategy=self.strategy,
+                                                      resetV=self.voltages[0], setV=self.voltages[1],
+                                                      resetP=self.probability, setP=self.probability)
             # Provide an error signal to the learning rule
             nengo.Connection(self.model.error, self.model.conn.learning_rule)
 
             # learning rule probes
-            self.x_pos_probe = nengo.Probe(self.model.conn.learning_rule, "x_pos", synapse=None)
-            self.x_neg_probe = nengo.Probe(self.model.conn.learning_rule, "x_neg", synapse=None)
-            self.weight_probe = nengo.Probe(self.model.conn, "weights", synapse=None)
+            # self.x_pos_probe = nengo.Probe(self.model.conn.learning_rule, "x_pos", synapse=None)
+            # self.x_neg_probe = nengo.Probe(self.model.conn.learning_rule, "x_neg", synapse=None)
+            # self.weight_probe = nengo.Probe(self.model.conn, "weights", synapse=None)
 
         self.sim = nengo.Simulator(self.model)
         self.sim.run(self.learn_time)
         self.sim.run(self.test_time)
+
+        self.results_ready = True
 
         return self
 
@@ -113,6 +124,8 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
         return y
 
     def score(self, X, y=None, sample_weight=None):
+        assert self.results_ready, "You must call fit() before calling score()"
+
         y_true = self.sim.data[self.pre_probe][int((self.learn_time / self.timestep)):, ...]
         y_pred = self.sim.data[self.post_probe][int((self.learn_time / self.timestep)):, ...]
 
@@ -121,9 +134,17 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
         # Correlation coefficients after learning
         correlation_coefficients = correlations(self.function_to_learn(y_true), y_pred)
 
+        if self.low_memory:
+            # del self.pre_probe
+            # del self.post_probe
+            del self.sim
+
         return np.mean(mse_to_rho_ratio(mse, correlation_coefficients[1]))
 
     def plot(self, smooth=False):
+        assert self.results_ready, "You must call fit() before calling plot()"
+        assert not self.low_memory, "You must set low_memory=True before calling plot()"
+
         pre = self.function_to_learn(self.sim.data[self.pre_probe])
         post = self.sim.data[self.post_probe]
 
@@ -168,6 +189,8 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
         return fig
 
     def count_pulses(self):
+        assert self.results_ready, "You must call fit() before calling count_pulses()"
+
         mpes_op = get_operator_from_sim(self.sim, 'SimmPES')
 
         # -- evaluate number of memristor pulses over simulation
@@ -194,20 +217,25 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
         print(np.mean([num_pos_reset, num_neg_reset]))
 
 
-voltage_options = [[-2.1331527635533685, 0.011873603203071863],
-                   [-1.6300607380628072, 0.006566045887405729],
-                   [-1.3180811362586602, 0.004382346688619062]]
-
+num_par = 10
 # -- define grid search parameters
 param_grid = {
-    #     'gain': np.logspace(np.rint(1e4).astype(int), np.rint(1e6).astype(int),
-    #                         num=np.rint(10).astype(int)),
-    'gain': [1e3, 1e4, 1e5, 1e6]
-    # 'probability': np.linspace(start_par, end_par, num=num_par),
-    # 'voltages': voltage_options
+    'gain': np.logspace(np.rint(4).astype(int), np.rint(6).astype(int),
+                        num=np.rint(num_par).astype(int)),
+    # 'gain': [1e3, 1e6],
+    'probability': np.logspace(np.rint(-2).astype(int), np.rint(0).astype(int),
+                               num=np.rint(num_par).astype(int)),
+    # 'probability': [0.1, 0.2, 0.3, 0.4, 0.5],
+    'voltages': [[-2.1331527635533685, 0.011873603203071863],
+                 [-1.6300607380628072, 0.006566045887405729],
+                 [-1.3180811362586602, 0.004382346688619062]]
+}
+param_grid_fast = {
+    'gain': [1e3, 1e6]
 }
 
-gs = GridSearchCV(mPES_Estimator(), param_grid=param_grid, cv=2, verbose=3)
+gs = GridSearchCV(mPES_Estimator(low_memory=True), param_grid=param_grid_fast, cv=2,
+                  n_jobs=-1, verbose=3)
 gs.fit(np.zeros(30000))
 pd_results = pd.DataFrame(gs.cv_results_)
 print(gs.best_params_)
@@ -218,8 +246,9 @@ estimator.fit([0])
 print(estimator.score([0]))
 estimator.plot().show()
 
-gsh = HalvingGridSearchCV(mPES_Estimator(), param_grid=param_grid, cv=2, verbose=3)
-gsh.fit(np.zeros(30000))
-pd_results_h = pd.DataFrame(gsh.cv_results_)
-print(gsh.best_params_)
-print(gsh.best_score_)
+# gsh = HalvingGridSearchCV(mPES_Estimator(), param_grid=param_grid_fast, cv=2, return_train_score=False,
+#                           n_jobs=-1, verbose=3)
+# gsh.fit(np.zeros(30000))
+# pd_results_h = pd.DataFrame(gsh.cv_results_)
+# print(gsh.best_params_)
+# print(gsh.best_score_)
