@@ -224,7 +224,7 @@ def LearningModel(neurons, dimensions, learning_rule, function_to_learn, convolv
         model.pre_probe = nengo.Probe(model.pre, synapse=0.01)
         model.post_probe = nengo.Probe(model.post, synapse=0.01)
         model.ground_truth_probe = nengo.Probe(model.ground_truth, synapse=0.01)
-        model.weights_probe = nengo.Probe(model.conn, 'weights', synapse=None, sample_every=0.001)
+        # model.weights_probe = nengo.Probe(model.conn, 'weights', synapse=None, sample_every=0.001)
         # function_learning_model.error_probe = nengo.Probe( function_learning_model.error, synapse=0.03 )
 
     return model
@@ -241,7 +241,8 @@ for i in range(args.iterations):
                                        mPES(noisy=args.noise, gain=args.gain,
                                             strategy=args.strategy,
                                             setP=args.setP, resetP=args.resetP,
-                                            setV=args.setV, resetV=args.resetV),
+                                            setV=args.setV, resetV=args.resetV,
+                                            low_memory=True),
                                        function_to_learn,
                                        convolve=convolve, seed=seed + i)
     control_model_pes = LearningModel(neurons, dimensions, PES(), function_to_learn,

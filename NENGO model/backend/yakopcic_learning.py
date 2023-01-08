@@ -126,8 +126,13 @@ class mPES(LearningRuleType):
                  # voltages found in percentage_change_resistance.py, these can be used with P(SET)=P(RESET)
                  # -0.2453233466334084 | Vset 3.8577715191559876
                  resetV=-0.2453233466334084,
-                 setV=3.8577715191559876):
+                 setV=3.8577715191559876,
+                 verbose=True,
+                 low_memory=False
+                 ):
         super().__init__(size_in="post_state")
+
+        self.low_memory = low_memory
 
         self.pre_synapse = pre_synapse
         if not noisy:
@@ -163,8 +168,9 @@ class mPES(LearningRuleType):
         self.setV = setV
         self.resetV = resetV
 
-        print(f'Using {strategy} strategy: P(SET)={self.setP}, P(RESET)={self.resetP}')
-        print(f'Voltage amplitudes: setV={self.setV} V, resetV={self.resetV} V')
+        if verbose:
+            print(f'Using {strategy} strategy: P(SET)={self.setP}, P(RESET)={self.resetP}')
+            print(f'Voltage amplitudes: setV={self.setV} V, resetV={self.resetV} V')
 
     @property
     def _argdefaults(self):
@@ -219,6 +225,7 @@ class SimmPES(Operator):
             resetP,
             setV,
             resetV,
+            low_memory,
             tag=None
     ):
         super(SimmPES, self).__init__(tag=tag)
@@ -230,6 +237,7 @@ class SimmPES(Operator):
         self.resetP = resetP
         self.setV = setV
         self.resetV = resetV
+        self.low_memory = low_memory
 
         self.An_pos = An_pos
         self.Ap_pos = Ap_pos
@@ -269,8 +277,9 @@ class SimmPES(Operator):
         self.rs = []
         self.initial_state = initial_state
 
-        self.pos_pulse_archive = []
-        self.neg_pulse_archive = []
+        if not self.low_memory:
+            self.pos_pulse_archive = []
+            self.neg_pulse_archive = []
 
         self.sets = []
         self.incs = []
@@ -430,12 +439,13 @@ class SimmPES(Operator):
                     self.xp_pos[mask_depress_reset],
                     self.xn_pos[mask_depress_reset])
 
-                ts_pos_pulses = mask_potentiate_set.astype(int)
-                ts_neg_pulses = -1 * mask_potentiate_reset.astype(int)
-                ts_neg_pulses = ts_neg_pulses + mask_depress_set.astype(int)
-                ts_pos_pulses = ts_pos_pulses + -1 * mask_depress_reset.astype(int)
-                self.pos_pulse_archive.append(ts_pos_pulses)
-                self.neg_pulse_archive.append(ts_neg_pulses)
+                if not self.low_memory:
+                    ts_pos_pulses = mask_potentiate_set.astype(int)
+                    ts_neg_pulses = -1 * mask_potentiate_reset.astype(int)
+                    ts_neg_pulses = ts_neg_pulses + mask_depress_set.astype(int)
+                    ts_pos_pulses = ts_pos_pulses + -1 * mask_depress_reset.astype(int)
+                    self.pos_pulse_archive.append(ts_pos_pulses)
+                    self.neg_pulse_archive.append(ts_neg_pulses)
 
             # -- calculate the current through the devices
             i_pos = current(readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,
@@ -528,7 +538,7 @@ def build_mpes(model, mpes, rule):
                 bmin_p_pos, gmax_n_pos, gmax_p_pos, gmin_n_pos, gmin_p_pos, Vn_pos, Vp_pos, alphan_pos, alphap_pos,
                 An_pos, Ap_pos, x_pos, xn_pos, xp_pos, bmax_n_neg, bmax_p_neg, bmin_n_neg, bmin_p_neg, gmax_n_neg,
                 gmax_p_neg, gmin_n_neg, gmin_p_neg, Vn_neg, Vp_neg, alphan_neg, alphap_neg, An_neg, Ap_neg, x_neg,
-                xn_neg, xp_neg, mpes.initial_state, mpes.setP, mpes.resetP, mpes.setV, mpes.resetV)
+                xn_neg, xp_neg, mpes.initial_state, mpes.setP, mpes.resetP, mpes.setV, mpes.resetV, mpes.low_memory)
     )
 
     # expose these for probes

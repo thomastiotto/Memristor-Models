@@ -126,8 +126,12 @@ class mPES(LearningRuleType):
                  # setV=0.004382346688619062,
                  high_precision=False,
                  program_length=7,
-                 read_length=3):
+                 read_length=3,
+                 verbose=True,
+                 low_memory=False):
         super().__init__(size_in="post_state")
+
+        self.low_memory = low_memory
 
         self.pre_synapse = pre_synapse
         if not noisy:
@@ -166,10 +170,11 @@ class mPES(LearningRuleType):
         self.program_length = program_length
         self.read_length = read_length
 
-        print('Gain:', self.gain)
-        print(f'Using {strategy} strategy: P(SET)={self.setP}, P(RESET)={self.resetP}')
-        print(f'Voltage amplitudes: resetV={self.resetV} V, setV={self.setV} V')
-        print('High' if self.high_precision else 'Low', 'precision mode')
+        if verbose:
+            print('Gain:', self.gain)
+            print(f'Using {strategy} strategy: P(SET)={self.setP}, P(RESET)={self.resetP}')
+            print(f'Voltage amplitudes: resetV={self.resetV} V, setV={self.setV} V')
+            print('High' if self.high_precision else 'Low', 'precision mode')
 
 
 @property
@@ -229,6 +234,7 @@ class SimmPES(Operator):
             high_precision,
             program_length,
             read_length,
+            low_memory,
             tag=None
     ):
         super(SimmPES, self).__init__(tag=tag)
@@ -245,6 +251,7 @@ class SimmPES(Operator):
         self.high_precision = high_precision
         self.program_length = program_length
         self.read_length = read_length
+        self.low_memory = low_memory
 
         self.An_pos = An_pos
         self.Ap_pos = Ap_pos
@@ -284,8 +291,9 @@ class SimmPES(Operator):
         self.rs = []
         self.initial_state = initial_state
 
-        self.pos_pulse_archive = []
-        self.neg_pulse_archive = []
+        if not self.low_memory:
+            self.pos_pulse_archive = []
+            self.neg_pulse_archive = []
 
         self.sets = []
         self.incs = []
@@ -455,13 +463,15 @@ class SimmPES(Operator):
                     self.xp_pos[mask_depress_reset],
                     self.xn_pos[mask_depress_reset])
 
-                ts_pos_pulses = mask_potentiate_set.astype(int)
-                ts_neg_pulses = -1 * mask_potentiate_reset.astype(int)
-                ts_neg_pulses = ts_neg_pulses + mask_depress_set.astype(int)
-                ts_pos_pulses = ts_pos_pulses + -1 * mask_depress_reset.astype(int)
-                self.pos_pulse_archive.append(ts_pos_pulses)
-                self.neg_pulse_archive.append(ts_neg_pulses)
+                if not self.low_memory:
+                    ts_pos_pulses = mask_potentiate_set.astype(int)
+                    ts_neg_pulses = -1 * mask_potentiate_reset.astype(int)
+                    ts_neg_pulses = ts_neg_pulses + mask_depress_set.astype(int)
+                    ts_pos_pulses = ts_pos_pulses + -1 * mask_depress_reset.astype(int)
+                    self.pos_pulse_archive.append(ts_pos_pulses)
+                    self.neg_pulse_archive.append(ts_neg_pulses)
 
+                # TODO reading cycles are disabled for now
                 # -- reading cycles
                 # x_pos[:] = yakopcic_update(
                 #     self.readV * np.ones_like(x_pos),
@@ -590,7 +600,7 @@ def build_mpes(model, mpes, rule):
                 An_pos, Ap_pos, x_pos, xn_pos, xp_pos, bmax_n_neg, bmax_p_neg, bmin_n_neg, bmin_p_neg, gmax_n_neg,
                 gmax_p_neg, gmin_n_neg, gmin_p_neg, Vn_neg, Vp_neg, alphan_neg, alphap_neg, An_neg, Ap_neg, x_neg,
                 xn_neg, xp_neg, mpes.initial_state, mpes.setP, mpes.resetP, mpes.setV, mpes.resetV, dt,
-                mpes.high_precision, program_length, read_length)
+                mpes.high_precision, program_length, read_length, mpes.low_memory)
     )
 
     # expose these for probes

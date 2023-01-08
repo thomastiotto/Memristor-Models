@@ -98,7 +98,8 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
             self.model.conn.learning_rule_type = mPES(noisy=self.noise_percent, gain=self.gain,
                                                       strategy=self.strategy,
                                                       resetV=self.voltages[0], setV=self.voltages[1],
-                                                      resetP=self.probability, setP=self.probability)
+                                                      resetP=self.probability, setP=self.probability,
+                                                      verbose=False)
             # Provide an error signal to the learning rule
             nengo.Connection(self.model.error, self.model.conn.learning_rule)
 
@@ -107,7 +108,7 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
             # self.x_neg_probe = nengo.Probe(self.model.conn.learning_rule, "x_neg", synapse=None)
             # self.weight_probe = nengo.Probe(self.model.conn, "weights", synapse=None)
 
-        self.sim = nengo.Simulator(self.model)
+        self.sim = nengo.Simulator(self.model, progress_bar=False)
         self.sim.run(self.learn_time)
         self.sim.run(self.test_time)
 
@@ -135,8 +136,6 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
         correlation_coefficients = correlations(self.function_to_learn(y_true), y_pred)
 
         if self.low_memory:
-            # del self.pre_probe
-            # del self.post_probe
             del self.sim
 
         return np.mean(mse_to_rho_ratio(mse, correlation_coefficients[1]))
@@ -220,35 +219,58 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
 num_par = 10
 # -- define grid search parameters
 param_grid = {
-    'gain': np.logspace(np.rint(4).astype(int), np.rint(6).astype(int),
+    'gain': np.logspace(np.rint(3).astype(int), np.rint(6).astype(int),
                         num=np.rint(num_par).astype(int)),
     # 'gain': [1e3, 1e6],
     'probability': np.logspace(np.rint(-2).astype(int), np.rint(0).astype(int),
                                num=np.rint(num_par).astype(int)),
     # 'probability': [0.1, 0.2, 0.3, 0.4, 0.5],
-    'voltages': [[-2.1331527635533685, 0.011873603203071863],
-                 [-1.6300607380628072, 0.006566045887405729],
-                 [-1.3180811362586602, 0.004382346688619062]]
+    'voltages': [
+        [-2.1331527635533685, 0.011873603203071863],
+        [-1.6300607380628072, 0.006566045887405729],
+        [-1.3180811362586602, 0.004382346688619062]
+    ]
 }
 param_grid_fast = {
-    'gain': [1e3, 1e6]
+    'gain': [1e6],
+    'probability': [1.0],
+    'voltages': [
+        [-2.1331527635533685, 0.011873603203071863]
+    ]
 }
 
-gs = GridSearchCV(mPES_Estimator(low_memory=True), param_grid=param_grid_fast, cv=2,
-                  n_jobs=-1, verbose=3)
+print('Initial search')
+gs = GridSearchCV(mPES_Estimator(low_memory=True), param_grid=param_grid, cv=5,
+                  n_jobs=-1, verbose=2)
 gs.fit(np.zeros(30000))
+print('Best parameters:', gs.best_params_)
+print('Best score:', gs.best_score_)
 pd_results = pd.DataFrame(gs.cv_results_)
-print(gs.best_params_)
-print(gs.best_score_)
+pd_results.to_csv('./mPES_grid_search_results.csv')
 
 estimator = mPES_Estimator(**gs.best_params_)
 estimator.fit([0])
 print(estimator.score([0]))
 estimator.plot().show()
+estimator.count_pulses()
 
-# gsh = HalvingGridSearchCV(mPES_Estimator(), param_grid=param_grid_fast, cv=2, return_train_score=False,
-#                           n_jobs=-1, verbose=3)
-# gsh.fit(np.zeros(30000))
-# pd_results_h = pd.DataFrame(gsh.cv_results_)
-# print(gsh.best_params_)
-# print(gsh.best_score_)
+# -- run grid search again in a neighbourhood of the best parameters
+param_grid_fine = {k: np.random.normal(v, v * 0.15, size=num_par)
+                   for k, v in gs.best_params_.items()
+                   if k != 'voltages'}
+param_grid_fine['voltages'] = [gs.best_params_['voltages']]
+
+print('Fine search')
+gs_fine = GridSearchCV(mPES_Estimator(low_memory=True), param_grid=param_grid_fine, cv=5,
+                       n_jobs=-1, verbose=2)
+gs_fine.fit(np.zeros(30000))
+print('Best parameters:', gs_fine.best_params_)
+print('Best score:', gs_fine.best_score_)
+pd_results_fine = pd.DataFrame(gs_fine.cv_results_)
+pd_results_fine.to_csv('./mPES_grid_search_fine_results.csv')
+
+estimator = mPES_Estimator(**gs_fine.best_params_)
+estimator.fit([0])
+print(estimator.score([0]))
+estimator.plot().show()
+estimator.count_pulses()
