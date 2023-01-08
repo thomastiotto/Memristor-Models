@@ -302,6 +302,8 @@ for i in range(args.iterations):
             print('Average number of RESET pulses')
             print(np.mean([num_pos_reset, num_neg_reset]))
 
+        del sim
+
 # compute mean testing error and confidence intervals
 ci_mpes = ci(errors_iterations_mpes)
 ci_pes = ci(errors_iterations_pes)
