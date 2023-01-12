@@ -12,7 +12,7 @@ def load_model():
         model (dict).
     """
     # -- model found with pulse_experiment_match_magnitude.py and pulse_experiment_finetuning.py
-    model = json.load(open('../../../fitted/fitting_pulses/new_device/regress_negative_then_positive'))
+    model = json.load(open('../../../fitted/fitting_pulses/new_device/mystery_model'))
 
     # fig_plot_default = plot_images(time, voltage, i, r, x, f'{round(resetV, 3)} V / +{round(setV, 3)} V (model)',
     #                               readV, fig_plot_default)
@@ -80,8 +80,8 @@ def find_sensitivity(sign, params, idx, case, model, name):
     """
 
     # -- EXPERIMENT HYPERPARAMETNERS
-    resetV = -5.846891601011591
-    setV = 4.410540843557414
+    resetV = -1.6300607380628072
+    setV = 0.006566045887405729
     readV = -0.5
     initialV = setV
     num_reset_pulses = 100

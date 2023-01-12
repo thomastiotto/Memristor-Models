@@ -66,5 +66,5 @@ def get_truncated_normal(mean, sd, low, upp, out_size, in_size):
         return truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd) \
             .rvs(out_size * in_size) \
             .reshape((out_size, in_size))
-    except ZeroDivisionError:
+    except (ZeroDivisionError, ValueError):
         return np.full((out_size, in_size), mean)

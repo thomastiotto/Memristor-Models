@@ -1,6 +1,7 @@
 import argparse
 import time
 
+import order_of_magnitude.order_of_magnitude
 from nengo.learning_rules import PES
 from nengo.params import Default
 from nengo.processes import WhiteSignal
@@ -28,7 +29,7 @@ parser.add_argument("-D", "--dimensions", default=3, type=int,
                     help="The number of dimensions of the input signal")
 parser.add_argument("-n", "--noise", default=0.15, type=float,
                     help="The noise on the simulated memristors.  Default is 0.15")
-parser.add_argument("-g", "--gain", default=1e6, type=float)  # default chosen by parameter search experiments
+parser.add_argument("-g", "--gain", default=None, type=float)
 parser.add_argument("-l", "--learning_rule", default="mPES", choices=["mPES", "PES"])
 parser.add_argument('-st', '--strategy', default='symmetric-probabilistic',
                     choices=['symmetric', 'asymmetric', 'symmetric-probabilistic', 'asymmetric-probabilistic'])
@@ -170,7 +171,9 @@ with model:
 
     # Apply the learning rule to conn
     if learning_rule == "mPES":
-        conn.learning_rule_type = mPES(noisy=noise_percent, gain=gain, seed=seed, strategy=strategy)
+        kwargs = {'noisy': noise_percent, 'gain': gain, 'strategy': strategy, 'seed': seed}
+        if kwargs['gain'] == None: del kwargs['gain']
+        conn.learning_rule_type = mPES(**kwargs)
     if learning_rule == "PES":
         conn.learning_rule_type = PES()
     printlv2("Simulating with", conn.learning_rule_type)
@@ -241,6 +244,9 @@ if probe > 0:
     printlv1(correlation_coefficients[1])
     printlv2("MSE-to-rho after learning [f(pre) vs. post]:")
     printlv1(mse_to_rho_ratio(mse, correlation_coefficients[1]))
+
+    mean_power = np.mean((mpes_op.power_pos, mpes_op.power_neg))
+    printlv2(f'Average power consumption {order_of_magnitude.prefix(mean_power)[2]}W')
 
     # if isinstance(conn.learning_rule_type, mPES) and debug:
     if False:

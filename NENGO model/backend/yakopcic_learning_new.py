@@ -16,7 +16,7 @@ from yakopcic_functions import *
 
 def initialise_yakopcic_model(noise_percentage, encoders, acts, seed):
     np.random.seed(seed)
-
+    # TODO grade noise based on sensitivity analysis
     # -- parameters fund with pulse_experiment_1s_to_1ms.py
     yakopcic_model = json.load(open('../../fitted/fitting_pulses/new_device/mystery_model'))
 
@@ -100,18 +100,19 @@ class mPES(LearningRuleType):
     probeable = ("error", "activities", "delta", "x_pos", "x_neg")
 
     pre_synapse = SynapseParam("pre_synapse", default=Lowpass(tau=0.005), readonly=True)
-    gain = NumberParam("gain", readonly=True, default=5e6)
     initial_state = DictParam("initial_state", optional=True)
 
     def __init__(self,
                  pre_synapse=Default,
                  noisy=False,
-                 gain=Default,
+                 # gain found with mPES_grid_search.py
+                 gain=10304.623509977035,
                  initial_state=None,
                  seed=None,
                  strategy='symmetric-probabilistic',
-                 setP=0.1,
-                 resetP=0.1,
+                 # probabilities found with mPES_grid_search.py
+                 setP=0.1291549665014884,
+                 resetP=0.1291549665014884,
                  # voltages found in percentage_change_resistance_new.py, these can be used with P(SET)=P(RESET)
                  # resetV=-6.4688295585009605,
                  # setV=0.24694177778629942,
@@ -131,8 +132,6 @@ class mPES(LearningRuleType):
                  low_memory=False):
         super().__init__(size_in="post_state")
 
-        self.low_memory = low_memory
-
         self.pre_synapse = pre_synapse
         if not noisy:
             self.noise_percentage = 0
@@ -140,19 +139,13 @@ class mPES(LearningRuleType):
             self.noise_percentage = noisy
         else:
             raise ValueError(f"Noisy parameter must be float or an int, not {type(noisy)}")
-        self.gain = gain
         self.seed = seed
         self.initial_state = {} if initial_state is None else initial_state
 
         if strategy == 'symmetric-probabilistic':
-            if setP is None or resetP is None:
-                raise ValueError(
-                    ", setP and resetP must be set for symmetric-probabilistic strategy")
             self.setP = setP
             self.resetP = resetP
         elif strategy == 'asymmetric-probabilistic':
-            if resetP is None:
-                raise ValueError("resetP must be specified for asymmetric-probabilistic strategy")
             self.setP = 1 - resetP
             self.resetP = resetP
         elif strategy == 'symmetric':
@@ -164,8 +157,11 @@ class mPES(LearningRuleType):
         else:
             raise ValueError(f"Unknown strategy {strategy}")
 
-        self.setV = setV
         self.resetV = resetV
+        self.setV = setV
+        self.gain = gain
+
+        self.low_memory = low_memory
         self.high_precision = high_precision
         self.program_length = program_length
         self.read_length = read_length
@@ -241,7 +237,7 @@ class SimmPES(Operator):
 
         self.gain = gain
         self.error_threshold = 1e-5
-        self.readV = -1
+        self.readV = -0.5
         self.setP = setP
         self.resetP = resetP
         self.setV = setV
@@ -294,6 +290,9 @@ class SimmPES(Operator):
         if not self.low_memory:
             self.pos_pulse_archive = []
             self.neg_pulse_archive = []
+
+        self.power_pos = np.zeros_like(An_pos)
+        self.power_neg = np.zeros_like(An_neg)
 
         self.sets = []
         self.incs = []
@@ -368,6 +367,7 @@ class SimmPES(Operator):
                             self.bmin_n_neg)
 
             weights[:] = gain * (i_pos / readV - i_neg / readV)
+            # print("initial weights", weights)
 
         def step_simmpes():
             def yakopcic_one_step(V, x, Ap, An, Vp, Vn, alphap, alphan, xp, xn):
@@ -464,10 +464,9 @@ class SimmPES(Operator):
                     self.xn_pos[mask_depress_reset])
 
                 if not self.low_memory:
-                    ts_pos_pulses = mask_potentiate_set.astype(int)
-                    ts_neg_pulses = -1 * mask_potentiate_reset.astype(int)
-                    ts_neg_pulses = ts_neg_pulses + mask_depress_set.astype(int)
-                    ts_pos_pulses = ts_pos_pulses + -1 * mask_depress_reset.astype(int)
+                    ts_pos_pulses = mask_potentiate_set.astype(int) + -1 * mask_depress_reset.astype(int)
+                    ts_neg_pulses = -1 * mask_potentiate_reset.astype(int) + mask_depress_set.astype(int)
+                    # -- to calculate pulse number
                     self.pos_pulse_archive.append(ts_pos_pulses)
                     self.neg_pulse_archive.append(ts_neg_pulses)
 
@@ -509,6 +508,20 @@ class SimmPES(Operator):
 
             # -- update network weights using the reciprocal of Ohm's Law G = I / V (R = V / I)
             weights[:] = gain * (i_pos / readV - i_neg / readV)
+
+            # -- to calculate power consumption
+            # TODo try with both high and low precision modes
+            try:
+                pos_voltages = (mask_potentiate_set.astype(int) * self.setV +
+                                mask_depress_reset.astype(int) * self.resetV * self.program_length) + \
+                               (np.ones_like(mask_potentiate_set) * self.readV * self.read_length)
+                neg_voltages = mask_potentiate_reset.astype(int) * self.resetV + mask_depress_set.astype(
+                    int) * self.setV * self.program_length
+            except:
+                pos_voltages = (np.ones_like(i_pos) * self.readV * self.read_length)
+                neg_voltages = (np.ones_like(i_neg) * self.readV * self.read_length)
+            self.power_pos += pos_voltages * i_pos
+            self.power_neg += neg_voltages * i_neg
 
         return step_simmpes
 
