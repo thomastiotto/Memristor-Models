@@ -367,7 +367,7 @@ class SimmPES(Operator):
         def step_simmpes():
             def yakopcic_one_step(V, x, Ap, An, Vp, Vn, alphap, alphan, xp, xn):
                 # Calculate the state variables at the current timestep
-                np.seterr(all="raise")
+                # np.seterr(all="raise")
                 x = x + dxdt(V, x, Ap, An, Vp,
                              Vn,
                              xp, xn, alphap, alphan, 1) * self.dt
