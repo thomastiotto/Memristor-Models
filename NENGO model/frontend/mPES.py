@@ -1,7 +1,7 @@
 import argparse
 import time
 
-import order_of_magnitude.order_of_magnitude
+from order_of_magnitude import order_of_magnitude
 from nengo.learning_rules import PES
 from nengo.params import Default
 from nengo.processes import WhiteSignal
@@ -86,7 +86,7 @@ if len(args.neurons) == 3:
     post_n_neurons = args.neurons[1]
     error_n_neurons = args.neurons[2]
 dimensions = args.dimensions
-noise_percent = args.noise
+noise_percentage = args.noise
 gain = args.gain
 strategy = args.strategy
 learning_rule = args.learning_rule
@@ -171,7 +171,7 @@ with model:
 
     # Apply the learning rule to conn
     if learning_rule == "mPES":
-        kwargs = {'noisy': noise_percent, 'gain': gain, 'strategy': strategy, 'seed': seed}
+        kwargs = {'noise_percentage': noise_percentage, 'gain': gain, 'strategy': strategy, 'seed': seed}
         if kwargs['gain'] == None: del kwargs['gain']
         conn.learning_rule_type = mPES(**kwargs)
     if learning_rule == "PES":

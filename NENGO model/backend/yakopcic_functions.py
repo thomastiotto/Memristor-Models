@@ -30,7 +30,11 @@ def h2_3(v, g_p, b_p, g_n, b_n):
 #    return mimd(v, gmax_p, bmax_p, gmax_n, bmax_n) * x + mimd(v, gmin_p, bmin_p, gmin_n, bmin_n) * (1 - x)
 
 
-def current(v, x, gmax_p, bmax_p, gmax_n, bmax_n, gmin_p, bmin_p, gmin_n, bmin_n):  # Implemented with Dima (2022)
+# Implemented with Dima (2022)
+def current(v, x, gmax_p, bmax_p, gmax_n, bmax_n, gmin_p, bmin_p, gmin_n, bmin_n):
+    # -- during simulation: if x is close to 0, set it to 0 to avoid numerical issues with high levels of noise
+    if x.flags['WRITEABLE']:
+        x[np.isclose(x, 0, atol=1e-200)] = 0
     return h1(v, gmax_p, bmax_p, gmax_n, bmax_n) * x + h2(v, gmin_p, bmin_p, gmin_n, bmin_n) * (1 - x)
 
 

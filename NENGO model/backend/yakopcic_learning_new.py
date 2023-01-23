@@ -104,7 +104,7 @@ class mPES(LearningRuleType):
 
     def __init__(self,
                  pre_synapse=Default,
-                 noisy=False,
+                 noise_percentage=False,
                  # gain found with mPES_grid_search.py
                  gain=10304.623509977035,
                  initial_state=None,
@@ -133,12 +133,7 @@ class mPES(LearningRuleType):
         super().__init__(size_in="post_state")
 
         self.pre_synapse = pre_synapse
-        if not noisy:
-            self.noise_percentage = 0
-        elif isinstance(noisy, float) or isinstance(noisy, int):
-            self.noise_percentage = noisy
-        else:
-            raise ValueError(f"Noisy parameter must be float or an int, not {type(noisy)}")
+        self.noise_percentage = noise_percentage
         self.seed = seed
         self.initial_state = {} if initial_state is None else initial_state
 
