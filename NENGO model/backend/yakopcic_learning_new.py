@@ -286,8 +286,8 @@ class SimmPES(Operator):
             self.pos_pulse_archive = []
             self.neg_pulse_archive = []
 
-        self.power_pos = np.zeros_like(An_pos)
-        self.power_neg = np.zeros_like(An_neg)
+        self.energy_pos = np.zeros_like(An_pos)
+        self.energy_neg = np.zeros_like(An_neg)
 
         self.sets = []
         self.incs = []
@@ -515,8 +515,8 @@ class SimmPES(Operator):
             except:
                 pos_voltages = (np.ones_like(i_pos) * self.readV * self.read_length)
                 neg_voltages = (np.ones_like(i_neg) * self.readV * self.read_length)
-            self.power_pos += pos_voltages * i_pos
-            self.power_neg += neg_voltages * i_neg
+            self.energy_pos += pos_voltages * i_pos
+            self.energy_neg += neg_voltages * i_neg
 
         return step_simmpes
 

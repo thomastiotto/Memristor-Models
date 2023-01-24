@@ -2,6 +2,7 @@ from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
 import pandas as pd
+from order_of_magnitude import order_of_magnitude
 
 from sklearn.metrics import mean_squared_error
 from yakopcic_learning_new import mPES
@@ -201,12 +202,29 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
         print('Average length of consecutive RESET pulses')
         print(np.mean([consec_pos_reset, consec_neg_reset]))
 
-        num_pos_set, num_pos_reset = average_number_pulses(mpes_op.pos_pulse_archive)
-        num_neg_set, num_neg_reset = average_number_pulses(mpes_op.neg_pulse_archive)
+        self.num_pos_set, self.num_pos_reset = average_number_pulses(mpes_op.pos_pulse_archive)
+        self.num_neg_set, self.num_neg_reset = average_number_pulses(mpes_op.neg_pulse_archive)
         print('Average number of SET pulses')
-        print(np.mean([num_pos_set, num_neg_set]))
+        print(np.mean([self.num_pos_set, self.num_neg_set]))
         print('Average number of RESET pulses')
-        print(np.mean([num_pos_reset, num_neg_reset]))
+        print(np.mean([self.num_pos_reset, self.num_neg_reset]))
+
+    def energy_consumption(self):
+        assert self.results_ready, "You must call fit() before calling power_consumption()"
+
+        mpes_op = get_operator_from_sim(self.sim, 'SimmPES')
+
+        self.mean_energy = np.mean((mpes_op.energy_pos, mpes_op.energy_neg))
+        print(f'Average energy consumption {order_of_magnitude.prefix(self.mean_energy)[2]}J')
+
+        if not hasattr(self, 'num_pos_set ') and \
+                not hasattr(self, 'num_pos_reset') and \
+                not hasattr(self, 'num_neg_set') and \
+                not hasattr(self, 'num_neg_reset'):
+            self.count_pulses()
+        self.energy_per_pulse = self.mean_energy / (
+                self.num_pos_set + self.num_pos_reset + self.num_neg_set + self.num_neg_reset)
+        print(f'Average energy consumption per pulse {order_of_magnitude.prefix(self.energy_per_pulse)[2]}J')
 
 
 num_par = 10
@@ -233,19 +251,22 @@ param_grid_fast = {
 }
 fine_search = True
 param_grid_noise = {
-    'noise': np.linspace(0.0, 1.0, num=np.rint(num_par).astype(int))
+    'noise': [0.0, 0.15, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
     # 'noise': [0.8]
 }
 if 'param_grid_noise' in locals():
     fine_search = False
+    param_grid = param_grid_noise
 # estimator = mPES_Estimator(noise=1.0)
 # estimator.fit([0])
 # print(estimator.score([0]))
 # estimator.plot().show()
 # estimator.count_pulses()
 
+
 print('Initial search')
-gs = GridSearchCV(mPES_Estimator(low_memory=True), param_grid=param_grid_noise, n_jobs=-1, verbose=2)
+print('Param grid:', param_grid)
+gs = GridSearchCV(mPES_Estimator(low_memory=True), param_grid=param_grid, n_jobs=-1, verbose=2)
 gs.fit(np.zeros(30000))
 print('Best parameters:', gs.best_params_)
 print('Best score:', gs.best_score_)
@@ -279,3 +300,39 @@ if fine_search:
     print('Score on test run', estimator.score([0]))
     estimator.plot().show()
     estimator.count_pulses()
+
+if 'param_grid_noise' in locals():
+    pd_results['param_noise'] = pd.to_numeric(pd_results['param_noise'])
+    # plot testing error
+    size_L = 10
+    size_M = 8
+    size_S = 6
+    fig, ax = plt.subplots(figsize=(12, 10), dpi=300)
+    fig.set_size_inches((3.5, 3.5 * ((5. ** 0.5 - 1.0) / 2.0)))
+    # fig.suptitle(exp_name, fontsize=size_L)
+    ax.set_ylabel(r'$\frac{\rho}{MSE}$', fontsize=size_M)
+    ax.set_xlabel("Noise %", fontsize=size_M)
+    ax.tick_params(axis='x', labelsize=size_S)
+    ax.tick_params(axis='y', labelsize=size_S)
+
+    ax.plot(pd_results['param_noise'] * 100, pd_results['mean_test_score'], c='g')
+    ax.plot(pd_results['param_noise'] * 100, pd_results['mean_test_score'] - pd_results['std_test_score'],
+            linestyle="--", alpha=0.5, c="g")
+    ax.plot(pd_results['param_noise'] * 100, pd_results['mean_test_score'] + pd_results['std_test_score'],
+            linestyle="--", alpha=0.5, c="g")
+    ax.fill_between(pd_results['param_noise'] * 100,
+                    pd_results['mean_test_score'] - pd_results['std_test_score'],
+                    pd_results['mean_test_score'] + pd_results['std_test_score'],
+                    alpha=0.3, color="g")
+    fig.tight_layout()
+    fig.show()
+
+    for noise in [0.0, 0.15, 0.5, 1.0]:
+        print('Noise', noise)
+        estimator = mPES_Estimator(noise=noise)
+        estimator.fit([0])
+        print('Score on test run', estimator.score([0]))
+        fig = estimator.plot()
+        fig.savefig(f'./mPES_noise_{noise}.png', dpi=300)
+        fig.show()
+        estimator.energy_consumption()

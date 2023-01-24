@@ -278,7 +278,7 @@ for i in range(args.iterations):
             print(np.mean([num_pos_reset, num_neg_reset]))
 
             # -- evaluate power consumption
-            mean_power = np.mean((mpes_op.power_pos, mpes_op.power_neg))
+            mean_power = np.mean((mpes_op.energy_pos, mpes_op.energy_neg))
             print(f'Average power consumption {order_of_magnitude.prefix(mean_power)[2]}W')
 
         print("Learning network (mPES)")

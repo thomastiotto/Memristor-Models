@@ -66,9 +66,12 @@ def dxdt(v, x, Ap, An, Vp, Vn, xp, xn, alphap, alphan, eta):
 
 
 def get_truncated_normal(mean, sd, low, upp, out_size, in_size):
-    try:
-        return truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd) \
-            .rvs(out_size * in_size) \
-            .reshape((out_size, in_size))
-    except (ZeroDivisionError, ValueError):
-        return np.full((out_size, in_size), mean)
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        try:
+            return truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd) \
+                .rvs(out_size * in_size) \
+                .reshape((out_size, in_size))
+        except (ZeroDivisionError, ValueError):
+            return np.full((out_size, in_size), mean)
