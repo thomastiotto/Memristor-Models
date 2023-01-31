@@ -12,9 +12,11 @@ new_model_pack = {
     'model': json.load(open('../../../fitted/fitting_pulses/new_device/mystery_model')),
     'resetV': -6.4688295585009605,
     'setV': 0.24694177778629942,
-    'readV': -0.5,
+    'readV': -0.001,
     'x0': 0.003212612055682041,
-    'n_iter': iterations
+    'n_iter': iterations,
+    'program_cycles': 7,
+    'read_cycles': 3
 }
 old_model_pack = {
     'model': json.load(open('../../../fitted/fitting_pulses/old_device/regress_negative_xp_alphap-adjusted_ap_an')),
@@ -22,31 +24,39 @@ old_model_pack = {
     'setV': 3.86621037038006,
     'readV': -0.1,
     'x0': 0.6251069761800688,
-    'n_iter': iterations
+    'n_iter': iterations,
+    'program_cycles': 1,
+    'read_cycles': 1
 }
 
 
 def one_step_yakopcic(voltage, x, model_pack):
-    x = x + dxdt(voltage, x, model_pack['model']['Ap'], model_pack['model']['An'], model_pack['model']['Vp'],
-                 model_pack['model']['Vn'], model_pack['model']['xp'],
-                 model_pack['model']['xn'], model_pack['model']['alphap'], model_pack['model']['alphan'], 1) * \
-        model_pack['model']['dt']
-    if x < 0:
-        x = 0
-    if x > 1:
-        x = 1
+    for _ in range(model_pack['program_cycles']):
+        x = x + dxdt(voltage, x, model_pack['model']['Ap'], model_pack['model']['An'], model_pack['model']['Vp'],
+                     model_pack['model']['Vn'], model_pack['model']['xp'],
+                     model_pack['model']['xn'], model_pack['model']['alphap'], model_pack['model']['alphan'], 1) * \
+            model_pack['model']['dt']
+        if x < 0:
+            x = 0
+        if x > 1:
+            x = 1
 
-    i = current(model_pack['readV'], x,
-                model_pack['model']['gmax_p'], model_pack['model']['bmax_p'], model_pack['model']['gmax_n'],
-                model_pack['model']['bmax_n'],
-                model_pack['model']['gmin_p'], model_pack['model']['bmin_p'], model_pack['model']['gmin_n'],
-                model_pack['model']['bmin_n'])
-    r = model_pack['readV'] / i
+    currents = []
+    for _ in range(model_pack['read_cycles']):
+        currents.append(current(model_pack['readV'], x,
+                                model_pack['model']['gmax_p'], model_pack['model']['bmax_p'],
+                                model_pack['model']['gmax_n'],
+                                model_pack['model']['bmax_n'],
+                                model_pack['model']['gmin_p'], model_pack['model']['bmin_p'],
+                                model_pack['model']['gmin_n'],
+                                model_pack['model']['bmin_n']))
+    r = model_pack['readV'] / np.mean(currents)
 
     return x, r
 
 
-def iterate_yakopcic(resetV, setV, model_pack, iterations=None, x0=None, plot_output=False, print_output=False):
+def iterate_yakopcic(resetV, setV, model_pack, program_cycles=None, read_cycles=None, iterations=None, x0=None,
+                     plot_output=False, print_output=False):
     print_cond = lambda *a, **k: None
     if print_output:
         print_cond = print
@@ -90,12 +100,6 @@ def iterate_yakopcic(resetV, setV, model_pack, iterations=None, x0=None, plot_ou
     print_cond('Start value:', R_n[0], 'End value:', R_n[-1])
     reset_efficacy = absolute_mean_percent_error(R_n[0], R_n[-1])
     print_cond(f'Average resistance change with RESET pulses: {reset_efficacy} % ({R_n[-1] - R_n[0]} Ohm)')
-
-    np.min(current(model_pack['readV'], np.array([X_p, X_n]),
-                   model_pack['model']['gmax_p'], model_pack['model']['bmax_p'],
-                   model_pack['model']['gmax_n'], model_pack['model']['bmax_n'],
-                   model_pack['model']['gmin_p'], model_pack['model']['bmin_p'],
-                   model_pack['model']['gmin_n'], model_pack['model']['bmin_n']))
 
     if set_efficacy > reset_efficacy:
         reset_vs_set_efficacy_percent = absolute_mean_percent_error(reset_efficacy, set_efficacy)
@@ -176,7 +180,7 @@ find_voltages = optimize.minimize(residuals_voltages,
                                   # x0=[find_voltages.x[0], find_voltages.x[1]],
                                   x0=[new_model_pack['resetV'], new_model_pack['setV']],
                                   args=new_model_pack,
-                                  bounds=([-10, 0], [0, 10]),
+                                  bounds=([-10, 0], [new_model_pack['readV'] - 0.5, 10]),
                                   constraints=(
                                       {'type': 'ineq',
                                        'fun': constraint_V,
@@ -190,13 +194,15 @@ find_voltages = optimize.minimize(residuals_voltages,
                                   # x0=[find_voltages.x[0], find_voltages.x[1]],
                                   x0=[new_model_pack['resetV'], new_model_pack['setV']],
                                   args=new_model_pack,
-                                  bounds=([-10, 0], [0, 10]),
-                                  constraints=({'type': 'ineq',
-                                                'fun': constraint_DR,
-                                                'args': (new_model_pack, DR_old_model / 3)},
-                                               {'type': 'ineq',
-                                                'fun': constraint_V,
-                                                'args': [new_model_pack]}),
+                                  bounds=([-10, 0], [new_model_pack['readV'] - 0.5, 10]),
+                                  constraints=(
+                                      {'type': 'ineq',
+                                       'fun': constraint_DR,
+                                       'args': (new_model_pack, DR_old_model / 2)},
+                                      # {'type': 'ineq',
+                                      #  'fun': constraint_V,
+                                      #  'args': [new_model_pack]}
+                                  ),
                                   options={'disp': False}
                                   )
 print('\nNEW MODEL - REGRESS VOLTAGES WITH LIMIT ON DR:')

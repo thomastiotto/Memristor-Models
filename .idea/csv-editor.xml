@@ -10,6 +10,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/NENGO model/frontend/mPES_grid_search_fine_results.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/NENGO model/frontend/mPES_grid_search_fine_results_SAVED.csv">
           <value>
             <Attribute>

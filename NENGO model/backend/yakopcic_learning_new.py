@@ -104,27 +104,19 @@ class mPES(LearningRuleType):
 
     def __init__(self,
                  pre_synapse=Default,
-                 noise_percentage=False,
+                 noise_percentage=0.15,
                  # gain found with mPES_grid_search.py
-                 gain=10304.623509977035,
+                 gain=42823,
                  initial_state=None,
                  seed=None,
                  strategy='symmetric-probabilistic',
                  # probabilities found with mPES_grid_search.py
-                 setP=0.1291549665014884,
-                 resetP=0.1291549665014884,
+                 setP=1.0,
+                 resetP=1.0,
                  # voltages found in percentage_change_resistance_new.py, these can be used with P(SET)=P(RESET)
-                 # resetV=-6.4688295585009605,
-                 # setV=0.24694177778629942,
-                 # DR
-                 # resetV=-2.1331527635533685,
-                 # setV=0.011873603203071863,
-                 # DR/2
-                 resetV=-1.6300607380628072,
-                 setV=0.006566045887405729,
-                 # DR/3
-                 # resetV=-1.3180811362586602,
-                 # setV=0.004382346688619062,
+                 resetV=-0.5970191873997702,
+                 setV=0.0013098539605894905,
+                 readV=-0.001,
                  high_precision=False,
                  program_length=7,
                  read_length=3,
@@ -154,6 +146,7 @@ class mPES(LearningRuleType):
 
         self.resetV = resetV
         self.setV = setV
+        self.readV = readV
         self.gain = gain
 
         self.low_memory = low_memory
@@ -164,8 +157,10 @@ class mPES(LearningRuleType):
         if verbose:
             print('Gain:', self.gain)
             print(f'Using {strategy} strategy: P(SET)={self.setP}, P(RESET)={self.resetP}')
-            print(f'Voltage amplitudes: resetV={self.resetV} V, setV={self.setV} V')
-            print('High' if self.high_precision else 'Low', 'precision mode')
+            print(f'Voltage amplitudes: resetV={self.resetV} V, setV={self.setV} V, readV={self.readV} V')
+            print('Noise percentage:', 100 * self.noise_percentage, '%')
+            if self.high_precision:
+                print('High precision mode')
 
 
 @property
@@ -221,6 +216,7 @@ class SimmPES(Operator):
             resetP,
             setV,
             resetV,
+            readV,
             dt,
             high_precision,
             program_length,
@@ -232,11 +228,12 @@ class SimmPES(Operator):
 
         self.gain = gain
         self.error_threshold = 1e-5
-        self.readV = -0.5
         self.setP = setP
         self.resetP = resetP
         self.setV = setV
         self.resetV = resetV
+        self.readV = readV
+        # print('readV:', self.readV)
 
         self.dt = dt
         self.high_precision = high_precision
@@ -288,6 +285,7 @@ class SimmPES(Operator):
 
         self.energy_pos = np.zeros_like(An_pos)
         self.energy_neg = np.zeros_like(An_neg)
+        self.min_current = np.inf
 
         self.sets = []
         self.incs = []
@@ -348,20 +346,18 @@ class SimmPES(Operator):
         gain = self.gain
         error_threshold = self.error_threshold
 
-        readV = -0.5
-
         # overwrite initial transform with memristor-based weights
         if "weights" in self.initial_state:
             weights[:] = self.initial_state["weights"]
         else:
-            i_pos = current(readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,
+            i_pos = current(self.readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,
                             self.gmax_n_pos, self.bmax_n_pos, self.gmin_p_pos, self.bmin_p_pos, self.gmin_n_pos,
                             self.bmin_n_pos)
-            i_neg = current(readV, x_neg, self.gmax_p_neg, self.bmax_p_neg,
+            i_neg = current(self.readV, x_neg, self.gmax_p_neg, self.bmax_p_neg,
                             self.gmax_n_neg, self.bmax_n_neg, self.gmin_p_neg, self.bmin_p_neg, self.gmin_n_neg,
                             self.bmin_n_neg)
 
-            weights[:] = gain * (i_pos / readV - i_neg / readV)
+            weights[:] = gain * (i_pos / self.readV - i_neg / self.readV)
             # print("initial weights", weights)
 
         def step_simmpes():
@@ -465,53 +461,66 @@ class SimmPES(Operator):
                     self.pos_pulse_archive.append(ts_pos_pulses)
                     self.neg_pulse_archive.append(ts_neg_pulses)
 
-                # TODO reading cycles are disabled for now
-                # -- reading cycles
-                # x_pos[:] = yakopcic_update(
-                #     self.readV * np.ones_like(x_pos),
-                #     x_pos,
-                #     self.read_length,
-                #     self.Ap_pos,
-                #     self.An_pos,
-                #     self.Vp_pos,
-                #     self.Vn_pos,
-                #     self.alphap_pos,
-                #     self.alphan_pos,
-                #     self.xp_pos,
-                #     self.xn_pos)
-                # x_neg[:] = yakopcic_update(
-                #     self.readV * np.ones_like(x_neg),
-                #     x_neg,
-                #     self.read_length,
-                #     self.Ap_neg,
-                #     self.An_neg,
-                #     self.Vp_neg,
-                #     self.Vn_neg,
-                #     self.alphap_neg,
-                #     self.alphan_neg,
-                #     self.xp_neg,
-                #     self.xn_neg)
+            # -- reading cycles.  We take the mean of the currents over the number of reading cycles to get the overall current
+            x_pos_currents = []
+            x_neg_currents = []
+            for _ in range(self.read_length):
+                x_pos[:] = yakopcic_update(
+                    self.readV * np.ones_like(x_pos),
+                    x_pos,
+                    1,
+                    self.Ap_pos,
+                    self.An_pos,
+                    self.Vp_pos,
+                    self.Vn_pos,
+                    self.alphap_pos,
+                    self.alphan_pos,
+                    self.xp_pos,
+                    self.xn_pos)
+                x_neg[:] = yakopcic_update(
+                    self.readV * np.ones_like(x_neg),
+                    x_neg,
+                    1,
+                    self.Ap_neg,
+                    self.An_neg,
+                    self.Vp_neg,
+                    self.Vn_neg,
+                    self.alphap_neg,
+                    self.alphan_neg,
+                    self.xp_neg,
+                    self.xn_neg)
+                x_pos_currents.append(x_pos)
+                x_neg_currents.append(x_neg)
 
             # -- calculate the current through the devices
-            # ---- (there'll be a slight mismatch because in find_peaks() we looked at the centre of the read interval and here we look at the end
-            i_pos = current(readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,
+            i_pos = current(self.readV, np.mean(x_pos_currents, axis=0), self.gmax_p_pos, self.bmax_p_pos,
                             self.gmax_n_pos, self.bmax_n_pos, self.gmin_p_pos, self.bmin_p_pos, self.gmin_n_pos,
                             self.bmin_n_pos)
-            i_neg = current(readV, x_neg, self.gmax_p_neg, self.bmax_p_neg,
+            i_neg = current(self.readV, np.mean(x_neg_currents, axis=0), self.gmax_p_neg, self.bmax_p_neg,
                             self.gmax_n_neg, self.bmax_n_neg, self.gmin_p_neg, self.bmin_p_neg, self.gmin_n_neg,
                             self.bmin_n_neg)
+            # i_pos = np.clip(i_pos, 1e-9, np.inf)
+            # i_neg = np.clip(i_neg, 1e-9, np.inf)
+            # min_current = np.min([np.min(x_pos_currents), np.min(x_neg_currents)])
+            # if min_current < self.min_current:
+            #     self.min_current = min_current
+            #     print('min current: ', self.min_current)
 
             # -- update network weights using the reciprocal of Ohm's Law G = I / V (R = V / I)
-            weights[:] = gain * (i_pos / readV - i_neg / readV)
+            weights[:] = gain * (i_pos / self.readV - i_neg / self.readV)
 
             # -- to calculate power consumption
-            # TODo try with both high and low precision modes
             try:
                 pos_voltages = (mask_potentiate_set.astype(int) * self.setV +
-                                mask_depress_reset.astype(int) * self.resetV * self.program_length) + \
-                               (np.ones_like(mask_potentiate_set) * self.readV * self.read_length)
-                neg_voltages = mask_potentiate_reset.astype(int) * self.resetV + mask_depress_set.astype(
-                    int) * self.setV * self.program_length
+                                mask_depress_reset.astype(int) * self.resetV) * self.program_length
+                neg_voltages = (mask_potentiate_reset.astype(int) * self.resetV +
+                                mask_depress_set.astype(int) * self.setV) * self.program_length
+                pos_voltages += self.readV * self.read_length
+                neg_voltages += self.readV * self.read_length
+                pos_voltages *= self.dt
+                neg_voltages *= self.dt
+                pos_voltages = np.abs(pos_voltages)
+                neg_voltages = np.abs(neg_voltages)
             except:
                 pos_voltages = (np.ones_like(i_pos) * self.readV * self.read_length)
                 neg_voltages = (np.ones_like(i_neg) * self.readV * self.read_length)
@@ -607,7 +616,7 @@ def build_mpes(model, mpes, rule):
                 bmin_p_pos, gmax_n_pos, gmax_p_pos, gmin_n_pos, gmin_p_pos, Vn_pos, Vp_pos, alphan_pos, alphap_pos,
                 An_pos, Ap_pos, x_pos, xn_pos, xp_pos, bmax_n_neg, bmax_p_neg, bmin_n_neg, bmin_p_neg, gmax_n_neg,
                 gmax_p_neg, gmin_n_neg, gmin_p_neg, Vn_neg, Vp_neg, alphan_neg, alphap_neg, An_neg, Ap_neg, x_neg,
-                xn_neg, xp_neg, mpes.initial_state, mpes.setP, mpes.resetP, mpes.setV, mpes.resetV, dt,
+                xn_neg, xp_neg, mpes.initial_state, mpes.setP, mpes.resetP, mpes.setV, mpes.resetV, mpes.readV, dt,
                 mpes.high_precision, program_length, read_length, mpes.low_memory)
     )
 

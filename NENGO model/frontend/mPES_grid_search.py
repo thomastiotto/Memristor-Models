@@ -1,3 +1,5 @@
+import time
+
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
@@ -94,14 +96,14 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
             # self.learn_probe = nengo.Probe(stop_learning, synapse=None)
             # self.post_spikes_probe = nengo.Probe(post.neurons)
 
-    def fit(self, X, y=None):
+    def fit(self, X, y=None, verbose=False):
         with self.model:
             # Apply the learning rule to conn
             self.model.conn.learning_rule_type = mPES(noise_percentage=self.noise, gain=self.gain,
                                                       strategy=self.strategy,
                                                       resetV=self.voltages[0], setV=self.voltages[1],
                                                       resetP=self.probability, setP=self.probability,
-                                                      verbose=False)
+                                                      verbose=verbose)
             # Provide an error signal to the learning rule
             nengo.Connection(self.model.error, self.model.conn.learning_rule)
 
@@ -110,7 +112,7 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
             # self.x_neg_probe = nengo.Probe(self.model.conn.learning_rule, "x_neg", synapse=None)
             # self.weight_probe = nengo.Probe(self.model.conn, "weights", synapse=None)
 
-        self.sim = nengo.Simulator(self.model, progress_bar=False)
+        self.sim = nengo.Simulator(self.model, progress_bar=verbose)
         self.sim.run(self.learn_time)
         self.sim.run(self.test_time)
 
@@ -228,45 +230,50 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
 
 
 num_par = 10
+cv = 3
+experiment = 'params'
 # -- define grid search parameters
-param_grid = {
-    'gain': np.logspace(np.rint(3).astype(int), np.rint(6).astype(int),
-                        num=np.rint(num_par).astype(int)),
-    # 'gain': [1e3, 1e6],
-    'probability': np.logspace(np.rint(-2).astype(int), np.rint(0).astype(int),
-                               num=np.rint(num_par).astype(int)),
-    # 'probability': [0.1, 0.2, 0.3, 0.4, 0.5],
-    'voltages': [
-        [-2.1331527635533685, 0.011873603203071863],
-        [-1.6300607380628072, 0.006566045887405729],
-        [-1.3180811362586602, 0.004382346688619062]
-    ]
-}
-param_grid_fast = {
-    'gain': [1e6],
-    'probability': [1.0],
-    'voltages': [
-        [-2.1331527635533685, 0.011873603203071863]
-    ]
-}
-fine_search = True
-param_grid_noise = {
-    'noise': [0.0, 0.15, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-    # 'noise': [0.8]
-}
-if 'param_grid_noise' in locals():
+if experiment == 'params':
+    param_grid = {
+        'gain': np.logspace(np.rint(3).astype(int), np.rint(6).astype(int),
+                            num=np.rint(num_par).astype(int)),
+        # 'gain': [1e3, 1e6],
+        'probability': np.linspace(0.01, 1,
+                                   num=np.rint(num_par).astype(int)),
+        # 'probability': [0.1, 0.2, 0.3, 0.4, 0.5],
+        'voltages': [
+            [-0.5970191873997702, 0.0013098539605894905]
+        ]
+    }
+    fine_search = True
+elif experiment == 'noise':
+    param_grid = {
+        'noise': [0.0, 0.15, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        # 'noise': [0.8]
+    }
     fine_search = False
-    param_grid = param_grid_noise
-# estimator = mPES_Estimator(noise=1.0)
-# estimator.fit([0])
-# print(estimator.score([0]))
-# estimator.plot().show()
-# estimator.count_pulses()
 
+# -- estimate execution time
+start = time.time()
+estimator = mPES_Estimator()
+estimator.fit([0])
+print(estimator.score([0]))
+time_iteration = time.time() - start
+
+num_params = 1
+for k, v in param_grid.items():
+    num_params *= len(v)
+num_cpus = os.cpu_count()
+num_cv_iteration = (num_params * cv) // num_cpus if not fine_search else (num_params * cv) // num_cpus * 2
+time_iterations = num_cv_iteration * time_iteration
+
+print(f'Estimated time for 1 iteration: {time_iteration:.2f} seconds')
+print(f'Estimated time for {num_params} parameters on {num_cpus} cores: {time_iterations / 60:.2f} minutes')
+print('Estimated end time:', datetime.datetime.now() + datetime.timedelta(seconds=time_iterations))
 
 print('Initial search')
 print('Param grid:', param_grid)
-gs = GridSearchCV(mPES_Estimator(low_memory=True), param_grid=param_grid, n_jobs=-1, verbose=2)
+gs = GridSearchCV(mPES_Estimator(low_memory=True), param_grid=param_grid, n_jobs=-1, verbose=3, cv=cv)
 gs.fit(np.zeros(30000))
 print('Best parameters:', gs.best_params_)
 print('Best score:', gs.best_score_)
@@ -288,7 +295,7 @@ if fine_search:
         param_grid_fine['voltages'] = [gs.best_params_['voltages']]
 
     print('Fine search')
-    gs_fine = GridSearchCV(mPES_Estimator(low_memory=True), param_grid=param_grid_fine, n_jobs=-1, verbose=2)
+    gs_fine = GridSearchCV(mPES_Estimator(low_memory=True), param_grid=param_grid_fine, n_jobs=-1, verbose=3, cv=cv)
     gs_fine.fit(np.zeros(30000))
     print('Best parameters:', gs_fine.best_params_)
     print('Best score:', gs_fine.best_score_)

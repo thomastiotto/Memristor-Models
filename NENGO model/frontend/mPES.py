@@ -245,8 +245,8 @@ if probe > 0:
     printlv2("MSE-to-rho after learning [f(pre) vs. post]:")
     printlv1(mse_to_rho_ratio(mse, correlation_coefficients[1]))
 
-    mean_power = np.mean((mpes_op.energy_pos, mpes_op.energy_neg))
-    printlv2(f'Average energy consumption {order_of_magnitude.prefix(mean_power)[2]}J')
+    mean_energy = np.mean((mpes_op.energy_pos, mpes_op.energy_neg))
+    printlv2(f'Average energy consumption {order_of_magnitude.prefix(mean_energy)[2]}J')
 
     # if isinstance(conn.learning_rule_type, mPES) and debug:
     if False:
