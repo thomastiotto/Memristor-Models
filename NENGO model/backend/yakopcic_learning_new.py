@@ -106,17 +106,17 @@ class mPES(LearningRuleType):
                  pre_synapse=Default,
                  noise_percentage=0.15,
                  # gain found with mPES_grid_search.py
-                 gain=42823,
+                 gain=2153,
                  initial_state=None,
                  seed=None,
                  strategy='symmetric-probabilistic',
-                 # probabilities found with mPES_grid_search.py
-                 setP=1.0,
-                 resetP=1.0,
-                 # voltages found in percentage_change_resistance_new.py, these can be used with P(SET)=P(RESET)
-                 resetV=-0.5970191873997702,
-                 setV=0.0013098539605894905,
-                 readV=-0.001,
+                 # probabilities found with percentage_change_resistance_new.py
+                 resetP=1,
+                 setP=0.01,
+                 # voltages found in percentage_change_resistance_new.py
+                 resetV=-1,
+                 setV=0.25,
+                 readV=-0.01,
                  high_precision=False,
                  program_length=7,
                  read_length=3,
@@ -156,7 +156,7 @@ class mPES(LearningRuleType):
 
         if verbose:
             print('Gain:', self.gain)
-            print(f'Using {strategy} strategy: P(SET)={self.setP}, P(RESET)={self.resetP}')
+            print(f'Using {strategy} strategy: P(RESET)={self.resetP}, P(SET)={self.setP}')
             print(f'Voltage amplitudes: resetV={self.resetV} V, setV={self.setV} V, readV={self.readV} V')
             print('Noise percentage:', 100 * self.noise_percentage, '%')
             if self.high_precision:

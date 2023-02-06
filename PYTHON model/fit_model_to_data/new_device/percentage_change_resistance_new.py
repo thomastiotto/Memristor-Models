@@ -12,7 +12,7 @@ new_model_pack = {
     'model': json.load(open('../../../fitted/fitting_pulses/new_device/mystery_model')),
     'resetV': -6.4688295585009605,
     'setV': 0.24694177778629942,
-    'readV': -0.001,
+    'readV': -0.01,
     'x0': 0.003212612055682041,
     'n_iter': iterations,
     'program_cycles': 7,
@@ -55,7 +55,8 @@ def one_step_yakopcic(voltage, x, model_pack):
     return x, r
 
 
-def iterate_yakopcic(resetV, setV, model_pack, program_cycles=None, read_cycles=None, iterations=None, x0=None,
+def iterate_yakopcic(resetV, setV, resetP, setP, model_pack, program_cycles=None, read_cycles=None, iterations=None,
+                     x0=None,
                      plot_output=False, print_output=False):
     print_cond = lambda *a, **k: None
     if print_output:
@@ -140,14 +141,38 @@ def iterate_yakopcic(resetV, setV, model_pack, program_cycles=None, read_cycles=
 
 # -- objective function to minimise
 def residuals_voltages(x, model_pack):
-    k, _, _, _, _, _ = iterate_yakopcic(x[0], x[1], model_pack)
+    k, _, _, _, _, _ = iterate_yakopcic(x[0], x[1], 1, 1, model_pack)
+
+    return k
+
+
+def residuals_probabilities(x, resetV, setV, model_pack):
+    k, _, _, _, _, _ = iterate_yakopcic(resetV, setV, x[0], x[1], model_pack)
+
+    return k
+
+
+def residuals_voltages_probabilities(x, model_pack):
+    k, _, _, _, _, _ = iterate_yakopcic(x[0], x[1], x[2], x[3], model_pack)
 
     return k
 
 
 # -- force dynamic range to be less than threshold
-def constraint_DR(x, model_pack, threshold):
-    _, DR, _, _, _, _ = iterate_yakopcic(x[0], x[1], model_pack)
+def constraint_DR_voltages(x, model_pack, threshold):
+    _, DR, _, _, _, _ = iterate_yakopcic(x[0], x[1], 1, 1, model_pack)
+
+    return -DR + threshold
+
+
+def constraint_DR_probabilities(x, resetV, setV, model_pack, threshold):
+    _, DR, _, _, _, _ = iterate_yakopcic(resetV, setV, x[0], x[1], model_pack)
+
+    return -DR + threshold
+
+
+def constraint_DR_voltages_probabilities(x, model_pack, threshold):
+    _, DR, _, _, _, _ = iterate_yakopcic(x[0], x[1], x[2], x[3], model_pack)
 
     return -DR + threshold
 
@@ -173,7 +198,7 @@ find_voltages = optimize.minimize(residuals_voltages,
                                   #      'args': [old_model_pack]}),
                                   )
 print('\nOLD MODEL - GET DR:')
-_, DR_old_model, _, _, _, _ = iterate_yakopcic(find_voltages.x[0], find_voltages.x[1], old_model_pack,
+_, DR_old_model, _, _, _, _ = iterate_yakopcic(find_voltages.x[0], find_voltages.x[1], 1, 1, old_model_pack,
                                                plot_output=True, print_output=True)
 
 find_voltages = optimize.minimize(residuals_voltages,
@@ -187,7 +212,7 @@ find_voltages = optimize.minimize(residuals_voltages,
                                        'args': [new_model_pack]}),
                                   )
 print('\nNEW MODEL - REGRESS VOLTAGES:')
-iterate_yakopcic(find_voltages.x[0], find_voltages.x[1], new_model_pack,
+iterate_yakopcic(find_voltages.x[0], find_voltages.x[1], 1, 1, new_model_pack,
                  plot_output=True, print_output=True)
 
 find_voltages = optimize.minimize(residuals_voltages,
@@ -197,8 +222,8 @@ find_voltages = optimize.minimize(residuals_voltages,
                                   bounds=([-10, 0], [new_model_pack['readV'] - 0.5, 10]),
                                   constraints=(
                                       {'type': 'ineq',
-                                       'fun': constraint_DR,
-                                       'args': (new_model_pack, DR_old_model / 2)},
+                                       'fun': constraint_DR_voltages,
+                                       'args': (new_model_pack, DR_old_model)},
                                       # {'type': 'ineq',
                                       #  'fun': constraint_V,
                                       #  'args': [new_model_pack]}
@@ -206,5 +231,48 @@ find_voltages = optimize.minimize(residuals_voltages,
                                   options={'disp': False}
                                   )
 print('\nNEW MODEL - REGRESS VOLTAGES WITH LIMIT ON DR:')
-iterate_yakopcic(find_voltages.x[0], find_voltages.x[1], new_model_pack,
+iterate_yakopcic(find_voltages.x[0], find_voltages.x[1], 1, 1, new_model_pack,
                  plot_output=True, print_output=True)
+
+find_probabilities = optimize.minimize(residuals_probabilities,
+                                       # x0=[find_voltages.x[0], find_voltages.x[1]],
+                                       x0=[1, 1],
+                                       args=(-1, 0.25, new_model_pack),
+                                       bounds=((0, 1), (0, 1)),
+                                       constraints=(
+                                           {'type': 'ineq',
+                                            'fun': constraint_DR_probabilities,
+                                            'args': (
+                                                -1, 0.25, new_model_pack,
+                                                DR_old_model)},
+                                           # {'type': 'ineq',
+                                           #  'fun': constraint_V,
+                                           #  'args': [new_model_pack]}
+                                       ),
+                                       options={'disp': False}
+                                       )
+print('\nNEW MODEL - REGRESS PROBABILITIES WITH LIMIT ON DR:')
+iterate_yakopcic(-1, 0.25, find_probabilities.x[0], find_probabilities.x[1],
+                 new_model_pack, plot_output=True, print_output=True)
+
+find_voltages_probabilities = optimize.minimize(residuals_voltages_probabilities,
+                                                # x0=[find_voltages.x[0], find_voltages.x[1]],
+                                                x0=[new_model_pack['resetV'], new_model_pack['setV'], 1, 1],
+                                                args=(new_model_pack),
+                                                bounds=((-10, 0), (new_model_pack['readV'] - 0.5, 10), (0, 1), (0, 1)),
+                                                constraints=(
+                                                    {'type': 'ineq',
+                                                     'fun': constraint_DR_voltages_probabilities,
+                                                     'args': (
+                                                         new_model_pack,
+                                                         DR_old_model)},
+                                                    # {'type': 'ineq',
+                                                    #  'fun': constraint_V,
+                                                    #  'args': [new_model_pack]}
+                                                ),
+                                                options={'disp': False}
+                                                )
+print('\nNEW MODEL - REGRESS VOLTAGES AND PROBABILITIES WITH LIMIT ON DR:')
+iterate_yakopcic(find_voltages_probabilities.x[0], find_voltages_probabilities.x[1], find_voltages_probabilities.x[2],
+                 find_voltages_probabilities.x[3],
+                 new_model_pack, plot_output=True, print_output=True)

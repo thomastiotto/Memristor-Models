@@ -1,10 +1,10 @@
 import time
+from order_of_magnitude import order_of_magnitude
 
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
 import pandas as pd
-from order_of_magnitude import order_of_magnitude
 
 from sklearn.metrics import mean_squared_error
 from yakopcic_learning_new import mPES
@@ -18,8 +18,7 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
             setattr(self, parameter, value)
         return self
 
-    def __init__(self, gain=10304.623509977035, voltages=[-1.6300607380628072, 0.006566045887405729],
-                 probability=0.11951686621289385, noise=0.15,
+    def __init__(self, gain=2153, voltages=[-1, 0.25], probabilities=[1, 0.01], noise=0.15,
                  low_memory=False):
         nengo.rc['progress']['progress_bar'] = 'nengo.utils.progress.TerminalProgressBar'
         nengo.rc['decoder_cache']['enabled'] = 'False'
@@ -30,7 +29,7 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
 
         self.gain = gain
         self.voltages = voltages
-        self.probability = probability
+        self.probabilities = probabilities
         self.noise = noise
 
         self.timestep = 0.001
@@ -102,7 +101,7 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
             self.model.conn.learning_rule_type = mPES(noise_percentage=self.noise, gain=self.gain,
                                                       strategy=self.strategy,
                                                       resetV=self.voltages[0], setV=self.voltages[1],
-                                                      resetP=self.probability, setP=self.probability,
+                                                      resetP=self.probabilities[0], setP=self.probabilities[1],
                                                       verbose=verbose)
             # Provide an error signal to the learning rule
             nengo.Connection(self.model.error, self.model.conn.learning_rule)
@@ -112,7 +111,7 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
             # self.x_neg_probe = nengo.Probe(self.model.conn.learning_rule, "x_neg", synapse=None)
             # self.weight_probe = nengo.Probe(self.model.conn, "weights", synapse=None)
 
-        self.sim = nengo.Simulator(self.model, progress_bar=verbose)
+        self.sim = nengo.Simulator(self.model, progress_bar=False)
         self.sim.run(self.learn_time)
         self.sim.run(self.test_time)
 
@@ -121,6 +120,8 @@ class mPES_Estimator(BaseEstimator, RegressorMixin):
         return self
 
     def predict(self, X):
+        assert self.results_ready, "You must call fit() before calling predict()"
+
         self.sim.run(self.test_time)
 
         learning_time = int((self.learn_time / self.timestep))
@@ -237,13 +238,8 @@ if experiment == 'params':
     param_grid = {
         'gain': np.logspace(np.rint(3).astype(int), np.rint(6).astype(int),
                             num=np.rint(num_par).astype(int)),
-        # 'gain': [1e3, 1e6],
-        'probability': np.linspace(0.01, 1,
-                                   num=np.rint(num_par).astype(int)),
-        # 'probability': [0.1, 0.2, 0.3, 0.4, 0.5],
-        'voltages': [
-            [-0.5970191873997702, 0.0013098539605894905]
-        ]
+        'probability': [0.01, 0.1],
+        'voltages': [[-1, 0.25], [-1, 0.025]]
     }
     fine_search = True
 elif experiment == 'noise':
@@ -252,29 +248,38 @@ elif experiment == 'noise':
         # 'noise': [0.8]
     }
     fine_search = False
+elif experiment == 'gain':
+    param_grid = {
+        'gain': np.logspace(np.rint(3).astype(int), np.rint(6).astype(int),
+                            num=np.rint(num_par).astype(int)),
+    }
+    fine_search = True
 
-# -- estimate execution time
-start = time.time()
-estimator = mPES_Estimator()
-estimator.fit([0])
-print(estimator.score([0]))
-time_iteration = time.time() - start
 
-num_params = 1
-for k, v in param_grid.items():
-    num_params *= len(v)
-num_cpus = os.cpu_count()
-num_cv_iteration = (num_params * cv) // num_cpus if not fine_search else (num_params * cv) // num_cpus * 2
-time_iterations = num_cv_iteration * time_iteration
+def estimate_search_time(estimator, param_grid, cv, fine_search):
+    # -- estimate execution time
+    start = time.time()
+    estimator.fit([0], verbose=True)
+    time_iteration = time.time() - start
 
-print(f'Estimated time for 1 iteration: {time_iteration:.2f} seconds')
-print(f'Estimated time for {num_params} parameters on {num_cpus} cores: {time_iterations / 60:.2f} minutes')
-print('Estimated end time:', datetime.datetime.now() + datetime.timedelta(seconds=time_iterations))
+    num_params = 0
+    for k, v in param_grid.items():
+        num_params += len(v)
+    num_cpus = os.cpu_count()
+    num_cv_iteration = (num_params * cv) // num_cpus if not fine_search else (num_params * cv) // num_cpus * 2
+    time_iterations = num_cv_iteration * time_iteration
+
+    print(f'Estimated time for 1 iteration: {time_iteration:.2f} seconds')
+    print(f'Estimated time for {num_params} parameters on {num_cpus} cores: {time_iterations / 60:.2f} minutes')
+    print('Estimated end time:', datetime.datetime.now() + datetime.timedelta(seconds=time_iterations))
+
+
+estimate_search_time(mPES_Estimator(), param_grid, cv, fine_search)
 
 print('Initial search')
 print('Param grid:', param_grid)
 gs = GridSearchCV(mPES_Estimator(low_memory=True), param_grid=param_grid, n_jobs=-1, verbose=3, cv=cv)
-gs.fit(np.zeros(30000))
+gs.fit(np.zeros(cv))
 print('Best parameters:', gs.best_params_)
 print('Best score:', gs.best_score_)
 pd_results = pd.DataFrame(gs.cv_results_)
@@ -308,8 +313,19 @@ if fine_search:
     estimator.plot().show()
     estimator.count_pulses()
 
-if 'param_grid_noise' in locals():
-    pd_results['param_noise'] = pd.to_numeric(pd_results['param_noise'])
+if experiment == 'noise' or experiment == 'gain':
+    try:
+        pd_results['param_noise'] = pd.to_numeric(pd_results['param_noise'])
+        pd_results['param_noise'] *= 100
+        pd_results['param_plot'] = pd_results['param_noise']
+    except:
+        pass
+    try:
+        pd_results['param_gain'] = pd.to_numeric(pd_results['param_gain'])
+        pd_results['param_plot'] = pd_results['param_gain']
+    except:
+        pass
+
     # plot testing error
     size_L = 10
     size_M = 8
@@ -318,28 +334,31 @@ if 'param_grid_noise' in locals():
     fig.set_size_inches((3.5, 3.5 * ((5. ** 0.5 - 1.0) / 2.0)))
     # fig.suptitle(exp_name, fontsize=size_L)
     ax.set_ylabel(r'$\frac{\rho}{MSE}$', fontsize=size_M)
-    ax.set_xlabel("Noise %", fontsize=size_M)
+    if experiment == 'noise':
+        ax.set_xlabel('Noise %', fontsize=size_M)
+    elif experiment == 'gain':
+        ax.set_xlabel('Gain', fontsize=size_M)
     ax.tick_params(axis='x', labelsize=size_S)
     ax.tick_params(axis='y', labelsize=size_S)
 
-    ax.plot(pd_results['param_noise'] * 100, pd_results['mean_test_score'], c='g')
-    ax.plot(pd_results['param_noise'] * 100, pd_results['mean_test_score'] - pd_results['std_test_score'],
+    ax.plot(pd_results['param_plot'], pd_results['mean_test_score'], c='g')
+    ax.plot(pd_results['param_plot'], pd_results['mean_test_score'] - pd_results['std_test_score'],
             linestyle="--", alpha=0.5, c="g")
-    ax.plot(pd_results['param_noise'] * 100, pd_results['mean_test_score'] + pd_results['std_test_score'],
+    ax.plot(pd_results['param_plot'], pd_results['mean_test_score'] + pd_results['std_test_score'],
             linestyle="--", alpha=0.5, c="g")
-    ax.fill_between(pd_results['param_noise'] * 100,
+    ax.fill_between(pd_results['param_plot'],
                     pd_results['mean_test_score'] - pd_results['std_test_score'],
                     pd_results['mean_test_score'] + pd_results['std_test_score'],
                     alpha=0.3, color="g")
     fig.tight_layout()
     fig.show()
-
-    for noise in [0.0, 0.15, 0.5, 1.0]:
-        print('Noise', noise)
-        estimator = mPES_Estimator(noise=noise)
-        estimator.fit([0])
-        print('Score on test run', estimator.score([0]))
-        fig = estimator.plot()
-        fig.savefig(f'./mPES_noise_{noise}.png', dpi=300)
-        fig.show()
-        estimator.energy_consumption()
+    #
+    # for noise in [0.0, 0.15, 0.5, 1.0]:
+    #     print('Noise', noise)
+    #     estimator = mPES_Estimator(noise=noise)
+    #     estimator.fit([0])
+    #     print('Score on test run', estimator.score([0]))
+    #     fig = estimator.plot()
+    #     fig.savefig(f'./mPES_noise_{noise}.png', dpi=300)
+    #     fig.show()
+    #     estimator.energy_consumption()

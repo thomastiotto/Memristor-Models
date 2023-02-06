@@ -10,7 +10,21 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/NENGO model/frontend/errors.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/NENGO model/frontend/mPES_grid_search_fine_results.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/NENGO model/frontend/mPES_grid_search_fine_results_READ_SAVED.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
@@ -32,6 +46,41 @@
           </value>
         </entry>
         <entry key="/NENGO model/frontend/mPES_grid_search_results_NOISE_SAVED.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/NENGO model/frontend/mPES_grid_search_results_SAVED.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/NENGO model/frontend/testing_errors_mpes_tmp.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/NENGO model/frontend/testing_errors_nef_tmp.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/NENGO model/frontend/testing_errors_pes_tmp.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/NENGO model/frontend/testing_errors_tmp.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
