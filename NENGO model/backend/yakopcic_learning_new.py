@@ -120,12 +120,13 @@ class mPES(LearningRuleType):
                  high_precision=False,
                  program_length=7,
                  read_length=3,
-                 verbose=True,
-                 low_memory=False):
+                 low_memory=False,
+                 verbose=True):
         super().__init__(size_in="post_state")
 
         self.pre_synapse = pre_synapse
         self.noise_percentage = noise_percentage
+        self.low_memory = low_memory
         self.seed = seed
         self.initial_state = {} if initial_state is None else initial_state
 
@@ -149,7 +150,6 @@ class mPES(LearningRuleType):
         self.readV = readV
         self.gain = gain
 
-        self.low_memory = low_memory
         self.high_precision = high_precision
         self.program_length = program_length
         self.read_length = read_length
@@ -222,6 +222,7 @@ class SimmPES(Operator):
             program_length,
             read_length,
             low_memory,
+            seed,
             tag=None
     ):
         super(SimmPES, self).__init__(tag=tag)
@@ -239,7 +240,6 @@ class SimmPES(Operator):
         self.high_precision = high_precision
         self.program_length = program_length
         self.read_length = read_length
-        self.low_memory = low_memory
 
         self.An_pos = An_pos
         self.Ap_pos = Ap_pos
@@ -278,6 +278,8 @@ class SimmPES(Operator):
         self.xs = []
         self.rs = []
         self.initial_state = initial_state
+        self.low_memory = low_memory
+        self.seed = seed
 
         if not self.low_memory:
             self.pos_pulse_archive = []
@@ -285,7 +287,6 @@ class SimmPES(Operator):
 
         self.energy_pos = np.zeros_like(An_pos)
         self.energy_neg = np.zeros_like(An_neg)
-        self.min_current = np.inf
 
         self.sets = []
         self.incs = []
@@ -358,6 +359,7 @@ class SimmPES(Operator):
                             self.bmin_n_neg)
 
             weights[:] = gain * (i_pos / self.readV - i_neg / self.readV)
+
             # print("initial weights", weights)
 
         def step_simmpes():
@@ -617,7 +619,7 @@ def build_mpes(model, mpes, rule):
                 An_pos, Ap_pos, x_pos, xn_pos, xp_pos, bmax_n_neg, bmax_p_neg, bmin_n_neg, bmin_p_neg, gmax_n_neg,
                 gmax_p_neg, gmin_n_neg, gmin_p_neg, Vn_neg, Vp_neg, alphan_neg, alphap_neg, An_neg, Ap_neg, x_neg,
                 xn_neg, xp_neg, mpes.initial_state, mpes.setP, mpes.resetP, mpes.setV, mpes.resetV, mpes.readV, dt,
-                mpes.high_precision, program_length, read_length, mpes.low_memory)
+                mpes.high_precision, program_length, read_length, mpes.low_memory, mpes.seed)
     )
 
     # expose these for probes

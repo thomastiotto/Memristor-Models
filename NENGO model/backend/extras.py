@@ -1,5 +1,6 @@
 import datetime
 import os
+import time
 
 import matplotlib.pyplot as plt
 import nengo
@@ -613,9 +614,9 @@ def nested_dict(n, type):
 def get_operator_from_sim(sim, name):
     for op in sim.model.operators:
         if op.__class__.__name__ == name:
-            break
+            return op
 
-    return op
+    return None
 
 
 def ci(data, confidence=0.95):
@@ -626,6 +627,29 @@ def ci(data, confidence=0.95):
     return np.mean(data, axis=0), \
         np.mean(data, axis=0) + z * np.std(data, axis=0) / np.sqrt(len(data)), \
         np.mean(data, axis=0) - z * np.std(data, axis=0) / np.sqrt(len(data))
+
+
+def estimate_search_time(estimator, param_grid, cv, repeat=1):
+    print('Evaluating execution time')
+    # -- estimate execution time
+    start = time.time()
+    estimator.fit([0], verbose=True)
+    time_iteration = time.time() - start
+
+    num_params = 0
+    for k, v in param_grid.items():
+        num_params += len(v)
+    num_cpus = os.cpu_count()
+    num_cv_iteration = (num_params * cv) // num_cpus
+    time_iterations = num_cv_iteration * time_iteration * repeat
+
+    print(f'Estimated time for 1 iteration: {time_iteration:.2f} seconds')
+    if repeat == 1:
+        print(f'Estimated time for {num_params} parameters on {num_cpus} cores: {time_iterations / 60:.2f} minutes')
+    else:
+        print(
+            f'Estimated time for {num_params} parameters on {num_cpus} cores repeated {repeat} times: {time_iterations / 60:.2f} minutes')
+    print('Estimated end time:', datetime.datetime.now() + datetime.timedelta(seconds=time_iterations))
 
 
 # TODO when only giving SET pulses, the average length of consecutive SET pulses is 5

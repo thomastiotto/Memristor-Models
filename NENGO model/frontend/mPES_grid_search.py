@@ -255,26 +255,7 @@ elif experiment == 'gain':
     }
     fine_search = True
 
-
-def estimate_search_time(estimator, param_grid, cv, fine_search):
-    # -- estimate execution time
-    start = time.time()
-    estimator.fit([0], verbose=True)
-    time_iteration = time.time() - start
-
-    num_params = 0
-    for k, v in param_grid.items():
-        num_params += len(v)
-    num_cpus = os.cpu_count()
-    num_cv_iteration = (num_params * cv) // num_cpus if not fine_search else (num_params * cv) // num_cpus * 2
-    time_iterations = num_cv_iteration * time_iteration
-
-    print(f'Estimated time for 1 iteration: {time_iteration:.2f} seconds')
-    print(f'Estimated time for {num_params} parameters on {num_cpus} cores: {time_iterations / 60:.2f} minutes')
-    print('Estimated end time:', datetime.datetime.now() + datetime.timedelta(seconds=time_iterations))
-
-
-estimate_search_time(mPES_Estimator(), param_grid, cv, fine_search)
+estimate_search_time(mPES_Estimator(), param_grid, cv, 2)
 
 print('Initial search')
 print('Param grid:', param_grid)
@@ -352,13 +333,14 @@ if experiment == 'noise' or experiment == 'gain':
                     alpha=0.3, color="g")
     fig.tight_layout()
     fig.show()
-    #
-    # for noise in [0.0, 0.15, 0.5, 1.0]:
-    #     print('Noise', noise)
-    #     estimator = mPES_Estimator(noise=noise)
-    #     estimator.fit([0])
-    #     print('Score on test run', estimator.score([0]))
-    #     fig = estimator.plot()
-    #     fig.savefig(f'./mPES_noise_{noise}.png', dpi=300)
-    #     fig.show()
-    #     estimator.energy_consumption()
+
+    if experiment == 'noise':
+        for noise in [0.0, 0.15, 0.5, 1.0]:
+            print('Noise', noise)
+            estimator = mPES_Estimator(noise=noise)
+            estimator.fit([0])
+            print('Score on test run', estimator.score([0]))
+            fig = estimator.plot()
+            fig.savefig(f'./mPES_noise_{noise}.png', dpi=300)
+            fig.show()
+            estimator.energy_consumption()

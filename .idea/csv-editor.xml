@@ -66,6 +66,20 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/NENGO model/frontend/testing_errors_nef_2051443419.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/NENGO model/frontend/testing_errors_nef_593358011.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/NENGO model/frontend/testing_errors_nef_tmp.csv">
           <value>
             <Attribute>

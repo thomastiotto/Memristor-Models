@@ -1,6 +1,6 @@
-import copy
-import time
-from pathlib import Path
+import glob
+import atexit
+import re
 
 import numpy as np
 from order_of_magnitude import order_of_magnitude
@@ -15,6 +15,18 @@ from nengo.processes import WhiteSignal
 
 from extras import *
 from yakopcic_learning_new import mPES
+
+
+def cleanup():
+    print("Cleaning up leftover files...")
+    # delete tmp files
+    for f in glob.glob('testing_errors_*.csv'):
+        os.remove(f)
+    for f in glob.glob('initial_weights_*.npy'):
+        os.remove(f)
+
+
+atexit.register(cleanup)
 
 
 class Trevor_Estimator(BaseEstimator, RegressorMixin):
@@ -139,8 +151,9 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
                         transform=np.zeros((self.model.post.n_neurons, self.model.pre.n_neurons)),
                         learning_rule_type=self.learning_rule
                     )
+
                 elif isinstance(self.learning_rule, PES):
-                    with open('initial_weights.npy', 'rb') as f:
+                    with open(f'initial_weights_{self.seed}.npy', 'rb') as f:
                         initial_weights = np.load(f)
 
                     self.model.conn = nengo.Connection(
@@ -185,13 +198,20 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
                 )
 
             # -- probes
-            self.pre_probe = nengo.Probe(self.model.pre, synapse=0.01)
+            # self.pre_probe = nengo.Probe(self.model.pre, synapse=0.01)
             self.post_probe = nengo.Probe(self.model.post, synapse=0.01)
             self.ground_truth_probe = nengo.Probe(self.model.ground_truth, synapse=0.01)
-            self.weights_probe = nengo.Probe(self.model.conn, 'weights', synapse=None)
+            # self.weights_probe = nengo.Probe(self.model.conn, 'weights', synapse=None)
             # self.model.error_probe = nengo.Probe(self.model.error, synapse=0.01)
-
         self.sim = nengo.Simulator(self.model, progress_bar=verbose)
+
+        # hacky way to get the mPES operator and the initial memristor weights from it
+        mpes_op = get_operator_from_sim(self.sim, 'SimmPES')
+        if mpes_op is not None:
+            # save initial weights to then use with PES
+            with open(f'initial_weights_{self.seed}.npy', 'wb') as f:
+                np.save(f, self.sim.signals[mpes_op.weights], allow_pickle=False)
+
         self.sim.run(self.sim_time)
 
         self.results_ready = True
@@ -205,11 +225,6 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
 
     def score(self, X, y=None, sample_weight=None):
         assert self.results_ready, "You must call fit() before calling score()"
-
-        # save initial weights to then use with PES
-        if isinstance(self.learning_rule, mPES):
-            with open('initial_weights.npy', 'wb') as f:
-                np.save(f, self.sim.data[self.weights_probe][0])
 
         ground_truth_data = np.array_split(self.sim.data[self.ground_truth_probe], self.num_blocks)
         post_data = np.array_split(self.sim.data[self.post_probe], self.num_blocks)
@@ -230,8 +245,11 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
         else:
             lr = 'nef'
 
-        with open(f"testing_errors_{lr}_tmp.csv", "a") as f:
+        with open(f"testing_errors_{lr}_{self.seed}.csv", "w") as f:
             np.savetxt(f, testing_errors, delimiter=",")
+
+        if self.low_memory:
+            del self.sim
 
         return np.mean(testing_errors)
 
@@ -297,76 +315,49 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
 
 
 experiment = 1
-iterations = 3
+iterations = 10
 
 seed = np.random.randint(0, 2 ** 32 - 1)
 dummy_param_grid = {
     'seed': [s for s in range(seed, seed + iterations)]
 }
+print(f"Param grid/seed: {seed}")
 
-
-def estimate_search_time(estimator, param_grid, cv, repeat=1):
-    print('Evaluating execution time')
-    # -- estimate execution time
-    start = time.time()
-    estimator.fit([0], verbose=True)
-    time_iteration = time.time() - start
-
-    num_params = 0
-    for k, v in param_grid.items():
-        num_params += len(v)
-    num_cpus = os.cpu_count()
-    num_cv_iteration = (num_params * cv) // num_cpus
-    time_iterations = num_cv_iteration * time_iteration * repeat
-
-    print(f'Estimated time for 1 iteration: {time_iteration:.2f} seconds')
-    if repeat == 1:
-        print(f'Estimated time for {num_params} parameters on {num_cpus} cores: {time_iterations / 60:.2f} minutes')
-    else:
-        print(
-            f'Estimated time for {num_params} parameters on {num_cpus} cores repeated {repeat} times: {time_iterations / 60:.2f} minutes')
-    print('Estimated end time:', datetime.datetime.now() + datetime.timedelta(seconds=time_iterations))
-
-
-estimate_search_time(Trevor_Estimator(experiment=experiment, learning_rule=mPES()), dummy_param_grid, cv=1, repeat=3)
+# estimate_search_time(Trevor_Estimator(experiment=experiment, learning_rule=mPES()), dummy_param_grid, cv=1, repeat=1)
+# estimate_search_time(Trevor_Estimator(experiment=experiment, learning_rule=PES()), dummy_param_grid, cv=1, repeat=1)
+# estimate_search_time(Trevor_Estimator(experiment=experiment, learning_rule=None), dummy_param_grid, cv=1, repeat=1)
 
 """[(slice(None), slice(None))] is a hack to make GridSearchCV use only one CV fold"""
 gs_mpes = GridSearchCV(
-    Trevor_Estimator(experiment=experiment, learning_rule=mPES(), low_memory=True),
+    Trevor_Estimator(experiment=experiment, learning_rule=mPES(low_memory=True), low_memory=True),
     param_grid=dummy_param_grid,
-    n_jobs=-1, verbose=3, cv=[(slice(None), slice(None))])
+    n_jobs=-1, verbose=2, cv=[(slice(None), slice(None))])
 gs_mpes.fit([0])
 gs_pes = GridSearchCV(
     Trevor_Estimator(experiment=experiment, learning_rule=PES(), low_memory=True),
     param_grid=dummy_param_grid,
-    n_jobs=-1, verbose=3, cv=[(slice(None), slice(None))])
+    n_jobs=-1, verbose=2, cv=[(slice(None), slice(None))])
 gs_pes.fit([0])
 gs_nef = GridSearchCV(
     Trevor_Estimator(experiment=experiment, learning_rule=None, low_memory=True),
     param_grid=dummy_param_grid,
-    n_jobs=-1, verbose=4, cv=[(slice(None), slice(None))])
+    n_jobs=-1, verbose=2, cv=[(slice(None), slice(None))])
 gs_nef.fit([0])
 
 # read errors from files
+errors = {}
 num_testing_blocks = gs_mpes.estimator.num_testing_blocks
 learn_block_time = gs_mpes.estimator.learn_block_time
-f = open('testing_errors_mpes_tmp.csv', 'r')
-errors_mpes = np.genfromtxt(f, delimiter=',')
-errors_mpes = errors_mpes.reshape((-1,))
-f.close()
-f = open('testing_errors_pes_tmp.csv', 'r')
-errors_pes = np.genfromtxt(f, delimiter=',')
-errors_pes = errors_pes.reshape((-1, num_testing_blocks))
-f.close()
-f = open('testing_errors_nef_tmp.csv', 'r')
-errors_nef = np.genfromtxt(f, delimiter=',')
-errors_nef = errors_nef.reshape((-1, num_testing_blocks))
-f.close()
+for f in glob.glob('testing_errors_*.csv'):
+    lr = re.search('testing_errors_(.*)_(.*).csv', f).group(1)
+    if lr not in errors:
+        errors[lr] = np.empty((0, num_testing_blocks))
+    errors[lr] = np.vstack((errors[lr], np.genfromtxt(f, delimiter=',')))
 
 # compute mean testing error and confidence intervals
-ci_mpes = ci(errors_mpes)
-ci_pes = ci(errors_pes)
-ci_nef = ci(errors_nef)
+ci_mpes = ci(errors['mpes'])
+ci_pes = ci(errors['pes'])
+ci_nef = ci(errors['nef'])
 
 # plot testing error
 size_L = 10
@@ -405,9 +396,3 @@ for y, col in zip([ci_mpes[0], ci_pes[0], ci_nef[0]], ['g', 'b', 'r']):
 ax.legend(loc="best", fontsize=size_S)
 fig.tight_layout()
 fig.show()
-
-# delete tmp files
-os.remove('testing_errors_mpes_tmp.csv')
-os.remove('testing_errors_pes_tmp.csv')
-os.remove('testing_errors_nef_tmp.csv')
-os.remove('initial_weights.npy')
