@@ -10,97 +10,6 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="/NENGO model/frontend/errors.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/NENGO model/frontend/mPES_grid_search_fine_results.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/NENGO model/frontend/mPES_grid_search_fine_results_READ_SAVED.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/NENGO model/frontend/mPES_grid_search_fine_results_SAVED.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/NENGO model/frontend/mPES_grid_search_results.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/NENGO model/frontend/mPES_grid_search_results_NOISE_SAVED.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/NENGO model/frontend/mPES_grid_search_results_SAVED.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/NENGO model/frontend/testing_errors_mpes_tmp.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/NENGO model/frontend/testing_errors_nef_2051443419.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/NENGO model/frontend/testing_errors_nef_593358011.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/NENGO model/frontend/testing_errors_nef_tmp.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/NENGO model/frontend/testing_errors_pes_tmp.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/NENGO model/frontend/testing_errors_tmp.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="/PYTHON model/frontend/data/parameter_search/noise/13-10-2022_09-27-48/data/results.csv">
           <value>
             <Attribute>
@@ -137,6 +46,13 @@
           </value>
         </entry>
         <entry key="/imported_data/averaged/av_32.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/raw_data/Scaling device/Radius 10 um/035_AG_2020_03_12_DG01_3A_IV_probestation_2wire_back_grounded_p1V_m2V_10mVsteps.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

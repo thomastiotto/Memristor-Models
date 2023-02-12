@@ -1,14 +1,15 @@
 import glob
 import atexit
+import pickle
 import re
+import shutil
+import signal
 
-import numpy as np
+from matplotlib.offsetbox import AnchoredText
 from order_of_magnitude import order_of_magnitude
 
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import mean_squared_error
-import pandas as pd
 
 from nengo.learning_rules import PES
 from nengo.processes import WhiteSignal
@@ -17,16 +18,19 @@ from extras import *
 from yakopcic_learning_new import mPES
 
 
-def cleanup():
+def cleanup(exit_code=None, frame=None):
     print("Cleaning up leftover files...")
-    # delete tmp files
-    for f in glob.glob('testing_errors_*.csv'):
-        os.remove(f)
-    for f in glob.glob('initial_weights_*.npy'):
-        os.remove(f)
+    # delete tmp folder
+    shutil.rmtree(tmp_folder)
 
 
 atexit.register(cleanup)
+signal.signal(signal.SIGINT, cleanup)
+signal.signal(signal.SIGTERM, cleanup)
+
+# make tmp folder with timestamp
+tmp_folder = f'tmp_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
+os.makedirs(tmp_folder)
 
 
 class Trevor_Estimator(BaseEstimator, RegressorMixin):
@@ -153,7 +157,7 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
                     )
 
                 elif isinstance(self.learning_rule, PES):
-                    with open(f'initial_weights_{self.seed}.npy', 'rb') as f:
+                    with open(f'{tmp_folder}/initial_weights_{self.seed}.npy', 'rb') as f:
                         initial_weights = np.load(f)
 
                     self.model.conn = nengo.Connection(
@@ -209,7 +213,7 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
         mpes_op = get_operator_from_sim(self.sim, 'SimmPES')
         if mpes_op is not None:
             # save initial weights to then use with PES
-            with open(f'initial_weights_{self.seed}.npy', 'wb') as f:
+            with open(f'{tmp_folder}/initial_weights_{self.seed}.npy', 'wb') as f:
                 np.save(f, self.sim.signals[mpes_op.weights], allow_pickle=False)
 
         self.sim.run(self.sim_time)
@@ -245,7 +249,7 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
         else:
             lr = 'nef'
 
-        with open(f"testing_errors_{lr}_{self.seed}.csv", "w") as f:
+        with open(f"{tmp_folder}/testing_errors_{lr}_{self.seed}.csv", "w") as f:
             np.savetxt(f, testing_errors, delimiter=",")
 
         if self.low_memory:
@@ -314,45 +318,64 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
         print(f'Average energy consumption per pulse {order_of_magnitude.prefix(self.energy_per_pulse)[2]}J')
 
 
-experiment = 1
+while True:
+    experiment = input('Choose an experiment (1-5): ')
+    if experiment in ['1', '2', '3', '4', '5']:
+        break
+    else:
+        print('Invalid input. Please try again.')
+experiment = int(experiment)
+
+experiment_dict = {
+    1: "Multiplying two numbers",
+    2: "Combining two products",
+    3: "Three separate products",
+    4: "Two-dimensional circular convolution",
+    5: "Three-dimensional circular convolution"
+}
+
 iterations = 10
+num_cpus = -1
+print(f"Experiment: {experiment_dict[experiment]} ({experiment})")
 
 seed = np.random.randint(0, 2 ** 32 - 1)
 dummy_param_grid = {
     'seed': [s for s in range(seed, seed + iterations)]
 }
-print(f"Param grid/seed: {seed}")
+print(f"Param grid/seeds: {dummy_param_grid}")
 
-# estimate_search_time(Trevor_Estimator(experiment=experiment, learning_rule=mPES()), dummy_param_grid, cv=1, repeat=1)
-# estimate_search_time(Trevor_Estimator(experiment=experiment, learning_rule=PES()), dummy_param_grid, cv=1, repeat=1)
-# estimate_search_time(Trevor_Estimator(experiment=experiment, learning_rule=None), dummy_param_grid, cv=1, repeat=1)
+# estimate_search_time(Trevor_Estimator(experiment=experiment, learn
+# ing_rule=mPES()), dummy_param_grid,
+#                      num_cpus=num_cpus, cv=1, repeat=iterations)
 
 """[(slice(None), slice(None))] is a hack to make GridSearchCV use only one CV fold"""
 gs_mpes = GridSearchCV(
     Trevor_Estimator(experiment=experiment, learning_rule=mPES(low_memory=True), low_memory=True),
     param_grid=dummy_param_grid,
-    n_jobs=-1, verbose=2, cv=[(slice(None), slice(None))])
+    n_jobs=num_cpus, verbose=2, cv=[(slice(None), slice(None))])
 gs_mpes.fit([0])
 gs_pes = GridSearchCV(
     Trevor_Estimator(experiment=experiment, learning_rule=PES(), low_memory=True),
     param_grid=dummy_param_grid,
-    n_jobs=-1, verbose=2, cv=[(slice(None), slice(None))])
+    n_jobs=num_cpus, verbose=2, cv=[(slice(None), slice(None))])
 gs_pes.fit([0])
 gs_nef = GridSearchCV(
     Trevor_Estimator(experiment=experiment, learning_rule=None, low_memory=True),
     param_grid=dummy_param_grid,
-    n_jobs=-1, verbose=2, cv=[(slice(None), slice(None))])
+    n_jobs=num_cpus, verbose=2, cv=[(slice(None), slice(None))])
 gs_nef.fit([0])
 
 # read errors from files
 errors = {}
 num_testing_blocks = gs_mpes.estimator.num_testing_blocks
 learn_block_time = gs_mpes.estimator.learn_block_time
-for f in glob.glob('testing_errors_*.csv'):
-    lr = re.search('testing_errors_(.*)_(.*).csv', f).group(1)
+for f in glob.glob(f'{tmp_folder}/testing_errors_*.csv'):
+    lr = re.search(f'{tmp_folder}/testing_errors_(.*)_(.*).csv', f).group(1)
     if lr not in errors:
         errors[lr] = np.empty((0, num_testing_blocks))
     errors[lr] = np.vstack((errors[lr], np.genfromtxt(f, delimiter=',')))
+
+pickle.dump(errors, open(f'{tmp_folder}/testing_errors_exp_{experiment}.pkl', 'wb'))
 
 # compute mean testing error and confidence intervals
 ci_mpes = ci(errors['mpes'])
@@ -363,9 +386,9 @@ ci_nef = ci(errors['nef'])
 size_L = 10
 size_M = 8
 size_S = 6
-fig, ax = plt.subplots(figsize=(12, 10), dpi=72)
-fig.set_size_inches((3.5, 3.5 * ((5. ** 0.5 - 1.0) / 2.0)))
-# fig.suptitle(exp_name, fontsize=size_L)
+fig, ax = plt.subplots(figsize=(12, 10), dpi=300)
+# fig.set_size_inches((3.5, 3.5 * ((5. ** 0.5 - 1.0) / 2.0)))
+fig.suptitle(experiment_dict[experiment], fontsize=size_L)
 ax.set_ylabel("Total error", fontsize=size_M)
 ax.set_xlabel("Seconds", fontsize=size_M)
 ax.tick_params(axis='x', labelsize=size_S)
@@ -388,11 +411,29 @@ ax.fill_between(x, ci_nef[1], ci_nef[2], alpha=0.5, color="r")
 ax.fill_between(x, ci_mpes[1], ci_mpes[2], alpha=0.3, color="g")
 
 # -- plot linear regression too
-for y, col in zip([ci_mpes[0], ci_pes[0], ci_nef[0]], ['g', 'b', 'r']):
+txt_anchor = ''
+for y, col, lr in zip([ci_mpes[0], ci_pes[0], ci_nef[0]], ['g', 'b', 'r'], ['mPES', 'PES', 'NEF']):
     coef = np.polyfit(x, y, 1)
     poly1d_fn = np.poly1d(coef)
     ax.plot(x, poly1d_fn(x), f'--{col}')
+    print(f'{lr} learning linear regression slope: {np.polyder(poly1d_fn)[0]}')
+    txt_anchor += f'{lr} slope: {np.polyder(poly1d_fn)[0]:.2f}\n'
 
-ax.legend(loc="best", fontsize=size_S)
+anchored_text = AnchoredText(txt_anchor[:-1], loc=2)
+ax.add_artist(anchored_text)
+
+ax.legend(loc="best", fontsize=size_M)
 fig.tight_layout()
 fig.show()
+fig.savefig(f'{tmp_folder}/testing_errors_exp_{experiment}.png', dpi=300)
+
+while True:
+    save = input('Save results? (y/n)')
+    if save == 'y':
+        os.rename(f'{tmp_folder}/testing_errors_exp_{experiment}.pkl', f'./testing_errors_exp_{experiment}_SAVED.pkl')
+        os.rename(f'{tmp_folder}/testing_errors_exp_{experiment}.png', f'./testing_errors_exp_{experiment}_SAVED.png')
+        break
+    elif save == 'n':
+        cleanup()
+    else:
+        print("Please enter 'y' or 'n'")

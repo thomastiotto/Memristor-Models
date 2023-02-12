@@ -235,17 +235,21 @@ cv = 3
 experiment = 'params'
 # -- define grid search parameters
 if experiment == 'params':
-    param_grid = {
+    param_grid = [{
         'gain': np.logspace(np.rint(3).astype(int), np.rint(6).astype(int),
                             num=np.rint(num_par).astype(int)),
-        'probability': [0.01, 0.1],
-        'voltages': [[-1, 0.25], [-1, 0.025]]
-    }
-    fine_search = True
+        'probabilities': [[1, 0.01]],
+        'voltages': [[-1, 0.25]]
+    },
+        {'gain': np.logspace(np.rint(3).astype(int), np.rint(6).astype(int),
+                             num=np.rint(num_par).astype(int)),
+         'probabilities': [[1, 0.1]],
+         'voltages': [[-1, 0.025]]
+         }]
+    fine_search = False
 elif experiment == 'noise':
     param_grid = {
         'noise': [0.0, 0.15, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-        # 'noise': [0.8]
     }
     fine_search = False
 elif experiment == 'gain':
@@ -255,7 +259,7 @@ elif experiment == 'gain':
     }
     fine_search = True
 
-estimate_search_time(mPES_Estimator(), param_grid, cv, 2)
+estimate_search_time(mPES_Estimator(), param_grid, cv, 2 if fine_search else 1)
 
 print('Initial search')
 print('Param grid:', param_grid)
@@ -282,7 +286,7 @@ if fine_search:
 
     print('Fine search')
     gs_fine = GridSearchCV(mPES_Estimator(low_memory=True), param_grid=param_grid_fine, n_jobs=-1, verbose=3, cv=cv)
-    gs_fine.fit(np.zeros(30000))
+    gs_fine.fit(np.zeros(cv))
     print('Best parameters:', gs_fine.best_params_)
     print('Best score:', gs_fine.best_score_)
     pd_results_fine = pd.DataFrame(gs_fine.cv_results_)

@@ -234,16 +234,18 @@ print('\nNEW MODEL - REGRESS VOLTAGES WITH LIMIT ON DR:')
 iterate_yakopcic(find_voltages.x[0], find_voltages.x[1], 1, 1, new_model_pack,
                  plot_output=True, print_output=True)
 
+# I'm hand-defining this based on the result of previous regression which gives ~2.5 mV setV
+setV = 0.0025
 find_probabilities = optimize.minimize(residuals_probabilities,
                                        # x0=[find_voltages.x[0], find_voltages.x[1]],
                                        x0=[1, 1],
-                                       args=(-1, 0.25, new_model_pack),
+                                       args=(-1, setV, new_model_pack),
                                        bounds=((0, 1), (0, 1)),
                                        constraints=(
                                            {'type': 'ineq',
                                             'fun': constraint_DR_probabilities,
                                             'args': (
-                                                -1, 0.25, new_model_pack,
+                                                -1, setV, new_model_pack,
                                                 DR_old_model)},
                                            # {'type': 'ineq',
                                            #  'fun': constraint_V,
@@ -252,7 +254,7 @@ find_probabilities = optimize.minimize(residuals_probabilities,
                                        options={'disp': False}
                                        )
 print('\nNEW MODEL - REGRESS PROBABILITIES WITH LIMIT ON DR:')
-iterate_yakopcic(-1, 0.25, find_probabilities.x[0], find_probabilities.x[1],
+iterate_yakopcic(-1, setV, find_probabilities.x[0], find_probabilities.x[1],
                  new_model_pack, plot_output=True, print_output=True)
 
 find_voltages_probabilities = optimize.minimize(residuals_voltages_probabilities,

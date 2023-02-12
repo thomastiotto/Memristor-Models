@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timedelta
 import os
 import time
 
@@ -94,8 +94,6 @@ def heatmap_onestep(probe, t=-1, title="Weights after learning"):
 
 
 def generate_heatmap(probe, folder, sampled_every, num_samples=None):
-    from datetime import datetime
-
     if probe.shape[1] > 100:
         print("Too many neurons to generate heatmap")
         return
@@ -510,7 +508,7 @@ def make_timestamped_dir(root=None, make_subfolders=False):
     if root.endswith("/"):
         root = root[:-1]
 
-    time_string = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+    time_string = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
     dir_name = root + "/" + time_string + "/"
     if os.path.isdir(dir_name):
         raise FileExistsError("The directory already exists")
@@ -629,7 +627,10 @@ def ci(data, confidence=0.95):
         np.mean(data, axis=0) - z * np.std(data, axis=0) / np.sqrt(len(data))
 
 
-def estimate_search_time(estimator, param_grid, cv, repeat=1):
+def estimate_search_time(estimator, param_grid, cv, num_cpus=-1, repeat=1):
+    if not isinstance(param_grid, list):
+        param_grid = [param_grid]
+
     print('Evaluating execution time')
     # -- estimate execution time
     start = time.time()
@@ -637,19 +638,24 @@ def estimate_search_time(estimator, param_grid, cv, repeat=1):
     time_iteration = time.time() - start
 
     num_params = 0
-    for k, v in param_grid.items():
-        num_params += len(v)
-    num_cpus = os.cpu_count()
+    for p in param_grid:
+        num_params_p = 1
+        for k, v in p.items():
+            num_params_p *= len(v)
+        num_params += num_params_p
+    if num_cpus == -1:
+        num_cpus = os.cpu_count()
     num_cv_iteration = (num_params * cv) // num_cpus
     time_iterations = num_cv_iteration * time_iteration * repeat
 
     print(f'Estimated time for 1 iteration: {time_iteration:.2f} seconds')
     if repeat == 1:
-        print(f'Estimated time for {num_params} parameters on {num_cpus} cores: {time_iterations / 60:.2f} minutes')
+        print(
+            f'Estimated time for {num_params} parameters, on {num_cpus} cores, with {cv}-fold cv: {time_iterations / 60:.2f} minutes')
     else:
         print(
-            f'Estimated time for {num_params} parameters on {num_cpus} cores repeated {repeat} times: {time_iterations / 60:.2f} minutes')
-    print('Estimated end time:', datetime.datetime.now() + datetime.timedelta(seconds=time_iterations))
+            f'Estimated time for {num_params} parameters, on {num_cpus} cores, with {cv}-fold cv, repeated {repeat} times: {time_iterations / 60:.2f} minutes')
+    print('Estimated end time:', datetime.now() + timedelta(seconds=time_iterations))
 
 
 # TODO when only giving SET pulses, the average length of consecutive SET pulses is 5

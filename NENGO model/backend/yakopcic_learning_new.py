@@ -106,7 +106,7 @@ class mPES(LearningRuleType):
                  pre_synapse=Default,
                  noise_percentage=0.15,
                  # gain found with mPES_grid_search.py
-                 gain=2153,
+                 gain=10000,
                  initial_state=None,
                  seed=None,
                  strategy='symmetric-probabilistic',
