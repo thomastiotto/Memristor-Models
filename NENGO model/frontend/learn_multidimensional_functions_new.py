@@ -19,9 +19,12 @@ from yakopcic_learning_new import mPES
 
 
 def cleanup(exit_code=None, frame=None):
-    print("Cleaning up leftover files...")
-    # delete tmp folder
-    shutil.rmtree(tmp_folder)
+    try:
+        print("Cleaning up leftover files...")
+        # delete tmp folder
+        shutil.rmtree(tmp_folder)
+    except FileNotFoundError:
+        pass
 
 
 atexit.register(cleanup)
@@ -344,9 +347,16 @@ dummy_param_grid = {
 }
 print(f"Param grid/seeds: {dummy_param_grid}")
 
-# estimate_search_time(Trevor_Estimator(experiment=experiment, learn
-# ing_rule=mPES()), dummy_param_grid,
-#                      num_cpus=num_cpus, cv=1, repeat=iterations)
+while True:
+    estimate_time = input('Estimate time? (y/n): ')
+    if estimate_time == 'y':
+        estimate_search_time(Trevor_Estimator(experiment=experiment, learning_rule=mPES(low_memory=True)),
+                             dummy_param_grid,
+                             num_cpus=num_cpus, cv=1, repeat=iterations)
+    elif estimate_time == 'n':
+        break
+    else:
+        print('Invalid input. Please try again.')
 
 """[(slice(None), slice(None))] is a hack to make GridSearchCV use only one CV fold"""
 gs_mpes = GridSearchCV(
@@ -432,8 +442,10 @@ while True:
     if save == 'y':
         os.rename(f'{tmp_folder}/testing_errors_exp_{experiment}.pkl', f'./testing_errors_exp_{experiment}_SAVED.pkl')
         os.rename(f'{tmp_folder}/testing_errors_exp_{experiment}.png', f'./testing_errors_exp_{experiment}_SAVED.png')
-        break
+        cleanup()
+        exit()
     elif save == 'n':
         cleanup()
+        exit()
     else:
         print("Please enter 'y' or 'n'")

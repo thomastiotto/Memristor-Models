@@ -36,7 +36,7 @@ parser.add_argument('-st', '--strategy', default='symmetric-probabilistic',
 # parser.add_argument('-sp', '--')
 parser.add_argument("-b", "--backend", default="nengo_core", choices=["nengo_dl", "nengo_core"])
 parser.add_argument("-o", "--optimisations", default="run", choices=["run", "build", "memory"])
-parser.add_argument("-s", "--seed", default=None, type=int)  # Can use seed = 13 for quick check
+parser.add_argument("-s", "--seed", default=None, type=int)
 parser.add_argument("--plot", default=0, choices=[0, 1, 2, 3], type=int,
                     help="0: No visual output, 1: Show plots, 2: Save plots, 3: Save data")
 parser.add_argument("--verbosity", default=2, choices=[0, 1, 2], type=int,

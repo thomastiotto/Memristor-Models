@@ -631,7 +631,7 @@ def estimate_search_time(estimator, param_grid, cv, num_cpus=-1, repeat=1):
     if not isinstance(param_grid, list):
         param_grid = [param_grid]
 
-    print('Evaluating execution time')
+    print('Running one interation to evaluate overall execution time...')
     # -- estimate execution time
     start = time.time()
     estimator.fit([0], verbose=True)
