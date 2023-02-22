@@ -1,12 +1,14 @@
-from yakopcic_functions import *
-from yakopcic_model import *
+import json
+
+from functions import *
+from old_functions import *
 from experiment_setup import *
 from scipy import interpolate
 import argparse
 import pandas as pd
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-f", "--file", default='input.txt', help="File containing the voltage pulses to simulate.")
+parser.add_argument("-f", "--file", default='input_iv.txt', help="File containing the voltage pulses to simulate.")
 args = parser.parse_args()
 
 # the model that works for pulses does not wortk for I-V
@@ -30,11 +32,12 @@ model = {'An': 0.02662694665,
          'xn': 0.1433673316,
          'xp': 0.11}
 model = Memristor_Alina
+model = json.load(open('../../fitted/fitting_pulses/new_device/mystery_model'))
 sim_mode = 0
 
 if sim_mode == 0:
     ### Main implementation.
-    iptVs = startup2(input_iv)
+    iptVs = startup2(new_input_iv)
     time, v = interactive_iv(iptVs, model['dt'])
     ###
 
@@ -76,10 +79,10 @@ i = current(v, x, model['gmax_p'], model['bmax_p'], model['gmax_n'], model['bmax
             model['bmin_p'], model['gmin_n'], model['bmin_n'])
 r = np.divide(v, i, out=np.zeros(v.shape, dtype=float), where=i != 0)
 
-fig_plot = plot_images(time, v, i, r, x, f'-2 V / +1 V', plot_type='iv')
-fig_plot.show()
-fig_debug = plot_images(time, v, i, r, x, f'-2 V / +1 V', plot_type='debug', model=model)
-fig_debug.show()
+fig_plot = plot_images(0, time, v, i, r, x)
+#fig_plot.show()
+#fig_debug = plot_images(0, time, v, i, r, x, f'-2 V / +1 V', model=model)
+#fig_debug.show()
 
 
 def find_nearest(array, value, range=None, exclude=None):
