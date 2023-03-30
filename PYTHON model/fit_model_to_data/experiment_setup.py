@@ -58,7 +58,7 @@ Memristor_Thomas["An"] = Memristor_Thomas["An"] / dt_ratio
 print('Thomas Ap', Memristor_Thomas["Ap"])
 print('Thomas An', Memristor_Thomas["An"])
 
-dt_nengo = 1e-3  # Nengo timestep
+dt_nengo = 1e-4  # Nengo timestep
 # Adjust amplitudes
 # Memristor_Alina["Ap"]=Memristor_Alina["Ap"] * 10
 # Memristor_Alina["An"]=Memristor_Alina["An"] * 10
@@ -72,3 +72,5 @@ Memristor_Alina["dt"] = dt_nengo
 # .001 .001 .001 .4 6 -.1 10""" # Duration: 0.1s; Reading: 0.4s (default); RESET magnitude: -8V.
 input_iv = """10 0.00 10 0.00 1 0 1
 15 0.00 15 0.00 -2 0 1"""  # Duration: 0.1s; Reading: 0.4s (default); SET magnitude: +6V.
+new_input_iv = """10 0.00 0 0.00 1 0 1\n0 0.00 25 0 1 -2 1\n0 0.00 15 0.00 -2 0 1"""
+# Better replication of the iv input above.
