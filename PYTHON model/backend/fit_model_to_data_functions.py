@@ -179,7 +179,8 @@ def find_peaks(r, voltage, readV, consider_from, x=None, dt=0.001, debug=False):
     return peaks
 
 
-def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='pulse', show_peaks=False, dt=0.001,
+def plot_images(time, voltage, i, r, x, label=None, title=None, readV=None, fig=None, plot_type='pulse',
+                show_peaks=False, dt=0.001,
                 model=None, consider_from=None, peaks_consider_from=None, unit='Resistance'):
     assert unit in ['Resistance', 'Conductance']
     if unit == 'Conductance':
@@ -213,8 +214,10 @@ def plot_images(time, voltage, i, r, x, label, readV=None, fig=None, plot_type='
         ax_plot[0].set_yscale("log")
         ax_plot[0].set_xlabel("Pulse number")
         ax_plot[0].set_ylabel(f"{unit}")
-        ax_plot[0].set_title(f"{unit} peaks after long initial SET")
-        ax_plot[0].legend(loc='best')
+        if title:
+            ax_plot[0].set_title(f"{unit} peaks after long initial SET")
+        if label:
+            ax_plot[0].legend(loc='best')
 
         fig_plot.tight_layout()
 

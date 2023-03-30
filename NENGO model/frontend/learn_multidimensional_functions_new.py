@@ -105,6 +105,8 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
             self.sim_time = 400
             self.img_name = '3d_cconv'
 
+        # TODo changed
+        # self.sim_time /= 2
         self.learn_block_time = 2.5
         # to have an extra testing block at t=[0,2.5]
         self.sim_time += self.learn_block_time
@@ -209,7 +211,7 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
             self.post_probe = nengo.Probe(self.model.post, synapse=0.01)
             self.ground_truth_probe = nengo.Probe(self.model.ground_truth, synapse=0.01)
             # self.weights_probe = nengo.Probe(self.model.conn, 'weights', synapse=None)
-            # self.model.error_probe = nengo.Probe(self.model.error, synapse=0.01)
+            # self.error_probe = nengo.Probe(self.model.error, synapse=0.01)
         self.sim = nengo.Simulator(self.model, progress_bar=verbose)
 
         # hacky way to get the mPES operator and the initial memristor weights from it
@@ -337,8 +339,9 @@ experiment_dict = {
     5: "Three-dimensional circular convolution"
 }
 
+# TODO changed
 iterations = 10
-num_cpus = -1
+num_cpus = 10
 print(f"Experiment: {experiment_dict[experiment]} ({experiment})")
 
 seed = np.random.randint(0, 2 ** 32 - 1)
@@ -443,9 +446,9 @@ while True:
         os.rename(f'{tmp_folder}/testing_errors_exp_{experiment}.pkl', f'./testing_errors_exp_{experiment}_SAVED.pkl')
         os.rename(f'{tmp_folder}/testing_errors_exp_{experiment}.png', f'./testing_errors_exp_{experiment}_SAVED.png')
         cleanup()
-        exit()
+        break
     elif save == 'n':
         cleanup()
-        exit()
+        break
     else:
         print("Please enter 'y' or 'n'")

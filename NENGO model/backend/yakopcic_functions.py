@@ -70,8 +70,13 @@ def get_truncated_normal(mean, sd, low, upp, out_size, in_size):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         try:
-            return truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd) \
+            res = truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd) \
                 .rvs(out_size * in_size) \
                 .reshape((out_size, in_size))
         except (ZeroDivisionError, ValueError):
-            return np.full((out_size, in_size), mean)
+            res = np.full((out_size, in_size), mean)
+
+        if out_size == 1 and in_size == 1:
+            res = res[0, 0]
+
+        return res

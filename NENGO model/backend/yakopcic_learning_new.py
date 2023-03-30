@@ -16,7 +16,6 @@ from yakopcic_functions import *
 
 def initialise_yakopcic_model(noise_percentage, encoders, acts, seed):
     np.random.seed(seed)
-    # TODO grade noise based on sensitivity analysis
     # -- parameters fund with pulse_experiment_1s_to_1ms.py
     yakopcic_model = json.load(open('../../fitted/fitting_pulses/new_device/mystery_model'))
 
@@ -106,7 +105,8 @@ class mPES(LearningRuleType):
                  pre_synapse=Default,
                  noise_percentage=0.15,
                  # gain found with mPES_grid_search.py
-                 gain=10000,
+                 # TODO change back to 2153
+                 gain=1e6,
                  initial_state=None,
                  seed=None,
                  strategy='symmetric-probabilistic',
