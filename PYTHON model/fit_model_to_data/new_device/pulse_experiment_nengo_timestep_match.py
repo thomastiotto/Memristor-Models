@@ -66,10 +66,10 @@ time_gt, voltage_gt, i_gt, r_gt, x_gt = model_sim_with_params(pulse_length=progr
 peaks_gt = find_peaks(r_gt, voltage_gt, readV, 0, dt=model['dt'])
 fig_plot_fit_electron, ax = plt.subplots(1, 1, figsize=(6, 5))
 ax.plot(data, 'o', label='Data')
-fig_plot_fit_electron = plot_images(time_gt, voltage_gt, i_gt, r_gt, x_gt, f'Model', readV,
-                                    fig_plot_fit_electron, dt=model['dt'])
+fig_plot_fit_electron = plot_images(time_gt, voltage_gt, i_gt, r_gt, x_gt, label=f'Model', readV=readV,
+                                    fig=fig_plot_fit_electron, dt=model['dt'])
 fig_plot_fit_electron.show()
-fig_plot_opt_debug = plot_images(time_gt, voltage_gt, i_gt, r_gt, x_gt, f'{resetV} V / {setV} V', readV,
+fig_plot_opt_debug = plot_images(time_gt, voltage_gt, i_gt, r_gt, x_gt, label=f'{resetV} V / {setV} V', readV=readV,
                                  plot_type='debug', model=model, show_peaks=True, dt=model['dt'])
 fig_plot_opt_debug.show()
 print(
@@ -96,14 +96,14 @@ time_opt, voltage_opt, i_opt, r_opt, x_opt = model_sim_with_params(pulse_length=
                                                                    init_set_length=0, init_setV=0,
                                                                    **model)
 fig_plot_opt = plot_images(time_gt, voltage_gt, i_gt, r_gt, x_gt,
-                           f'Model (WRITE {program_time} s / READ {read_time} s)', readV,
-                           fig_plot_opt)
+                           label=f'Model (WRITE {program_time} s / READ {read_time} s)', readV=readV,
+                           fig=fig_plot_opt)
 fig_plot_opt = plot_images(time_opt, voltage_opt, i_opt, r_opt, x_opt,
-                           f'Model (WRITE {nengo_program_time} s / READ {nengo_read_time} s)',
-                           readV,
-                           fig_plot_opt)
+                           label=f'Model (WRITE {nengo_program_time} s / READ {nengo_read_time} s)',
+                           readV=readV,
+                           fig=fig_plot_opt)
 fig_plot_opt.show()
-fig_plot_opt_debug = plot_images(time_opt, voltage_opt, i_opt, r_opt, x_opt, f'{resetV} V / {setV} V', readV,
+fig_plot_opt_debug = plot_images(time_opt, voltage_opt, i_opt, r_opt, x_opt, label=f'{resetV} V / {setV} V', readV=readV,
                                  plot_type='debug', model=model, show_peaks=True,
                                  dt=model['dt'])
 fig_plot_opt_debug.show()

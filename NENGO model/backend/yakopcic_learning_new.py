@@ -105,15 +105,14 @@ class mPES(LearningRuleType):
                  pre_synapse=Default,
                  noise_percentage=0.15,
                  # gain found with mPES_grid_search.py
-                 # TODO change back to 2153
-                 gain=1e6,
+                 gain=2153,
                  initial_state=None,
                  seed=None,
                  strategy='symmetric-probabilistic',
                  # probabilities found with percentage_change_resistance_new.py
                  resetP=1,
                  setP=0.01,
-                 # voltages found in percentage_change_resistance_new.py
+                 # voltages found in .py
                  resetV=-1,
                  setV=0.25,
                  readV=-0.01,

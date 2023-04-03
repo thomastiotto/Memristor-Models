@@ -42,7 +42,7 @@ data = np.loadtxt('../../../raw_data/pulses/new_device/Sp1V_RSm2V_Rm500mV_proces
 data = readV / data
 
 fig_plot_opt, ax_plot = plt.subplots(1, 1, figsize=(6, 5))
-for i in range(0, 100):
+for i in range(0, 10):
     perturbed_model = copy.deepcopy(model)
     for key in perturbed_model:
         if key not in ['dt', 'eta']:
@@ -62,3 +62,23 @@ for i in range(0, 100):
                                readV=readV,
                                fig=fig_plot_opt)
 fig_plot_opt.show()
+
+time_opt, voltage_opt, i_opt, r_opt, x_opt = model_sim_with_params(pulse_length=nengo_program_time,
+                                                                   resetV=-6.640464569013251,
+                                                                   numreset=num_reset_pulses,
+                                                                   setV=5.016534745455379, numset=num_set_pulses,
+                                                                   readV=readV, read_length=nengo_read_time,
+                                                                   init_set_length=0, init_setV=0,
+                                                                   **model)
+
+fig_plot, ax = plt.subplots(1, 1, figsize=(6, 5))
+ax.plot(data, 'o',label='data')
+fig_plot = plot_images(time_opt, voltage_opt, i_opt, r_opt, x_opt,
+                           readV=readV,
+                       fig=fig_plot)
+
+peaks_opt = find_peaks(r_opt, voltage_opt, readV, 0, dt=model['dt'])
+# compute error between model and data
+print(
+    f'Average error from data: {order_of_magnitude.convert(np.round(np.mean(data - peaks_opt), 2), scale="mega")[0]} MOhm ({np.round(absolute_mean_percent_error(data, peaks_opt), 2)} %)')
+fig_plot.show()
