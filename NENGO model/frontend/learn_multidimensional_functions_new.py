@@ -105,8 +105,7 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
             self.sim_time = 400
             self.img_name = '3d_cconv'
 
-        # TODo changed
-        # self.sim_time /= 2
+
         self.learn_block_time = 2.5
         # to have an extra testing block at t=[0,2.5]
         self.sim_time += self.learn_block_time
@@ -307,6 +306,7 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
 
     def energy_consumption(self):
         assert self.results_ready, "You must call fit() before calling power_consumption()"
+        assert not self.low_memory, "You must set low_memory=True before calling plot()"
 
         mpes_op = get_operator_from_sim(self.sim, 'SimmPES')
 
@@ -339,7 +339,6 @@ experiment_dict = {
     5: "Three-dimensional circular convolution"
 }
 
-# TODO changed
 iterations = 10
 num_cpus = 10
 print(f"Experiment: {experiment_dict[experiment]} ({experiment})")
