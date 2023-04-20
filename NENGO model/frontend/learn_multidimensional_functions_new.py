@@ -1,3 +1,4 @@
+import argparse
 import glob
 import atexit
 import pickle
@@ -17,6 +18,12 @@ from nengo.processes import WhiteSignal
 from extras import *
 from yakopcic_learning_new import mPES
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-E", "--experiment",type=int, default=None, help="Experiment number")
+parser.add_argument('-I','--iterations', type=int, default=10, help='Number of iterations')
+args = parser.parse_args()
+experiment = args.experiment
+iterations = args.iterations
 
 def cleanup(exit_code=None, frame=None):
     try:
@@ -322,14 +329,14 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
                 self.num_pos_set + self.num_pos_reset + self.num_neg_set + self.num_neg_reset)
         print(f'Average energy consumption per pulse {order_of_magnitude.prefix(self.energy_per_pulse)[2]}J')
 
-
-while True:
-    experiment = input('Choose an experiment (1-5): ')
-    if experiment in ['1', '2', '3', '4', '5']:
-        break
-    else:
-        print('Invalid input. Please try again.')
-experiment = int(experiment)
+if experiment is None:
+    while True:
+        experiment = input('Choose an experiment (1-5): ')
+        if experiment in ['1', '2', '3', '4', '5']:
+            break
+        else:
+            print('Invalid input. Please try again.')
+    experiment = int(experiment)
 
 experiment_dict = {
     1: "Multiplying two numbers",
@@ -339,8 +346,7 @@ experiment_dict = {
     5: "Three-dimensional circular convolution"
 }
 
-iterations = 10
-num_cpus = 10
+num_cpus = -1
 print(f"Experiment: {experiment_dict[experiment]} ({experiment})")
 
 seed = np.random.randint(0, 2 ** 32 - 1)
