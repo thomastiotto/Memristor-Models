@@ -120,6 +120,7 @@ class mPES(LearningRuleType):
                  program_length=7,
                  read_length=3,
                  low_memory=False,
+                 read_enabled=True,
                  verbose=True):
         super().__init__(size_in="post_state")
 
@@ -133,6 +134,7 @@ class mPES(LearningRuleType):
         self.pre_synapse = pre_synapse
         self.noise_percentage = noise_percentage
         self.low_memory = low_memory
+        self.read_enabled = read_enabled
         self.seed = seed
         self.initial_state = {} if initial_state is None else initial_state
 
@@ -229,6 +231,7 @@ class SimmPES(Operator):
             read_length,
             low_memory,
             seed,
+            read_enabled,
             tag=None
     ):
         super(SimmPES, self).__init__(tag=tag)
@@ -286,6 +289,7 @@ class SimmPES(Operator):
         self.initial_state = initial_state
         self.low_memory = low_memory
         self.seed = seed
+        self.read_enabled=read_enabled
 
         if not self.low_memory:
             self.pos_pulse_archive = []
@@ -470,7 +474,7 @@ class SimmPES(Operator):
                     self.neg_pulse_archive.append(ts_neg_pulses)
 
             # -- reading cycles.  We take the mean of the currents over the number of reading cycles to get the overall current
-            if self.readV!=0:
+            if self.read_enabled:
                 x_pos_currents = []
                 x_neg_currents = []
                 for _ in range(self.read_length):
@@ -634,7 +638,7 @@ def build_mpes(model, mpes, rule):
                 An_pos, Ap_pos, x_pos, xn_pos, xp_pos, bmax_n_neg, bmax_p_neg, bmin_n_neg, bmin_p_neg, gmax_n_neg,
                 gmax_p_neg, gmin_n_neg, gmin_p_neg, Vn_neg, Vp_neg, alphan_neg, alphap_neg, An_neg, Ap_neg, x_neg,
                 xn_neg, xp_neg, mpes.initial_state, mpes.setP, mpes.resetP, mpes.setV, mpes.resetV, mpes.readV, dt,
-                mpes.high_precision, program_length, read_length, mpes.low_memory, mpes.seed)
+                mpes.high_precision, program_length, read_length, mpes.low_memory, mpes.seed,mpes.read_enabled)
     )
 
     # expose these for probes

@@ -28,6 +28,7 @@ parser.add_argument('--setV', type=float, default=0.25, help='Set voltage for th
 parser.add_argument('--readV', type=float, default=-0.01, help='Read value for the learning rule')
 parser.add_argument('--resetP', type=float, default=1, help='Reset probability for the learning rule')
 parser.add_argument('--setP', type=float, default=0.01, help='Set probability for the learning rule')
+parser.add_argument('--read_disabled', action='store_false', default=True,help='Disable reading cycles on memristors')
 args = parser.parse_args()
 experiment = args.experiment
 iterations = args.iterations
@@ -38,6 +39,8 @@ setV = args.setV
 readV = args.readV
 resetP = args.resetP
 setP = args.setP
+read_enabled = args.read_disabled
+
 
 def cleanup(exit_code=None, frame=None):
     try:
@@ -390,7 +393,8 @@ gs_mpes = GridSearchCV(
                  setP=setP,
                  resetV=resetV,
                  setV=setV,
-                 readV=readV), low_memory=True),
+                 readV=readV,
+    read_enabled=read_enabled), low_memory=True),
     param_grid=dummy_param_grid,
     n_jobs=num_cpus, verbose=2, cv=[(slice(None), slice(None))])
 gs_mpes.fit([0])
