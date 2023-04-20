@@ -470,43 +470,52 @@ class SimmPES(Operator):
                     self.neg_pulse_archive.append(ts_neg_pulses)
 
             # -- reading cycles.  We take the mean of the currents over the number of reading cycles to get the overall current
-            x_pos_currents = []
-            x_neg_currents = []
-            for _ in range(self.read_length):
-                x_pos[:] = yakopcic_update(
-                    self.readV * np.ones_like(x_pos),
-                    x_pos,
-                    1,
-                    self.Ap_pos,
-                    self.An_pos,
-                    self.Vp_pos,
-                    self.Vn_pos,
-                    self.alphap_pos,
-                    self.alphan_pos,
-                    self.xp_pos,
-                    self.xn_pos)
-                x_neg[:] = yakopcic_update(
-                    self.readV * np.ones_like(x_neg),
-                    x_neg,
-                    1,
-                    self.Ap_neg,
-                    self.An_neg,
-                    self.Vp_neg,
-                    self.Vn_neg,
-                    self.alphap_neg,
-                    self.alphan_neg,
-                    self.xp_neg,
-                    self.xn_neg)
-                x_pos_currents.append(x_pos)
-                x_neg_currents.append(x_neg)
+            if self.readV!=0:
+                x_pos_currents = []
+                x_neg_currents = []
+                for _ in range(self.read_length):
+                    x_pos[:] = yakopcic_update(
+                        self.readV * np.ones_like(x_pos),
+                        x_pos,
+                        self.read_length,
+                        self.Ap_pos,
+                        self.An_pos,
+                        self.Vp_pos,
+                        self.Vn_pos,
+                        self.alphap_pos,
+                        self.alphan_pos,
+                        self.xp_pos,
+                        self.xn_pos)
+                    x_neg[:] = yakopcic_update(
+                        self.readV * np.ones_like(x_neg),
+                        x_neg,
+                        self.read_length,
+                        self.Ap_neg,
+                        self.An_neg,
+                        self.Vp_neg,
+                        self.Vn_neg,
+                        self.alphap_neg,
+                        self.alphan_neg,
+                        self.xp_neg,
+                        self.xn_neg)
+                    x_pos_currents.append(x_pos)
+                    x_neg_currents.append(x_neg)
 
-            # -- calculate the current through the devices
-            i_pos = current(self.readV, np.mean(x_pos_currents, axis=0), self.gmax_p_pos, self.bmax_p_pos,
-                            self.gmax_n_pos, self.bmax_n_pos, self.gmin_p_pos, self.bmin_p_pos, self.gmin_n_pos,
-                            self.bmin_n_pos)
-            i_neg = current(self.readV, np.mean(x_neg_currents, axis=0), self.gmax_p_neg, self.bmax_p_neg,
-                            self.gmax_n_neg, self.bmax_n_neg, self.gmin_p_neg, self.bmin_p_neg, self.gmin_n_neg,
-                            self.bmin_n_neg)
+                # -- calculate the current through the devices
+                i_pos = current(self.readV, np.mean(x_pos_currents, axis=0), self.gmax_p_pos, self.bmax_p_pos,
+                                self.gmax_n_pos, self.bmax_n_pos, self.gmin_p_pos, self.bmin_p_pos, self.gmin_n_pos,
+                                self.bmin_n_pos)
+                i_neg = current(self.readV, np.mean(x_neg_currents, axis=0), self.gmax_p_neg, self.bmax_p_neg,
+                                self.gmax_n_neg, self.bmax_n_neg, self.gmin_p_neg, self.bmin_p_neg, self.gmin_n_neg,
+                                self.bmin_n_neg)
+            else:
+                # -- calculate the current through the devices
+                i_pos = current(self.readV, x_pos, self.gmax_p_pos, self.bmax_p_pos,
+                                self.gmax_n_pos, self.bmax_n_pos, self.gmin_p_pos, self.bmin_p_pos, self.gmin_n_pos,
+                                self.bmin_n_pos)
+                i_neg = current(self.readV, x_neg, self.gmax_p_neg, self.bmax_p_neg,
+                                self.gmax_n_neg, self.bmax_n_neg, self.gmin_p_neg, self.bmin_p_neg, self.gmin_n_neg,
+                                self.bmin_n_neg)
             # i_pos = np.clip(i_pos, 1e-9, np.inf)
             # i_neg = np.clip(i_neg, 1e-9, np.inf)
             # min_current = np.min([np.min(x_pos_currents), np.min(x_neg_currents)])

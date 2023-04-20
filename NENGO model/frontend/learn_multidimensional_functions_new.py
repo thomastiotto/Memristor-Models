@@ -22,6 +22,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-E", "--experiment",type=int, default=None, help="Experiment number")
 parser.add_argument('-I','--iterations', type=int, default=10, help='Number of iterations')
 parser.add_argument('--gain', type=float, default=2153, help='Gain for the learning rule')
+parser.add_argument('--noise', type=float, default=0.15, help='Noise for the learning rule')
 parser.add_argument('--resetV', type=float, default=-1, help='Reset voltage for the learning rule')
 parser.add_argument('--setV', type=float, default=0.25, help='Set voltage for the learning rule')
 parser.add_argument('--readV', type=float, default=-0.01, help='Read value for the learning rule')
@@ -30,6 +31,7 @@ parser.add_argument('--setP', type=float, default=0.01, help='Set probability fo
 args = parser.parse_args()
 experiment = args.experiment
 iterations = args.iterations
+noise = args.noise
 gain = args.gain
 resetV = args.resetV
 setV = args.setV
@@ -358,12 +360,6 @@ experiment_dict = {
     5: "Three-dimensional circular convolution"
 }
 
-gain=None
-resetP=None
-setP=None
-resetV=None
-setV=None
-readV=None
 num_cpus = -1
 print(f"Experiment: {experiment_dict[experiment]} ({experiment})")
 
@@ -389,6 +385,7 @@ gs_mpes = GridSearchCV(
     Trevor_Estimator(experiment=experiment, learning_rule=mPES(
         low_memory=True,
                                                                gain=gain,
+        noise_percentage=noise,
                  resetP=resetP,
                  setP=setP,
                  resetV=resetV,
