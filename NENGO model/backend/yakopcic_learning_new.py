@@ -105,23 +105,30 @@ class mPES(LearningRuleType):
                  pre_synapse=Default,
                  noise_percentage=0.15,
                  # gain found with mPES_grid_search.py
-                 gain=2153,
+                 gain=None,
                  initial_state=None,
                  seed=None,
                  strategy='symmetric-probabilistic',
                  # probabilities found with percentage_change_resistance_new.py
-                 resetP=1,
-                 setP=0.01,
+                 resetP=None,
+                 setP=None,
                  # voltages found in .py
-                 resetV=-1,
-                 setV=0.25,
-                 readV=-0.01,
+                 resetV=None,
+                 setV=None,
+                 readV=None,
                  high_precision=False,
                  program_length=7,
                  read_length=3,
                  low_memory=False,
                  verbose=True):
         super().__init__(size_in="post_state")
+
+        gain = 2153 if gain is None else gain
+        resetP = 1 if resetP is None else resetP
+        setP = 0.01 if setP is None else setP
+        resetV = -1 if resetV is None else resetV
+        setV = 0.25 if setV is None else setV
+        readV = -0.01 if readV is None else readV
 
         self.pre_synapse = pre_synapse
         self.noise_percentage = noise_percentage
