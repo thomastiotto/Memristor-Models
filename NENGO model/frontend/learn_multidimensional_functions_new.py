@@ -1,44 +1,38 @@
 import argparse
-import glob
 import atexit
+import glob
 import pickle
 import re
 import shutil
 import signal
 
 from matplotlib.offsetbox import AnchoredText
-from order_of_magnitude import order_of_magnitude
-
-from sklearn.base import BaseEstimator, RegressorMixin
-from sklearn.model_selection import GridSearchCV
-
 from nengo.learning_rules import PES
 from nengo.processes import WhiteSignal
+from order_of_magnitude import order_of_magnitude
+from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.model_selection import GridSearchCV
 
 from extras import *
 from yakopcic_learning_new import mPES
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-E", "--experiment",type=int, default=None, help="Experiment number")
-parser.add_argument('-I','--iterations', type=int, default=10, help='Number of iterations')
+parser.add_argument("-E", "--experiment", type=int, default=None, help="Experiment number")
+parser.add_argument('-I', '--iterations', type=int, default=10, help='Number of iterations')
 parser.add_argument('--gain', type=float, default=2153, help='Gain for the learning rule')
 parser.add_argument('--noise', type=float, default=0.15, help='Noise for the learning rule')
-parser.add_argument('--resetV', type=float, default=-1, help='Reset voltage for the learning rule')
-parser.add_argument('--setV', type=float, default=0.25, help='Set voltage for the learning rule')
-parser.add_argument('--readV', type=float, default=-0.01, help='Read value for the learning rule')
-parser.add_argument('--resetP', type=float, default=1, help='Reset probability for the learning rule')
-parser.add_argument('--setP', type=float, default=0.01, help='Set probability for the learning rule')
-parser.add_argument('--read_disabled', action='store_false', default=True,help='Disable reading cycles on memristors')
+parser.add_argument('-v', '--voltages', nargs="*", default=[-1, 0.25, -0.01], type=float,
+                    help='Voltages for the learning rule')
+parser.add_argument('-p', '--probabilities', nargs="*", default=[1, 0.1], type=float,
+                    help='Probabilities for the learning rule')
+parser.add_argument('--read_disabled', action='store_false', default=True, help='Disable reading cycles on memristors')
 args = parser.parse_args()
 experiment = args.experiment
 iterations = args.iterations
 noise = args.noise
 gain = args.gain
-resetV = args.resetV
-setV = args.setV
-readV = args.readV
-resetP = args.resetP
-setP = args.setP
+resetV, setV, readV = args.voltages
+resetP, setP = args.probabilities
 read_enabled = args.read_disabled
 
 
@@ -126,9 +120,9 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
             self.function_to_learn = lambda x: np.fft.ifft(
                 np.fft.fft(x[:int(self.dimensions[0] / 2)]) * np.fft.fft(x[int(self.dimensions[0] / 2):])
             )
-            self.sim_time = 400
+            # TODO changed from 400 to 200
+            self.sim_time = 200
             self.img_name = '3d_cconv'
-
 
         self.learn_block_time = 2.5
         # to have an extra testing block at t=[0,2.5]
@@ -346,6 +340,7 @@ class Trevor_Estimator(BaseEstimator, RegressorMixin):
                 self.num_pos_set + self.num_pos_reset + self.num_neg_set + self.num_neg_reset)
         print(f'Average energy consumption per pulse {order_of_magnitude.prefix(self.energy_per_pulse)[2]}J')
 
+
 if experiment is None:
     while True:
         experiment = input('Choose an experiment (1-5): ')
@@ -387,14 +382,14 @@ while True:
 gs_mpes = GridSearchCV(
     Trevor_Estimator(experiment=experiment, learning_rule=mPES(
         low_memory=True,
-                                                               gain=gain,
+        gain=gain,
         noise_percentage=noise,
-                 resetP=resetP,
-                 setP=setP,
-                 resetV=resetV,
-                 setV=setV,
-                 readV=readV,
-    read_enabled=read_enabled), low_memory=True),
+        resetP=resetP,
+        setP=setP,
+        resetV=resetV,
+        setV=setV,
+        readV=readV,
+        read_enabled=read_enabled), low_memory=True),
     param_grid=dummy_param_grid,
     n_jobs=num_cpus, verbose=2, cv=[(slice(None), slice(None))])
 gs_mpes.fit([0])

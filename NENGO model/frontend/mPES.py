@@ -1,12 +1,9 @@
 import argparse
-import time
 
-from order_of_magnitude import order_of_magnitude
 from nengo.learning_rules import PES
-from nengo.params import Default
 from nengo.processes import WhiteSignal
+from order_of_magnitude import order_of_magnitude
 from sklearn.metrics import mean_squared_error
-from tqdm import tqdm
 
 from extras import *
 
@@ -33,6 +30,7 @@ parser.add_argument("-g", "--gain", default=None, type=float)
 parser.add_argument("-l", "--learning_rule", default="mPES", choices=["mPES", "PES"])
 parser.add_argument('-st', '--strategy', default='symmetric-probabilistic',
                     choices=['symmetric', 'asymmetric', 'symmetric-probabilistic', 'asymmetric-probabilistic'])
+parser.add_argument('-p', '--probabilities', nargs="*", default=[1, 1], type=float)
 # parser.add_argument('-sp', '--')
 parser.add_argument("-b", "--backend", default="nengo_core", choices=["nengo_dl", "nengo_core"])
 parser.add_argument("-o", "--optimisations", default="run", choices=["run", "build", "memory"])
@@ -89,6 +87,7 @@ dimensions = args.dimensions
 noise_percentage = args.noise
 gain = args.gain
 strategy = args.strategy
+resetP, setP = args.probabilities
 learning_rule = args.learning_rule
 backend = args.backend
 optimisations = args.optimisations
@@ -171,7 +170,8 @@ with model:
 
     # Apply the learning rule to conn
     if learning_rule == "mPES":
-        kwargs = {'noise_percentage': noise_percentage, 'gain': gain, 'strategy': strategy, 'seed': seed}
+        kwargs = {'noise_percentage': noise_percentage, 'gain': gain, 'strategy': strategy, 'seed': seed,
+                  'resetP': resetP, 'setP': setP}
         if kwargs['gain'] == None: del kwargs['gain']
         conn.learning_rule_type = mPES(**kwargs)
     if learning_rule == "PES":

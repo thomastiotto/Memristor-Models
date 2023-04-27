@@ -1,16 +1,9 @@
-import warnings
-from copy import copy
-from random import random
-
-import numpy as np
-
 from nengo.builder import Operator
-from nengo.builder.learning_rules import build_or_passthrough, get_post_ens, get_pre_ens
+from nengo.builder.learning_rules import build_or_passthrough, get_post_ens
 from nengo.learning_rules import LearningRuleType
-from nengo.params import Default, NumberParam, DictParam
+from nengo.params import Default, DictParam
 from nengo.synapses import Lowpass, SynapseParam
 
-from debug_plots import debugger_plots
 from yakopcic_functions import *
 
 
@@ -126,7 +119,7 @@ class mPES(LearningRuleType):
 
         gain = 2153 if gain is None else gain
         resetP = 1 if resetP is None else resetP
-        setP = 0.01 if setP is None else setP
+        setP = 0.1 if setP is None else setP
         resetV = -1 if resetV is None else resetV
         setV = 0.25 if setV is None else setV
         readV = -0.01 if readV is None else readV
@@ -289,7 +282,7 @@ class SimmPES(Operator):
         self.initial_state = initial_state
         self.low_memory = low_memory
         self.seed = seed
-        self.read_enabled=read_enabled
+        self.read_enabled = read_enabled
 
         if not self.low_memory:
             self.pos_pulse_archive = []
@@ -556,11 +549,10 @@ BUILDERS
 These functions link the front-end to the back-end by initialising the Signals
 """
 
-import tensorflow as tf
 from nengo.builder import Signal
 from nengo.builder.operator import Reset, DotInc, Copy
 
-from nengo_dl.builder import Builder, OpBuilder, NengoBuilder
+from nengo_dl.builder import NengoBuilder
 from nengo.builder import Builder as NengoCoreBuilder
 import json
 
@@ -638,7 +630,7 @@ def build_mpes(model, mpes, rule):
                 An_pos, Ap_pos, x_pos, xn_pos, xp_pos, bmax_n_neg, bmax_p_neg, bmin_n_neg, bmin_p_neg, gmax_n_neg,
                 gmax_p_neg, gmin_n_neg, gmin_p_neg, Vn_neg, Vp_neg, alphan_neg, alphap_neg, An_neg, Ap_neg, x_neg,
                 xn_neg, xp_neg, mpes.initial_state, mpes.setP, mpes.resetP, mpes.setV, mpes.resetV, mpes.readV, dt,
-                mpes.high_precision, program_length, read_length, mpes.low_memory, mpes.seed,mpes.read_enabled)
+                mpes.high_precision, program_length, read_length, mpes.low_memory, mpes.seed, mpes.read_enabled)
     )
 
     # expose these for probes
